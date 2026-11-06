@@ -194,8 +194,10 @@ async function castNft(p, day = '2026-11-05') {
 // whose config says a net costs test SQK (the real one and the anvil ones) adds one more line about the test SQK
 const WATCH = 'To catch, open this page in a browser with a crypto wallet (e.g. MetaMask) on the free Sepolia test network. Get free test ETH.';
 const FAUCET = 'https://cloud.google.com/application/web3/faucet/ethereum/sepolia';
-// (the real build until the v2 switch has no faucet: then no "free daily from this page"; the anvil builds have one)
-async function watchMode(p, paid = true, faucet = false) {
+// the real build says "free daily from this page" exactly when wheel/config.json names a faucet (v2 live since 11-06:
+// it does); the anvil builds pass their own value
+const REAL_FAUCET = !!JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config.json'), 'utf8')).faucetAddress;
+async function watchMode(p, paid = true, faucet = REAL_FAUCET) {
   assert.ok(await hidden(p, '#act'), 'no cast button without a wallet');
   assert.ok(!(await hidden(p, '#watch')), 'the watch line instead');
   assert.equal(await txt(p, '#watch'), WATCH + (!paid ? '' : faucet ? ' You also need 0.01 test SQK (free daily from this page).' : ' You also need 0.01 test SQK.'));
@@ -607,7 +609,7 @@ async function nftErrorScenario(chain, name, viewport, account) {
     // How it works: the 4 claw-machine steps, last night's odds, then the night and the per-night quantumness, honestly
     await p.click('#how > summary'); await sleep(200);
     assert.deepEqual(await items(p, '#howsteps > li > b'), ['Cast a net.', 'He runs.', 'The chip drops 4,000 times.', 'One drop is yours.']);
-    assert.match(await txt(p, '#howsteps'), /Before nets close at 21:00 UTC \(22:00 your time\)\. A net costs 0\.01 Squeekchain test SQK, which gets burned, and is a test NFT on Sepolia\. One net per wallet per night\. Nobody picks a hamster\./, 'the build says a net costs test SQK (no wallet: the config\'s label; no faucet in this build yet)');
+    assert.match(await txt(p, '#howsteps'), new RegExp(`Before nets close at 21:00 UTC \\(22:00 your time\\)\\. A net costs 0\\.01 Squeekchain test SQK, which gets burned${REAL_FAUCET ? " \\(free from this page, once a day\\)" : ""}, and is a test NFT on Sepolia\\. One net per wallet per night\\. Nobody picks a hamster\\.`), 'the build says a net costs test SQK (no wallet: the config\'s label and its faucet)');
     assert.match(await txt(p, '#howsteps'), /After his night ends \(12:00 UTC, 13:00 your time\) a real IBM quantum computer runs his program 4,000 times\./);
     assert.deepEqual(await p.$$eval('#oddsrows tr', (e) => e.map((r) => [...r.children].map((c) => c.textContent))), [
       ['Legendary', 'none: the first drop was not on the Epic', '0', '0%'], ...[3, 2, 1, 0].map((t) => { const sp = NUMS.filter((s) => ref4.tiers[+s] === t + 1); return [QW.TIER_NAMES[t], sp.map((s) => 'No. ' + s).join(', '), by[t].toLocaleString('en-US'), QW.pctText(by[t] / 4000)]; }),
@@ -620,7 +622,7 @@ async function nftErrorScenario(chain, name, viewport, account) {
     assert.match(await txt(p, '#qnote'), /^The chip does not beat noise every night\. On 4 of the 7 first nights \(recipe v1\.1, up to 16 steps\) noise won.*Newer nights use a shorter program \(recipe v1\.2: at most 10 steps, plus noise protection\) to keep the quantum pattern\./);
     assert.match(await txt(p, '#cmptext'), /^The chip kept the quantum pattern that night: its landings were 2\.7× closer to the perfect quantum ghost than to a normal hamster\./, 'how much closer: in How it works');
     assert.match(await txt(p, '#checkkv'), /ran on IBM on 5 Nov 2026/, 'the run date of the chip job');
-    assert.match(await txt(p, '#howrules'), /^One net per wallet per night, cast before he runs: nets close at 21:00 UTC \(22:00 your time\).*Each net costs 0\.01 Squeekchain test SQK, burned when you cast, and is an NFT on the Sepolia test network/);
+    assert.match(await txt(p, '#howrules'), new RegExp(`^One net per wallet per night, cast before he runs: nets close at 21:00 UTC \\(22:00 your time\\).*Each net costs 0\\.01 Squeekchain test SQK, burned when you cast${REAL_FAUCET ? " \\(this page's faucet gives 0\\.01 per wallet per day\\)" : ''}, and is an NFT on the Sepolia test network`));
     assert.match(await txt(p, '#contract'), /^Each net is a test NFT: QuantumCatch contract 0x[0-9a-f]{40} on Sepolia \(no money value; one net per wallet per night; its catch is drawn on-chain from the night's drops\)\.$/);
     await scrollTo(p, '#how'); await sleep(200); await shot('4-how-it-works');
     assert.equal(await p.$eval('#ghlink', (e) => e.href), DATA.config.repoUrl);

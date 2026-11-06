@@ -1614,6 +1614,7 @@ footer a { color: var(--ink) }
   // old net from before (a picked spot: rendered as before, labelled "old net (picked)"). The practice net is a drop too
   // (drawn here, from the night's real drops), or an old picked practice.
   const KEY = 'quantum-catch-v1';
+  const V2_FIRST_DAY = '2026-11-06';                     // the first night of the v2 contract (no picking, test SQK)
   let store = { practice: null, nets: {}, sound: false };
   const load = (j) => {
     if (!isObj(j)) return;
@@ -1622,7 +1623,9 @@ footer a { color: var(--ink) }
     if (isObj(j.nets)) for (const [d, x] of Object.entries(j.nets)) {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || !isObj(x)) continue;
       if (x.drop === true && isObj(x.nft) && (x.spot == null || isSpot(x.spot))) store.nets[d] = { drop: true, spot: isSpot(x.spot) ? x.spot : null, at: x.at || 0, seen: !!x.seen, nft: x.nft };
-      else if (x.drop !== true && isSpot(x.spot)) store.nets[d] = { spot: x.spot, at: x.at || 0, seen: !!x.seen, ...(isObj(x.nft) ? { nft: x.nft } : {}) };
+      // a picked net for 6 Nov or later was cast on the retired v1 contract (the only one: the owner's test net): it must never
+      // take a night's slot from a v2 net, so it is forgotten here (the v2 contract is the record from 6 Nov on)
+      else if (x.drop !== true && isSpot(x.spot) && d < V2_FIRST_DAY) store.nets[d] = { spot: x.spot, at: x.at || 0, seen: !!x.seen, ...(isObj(x.nft) ? { nft: x.nft } : {}) };
     }
   };
   try { load(JSON.parse(localStorage.getItem(KEY) || 'null')); } catch (e) { /* private window: memory only */ }
