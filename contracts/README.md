@@ -1,11 +1,39 @@
 # Quantum Catch (contracts)
 
-Free Sepolia test game, no value. `src/QuantumCatch.sol` is a self-written ERC-721 ("Quantum Catch", QCATCH):
-a net on one of the 16 spots of the Quantum Wheel (`../quantum/wheel_spec.md`) for one of Squeektoshi's nights.
+Sepolia test game, no value. `src/QuantumCatch.sol` is a self-written ERC-721 ("Quantum Catch", QCATCH): a net for
+one of Squeektoshi's nights on the Quantum Wheel (`../quantum/wheel_spec.md`), a ticket for one of the chip's shots.
+Version 2 (the owner's rules of 6 Nov): nobody picks a spot, a net costs 0.01 Squeekchain TEST SQK that is burned,
+the holder can burn a net, and `src/SqkFaucet.sol` hands out the test SQK.
 
-- `castNet(spot)`: free, one net per wallet per night, token id = `(night << 160) | caster`.
+- `castNet()`: no spot, one net per wallet per night, token id = `(night << 160) | caster`. With `SQK` set it takes
+  exactly `NET_COST` of the caller's own allowance (`transferFrom` caller -> game) and burns it in the same call
+  (`SQK.burn`), so the game never holds SQK; events: the token's Transfer (caster -> game) and Transfer (game -> 0),
+  then the net's Transfer, `NetCast(night, catcher, tokenId)` and `NetPaid(night, catcher, burned)`. With `SQK` unset
+  (address 0, `NET_COST` 0) nets are free, as in version 1. `castNetWithPermit(deadline, v, r, s)` first sets that
+  allowance from an EIP-2612 permit (a permit someone already submitted is ignored and its allowance used), then casts:
+  one transaction without an approve.
 - Nights run 12:00 to 12:00 UTC; nets for night n close at 21:00 UTC (`nightStart(n) + 9 h`). From that
   second on, `castNet` casts for night n + 1 (it never reverts at the lock; it rolls over).
+- **The draw** (`drawOf(n, resultSha256, jobId, tokenId, counts)`, pure): once night n is posted, each net gets
+  exactly one of the night's shots, drawn over ALL its landings: `x = uint256(keccak256(abi.encode(n, resultSha256,
+  jobId, tokenId))) % shots`, then spots 0..15 in order, each taking its count of the values. The sha256 of the result
+  file and the IBM job id exist only after the chip ran (after the nets closed), so no caster can know or choose its
+  draw. The hatcher posts the real file's numbers and holds no net, but it sees every draw before it posts (it could
+  choose among chip runs or re-serialized files), so it is trusted for the draws as for every number (the metadata
+  says so). The net catches the drawn spot's hamster if that
+  spot is catchable (below), else the hamster got away; so the chance of nothing is the chip's own noise share (about
+  4 % to 14 % on the real nights: 3.9 % to 13.9 %). A slept night draws nothing. `spotOf(id)` / `result().spot` is the drawn spot, 255
+  (`NO_SPOT`) until the night is posted (and when he slept or no result came). Checked in `test/Draw.t.sol` against an
+  independent running-sum reference, with frequency tests over many token ids.
+- `burn(id)`: by the holder, or an address it approved for that net or for all its nets (a later game contract);
+  nobody else, no admin burn, never the hatcher. A burned net is gone (`ownerOf`, `tokenURI`, `result`, `traitsOf`
+  revert; `balanceOf` drops) and its id can never be cast again (`AlreadyCast`).
+- `traitsOf(id)`: `(night, posted, caught, spot, hat, glasses, scarf, grin, tier)` in one read for later games; before
+  the post everything but the night is 0; he slept: posted, spot 255; got away: the drawn spot, no look bits, tier 0.
+- `SqkFaucet(token, drip, catch_)`: `claim()` sends `DRIP` (0.01 test SQK, one net) once per address per net night
+  (`catch_.openNightAt(now)`: it turns at 21:00 UTC with the nets); `canClaim(address)`, `lastClaimNight(address)`,
+  `remaining()`; errors `AlreadyClaimedTonight(night)`, `FaucetEmpty()`. No owner, no withdraw; anyone refills it with
+  a plain token transfer. Test tokens: no sybil defence beyond one claim per address per night.
 - `postNight(n, counts[16], turns, steps, jobId, sha256, firstShot)`: HATCHER only, once per night, from 12:00 UTC the
   next day until `postDeadline(n)` = 14 days later (`POST_WINDOW`). Counts are per SPOT (already turned by the v1.1
   ring turn). `firstShot` is the SPOT of the chip's very first shot of the night (the result file's
@@ -18,13 +46,16 @@ a net on one of the 16 spots of the Quantum Wheel (`../quantum/wheel_spec.md`) f
   Rank them by landings, most first; equal landings: the lower spot first. With n of them, rank r: Epic r = n, Rare
   r = n - 1, Uncommon r = n - 3 or n - 2, Common r <= n - 4; LEGENDARY = the Epic spot when firstShot landed on it.
   Every other spot got away (tier 0). Tier codes 1 Common .. 5 Legendary. For n = 8: 4 Common, 2 Uncommon, 1 Rare,
-  1 Epic (Legendary on about 1 in 250 random nets). Checked against `test/data/tier-vectors.json`
+  1 Epic. Per net, Legendary is about the Epic spot's share squared (the night's first shot and the net's own drawn
+  shot both on the Epic spot): about 1 in 250 on the two 10-step v1.2 nights, 1 in 190 to 1 in 1,700 on the 9 real
+  chip files. Checked against `test/data/tier-vectors.json`
   (`test/data/make_tier_vectors.py`: the 9 real chip files with their real first shot and every other landed spot as
   the first shot, plus 560 synthetic nights and fixed cases, n = 0..8, 294 with a Legendary; the page's tests read the
   same file) through `tiersOf`, through `postNight` + `result` for every spot of the 9 real nights, and against an
   independent sort-based rule in the tests (fuzzed). None of the 9 real nights had its first shot on its Epic spot.
-- `result(id)`: status (0 waiting, 1 caught, 2 got away, 3 he slept, 4 no chip result), tier by the rank rule (a net
-  out of reach is always got away, tier 0). Status 4 is computed: a night not posted by `postDeadline(n)` can never be
+- `result(id)`: status (0 waiting, 1 caught, 2 got away, 3 he slept, 4 no chip result), the drawn spot (255 before
+  the draw), its landings, the night's shots, tier by the rank rule on the drawn spot (a shot out of reach is always
+  got away, tier 0), looks (the drawn spot when caught, else 0). Status 4 is computed: a night not posted by `postDeadline(n)` can never be
   posted, so its nets read "No chip result" for good (no event is emitted at that moment; marketplaces may need a
   metadata refresh).
 - `reachOf(id)`: 1 in reach, 2 out of reach tonight, 0 not known. The walk starts on his start, spot `turns % 16`
@@ -50,19 +81,23 @@ a net on one of the 16 spots of the Quantum Wheel (`../quantum/wheel_spec.md`) f
   steps of 667 turns give the 2 farthest spots P = 1.3e-14, under the 1e-12 cut; the rule calls them in reach. None
   of the drawn nights hit this; it is pinned with the exception's examples under `known` in the vector file
   (`test_known_cases_follow_the_rule`). The walk never lands outside the rule: out of reach is always exact.
-  **A net out of reach tonight never catches** (the owner's rule, 5 Nov): landings there are chip noise, so even
+  **A shot out of reach tonight never catches** (the owner's rule, 5 Nov): landings there are chip noise, so even
   >= 1 % there is status Got away, tier 0 (it is not catchable, so it is not ranked either). The landings stay visible
-  (`result().hits`, the Landings trait), `Reach: Out of reach tonight`, the description starts (after "Free Sepolia
-  test NFT, no value.") with "Out of reach tonight: he could not land here; the <n> landings here are the chip's
-  noise.", and the image shows a small OUT OF REACH mark and "46 of 4000 shots: chip noise" (or "no landings") over
+  (`result().hits`, the Landings trait), `Reach: Out of reach tonight`, the description starts (after "Sepolia test
+  NFT, no value. Its shot landed on spot <s>.") with "Out of reach tonight: he could not land here; the <n> landings
+  here are the chip's noise.", and the image shows a small OUT OF REACH mark and "46 of 4000 shots: chip noise" (or "no landings") over
   "he could not land here". A net in reach: caught iff >= 1 %, its tier by the rank rule above.
-- No owner, admin, pause, proxy, setters, withdraw, payable functions or token. The hatcher can never cast,
-  hold, be approved for, or move a net (`HatcherIsNotAPlayer`).
+- No owner, admin, pause, proxy, setters, withdraw or payable functions, and no token of its own (`SQK` and
+  `NET_COST` are immutable; SQK sent to the game by a plain transfer stays there for good). The hatcher can never
+  cast, hold, be approved for, move or burn a net (`HatcherIsNotAPlayer`). `test/Honesty.t.sol` calls 24 admin-style
+  functions on the game and the faucet: all revert, and neither takes ETH.
 - `tokenURI`: on-chain JSON + SVG, both base64 data URIs. ERC-4906 `BatchMetadataUpdate` for the whole night on each
-  post. Attributes: Night, Spot, Status, Tier, Hat, Glasses, Neckwear, Face, Landings, Shots, IBM job, Steps, Reach,
-  Result sha256, First shot ("spot 3", or "none" before a ran night is posted). A caught net's description starts
-  (after "Free Sepolia test NFT, no value.") with "Caught: rank 7 of the 8 catchable spots tonight by landings, most
-  first." and a Legendary adds "The chip's very first shot of the night landed here." The description states the
+  post. Attributes: Night, Spot (once drawn), Status, Tier, Hat, Glasses, Neckwear, Face (when caught), Landings,
+  Shots, IBM job, Steps, Reach, Result sha256, First shot ("spot 3", or "none" before a ran night is posted). Before
+  the draw the name has no spot and the card reads "night of <date>" over "its spot is drawn after the run". A caught
+  net's description starts (after "Sepolia test NFT, no value. Its shot landed on spot <s>.") with "Caught: rank 7 of
+  the 8 catchable spots tonight by landings, most first." and a Legendary adds "The chip's very first shot of the
+  night landed here." The description states the
   rank rule, the hatcher's powers (post once, inside the window; never mint, move or burn), that the contract cannot
   check the numbers (and how to check the first shot: the first entry of the file's shots_in_order plus his total
   turns, mod 16), the reach rule ("After its 3 steps a perfect walk can only land on spots of the right parity within
@@ -90,9 +125,10 @@ a net on one of the 16 spots of the Quantum Wheel (`../quantum/wheel_spec.md`) f
   pixels on every one (a control with the drawn hamster at full size differs on 18,601). Where WebP does not decode,
   the drawn hamster shows (Chrome without the WebP layers: 9,608 to 15,345 of the 44,800 pixels of the hamster box;
   sharp: 6,186 to 9,853 of 28,672, against 0 without the fallback). `ART` and `RENDERER` are immutable: the constructor
-  `QuantumCatch(hatcher, art)` rejects an art address without code (`ArtHasNoCode`) and creates the renderer
-  (`src/CatchArt.sol`, a contract of its own only to keep QuantumCatch under EIP-170: QuantumCatch runtime 9,327
-  bytes, initcode 27,938; renderer 18,154; PaintedArt 3,198).
+  `QuantumCatch(hatcher, art, sqk, netCost)` rejects an art address without code (`ArtHasNoCode`), an `sqk` without
+  code (`SqkHasNoCode`), a cost of 0 with `sqk` set or above 0 without it (`BadNetCost`), and creates the renderer
+  (`src/CatchArt.sol`, a contract of its own only to keep QuantumCatch under EIP-170: QuantumCatch runtime 11,344
+  bytes, initcode 31,133; renderer 19,090; PaintedArt 3,198; SqkFaucet 1,713).
 - **Gas and size of tokenURI** (the eth_call a wallet makes; the cap that matters is 30,000,000): the heaviest image
   is looks 15 (hat, glasses, scarf, grin) in the circuit skin (Rare), a 99,541-byte fragment: tokenURI 12.4M gas and
   185,581 bytes (`test/Painted.t.sol`, every looks x tier measured; the least is 2.5M). On the local anvil with the
@@ -101,13 +137,16 @@ a net on one of the 16 spots of the Quantum Wheel (`../quantum/wheel_spec.md`) f
   painted hamster 0.38M-0.50M / about 6-7 KB. The cost is the two base64 passes (SVG, then JSON):
   `CatchLib.base64` turns 24 input bytes into one 32-character word through a 12-bit table (about half the gas of 3
   bytes at a time; checked against forge's `vm.toBase64` on 100 KB and every length 0..100, and fuzzed).
-- **Deploy** (`script/DeployAll.s.sol`, local anvil only for now): 15 ArtChunk data contracts (5,369,688 gas each, the
-  last 3,599,067), PaintedArt (1,169,678; its constructor checks every chunk's code hash and order), QuantumCatch with
-  its renderer (6,037,641): 17 transactions, 85,982,018 gas in all, each under the 16,777,216 per-transaction cap
-  (EIP-7825). It prints every address: `ArtChunk <k> <address>` x 15, `PaintedArt`, `QuantumCatch`, `RENDERER`,
-  `HATCHER`, `chain`. Use `--slow` (a 30M block holds only 4 chunk deploys; anvil does not mine the rest of a batch).
+- **Deploy** (`script/DeployAll.s.sol`, local anvil only; env `HATCHER`, optional `SQK` + `NET_COST` for paid nets):
+  15 ArtChunk data contracts (5,369,688 gas each, the last 3,599,067), PaintedArt (1,169,678; its constructor checks
+  every chunk's code hash and order), QuantumCatch with its renderer (6,674,851 on anvil): 17 transactions, 86,619,228
+  gas in all, each under the 16,777,216 per-transaction cap (EIP-7825). It prints every address: `ArtChunk <k>
+  <address>` x 15, `PaintedArt`, `QuantumCatch`, `RENDERER`, `HATCHER`, `SQK`, `NET_COST`, `chain`. Use `--slow` (a
+  30M block holds only 4 chunk deploys; anvil does not mine the rest of a batch). Version 2 on Sepolia reuses version
+  1's PaintedArt and HATCHER: QuantumCatch(hatcher, art, test SQK, 0.01 SQK), then SqkFaucet(test SQK, 0.01, that
+  QuantumCatch); Sepolia prices new code far higher than anvil (QuantumCatch about 48M gas there).
 
-## Before deploying to Sepolia (not done; nothing here is broadcast)
+## Sepolia deploys (version 1 on 6 Nov 2026, block 12072952; version 2 needs the owner's OK) and open items
 
 - IBM access past the trial end (2026-11-07 ~18:46 UTC) must be settled first. Nets cast for a night the chip
   never runs end as "No chip result" after 14 days; that is the honest end, but the game should not open casting
@@ -117,8 +156,9 @@ a net on one of the 16 spots of the Quantum Wheel (`../quantum/wheel_spec.md`) f
   spots on, one Rare. On the two v1.2 nights we have (1 Nov rerun, 4 Nov rerun) all 8 in-reach spots were catchable
   (4 Common, 2 Uncommon, 1 Rare, 1 Epic); neither night's first shot landed on its Epic spot (4 Nov: spot 3, 1 Nov:
   spot 1, out of reach), so neither had a Legendary.
-- Deploying the art on Sepolia is 17 transactions and about 86M gas (Sepolia test ETH). `DeployAll` refuses any chain
-  but 31337 until the owner decides.
+- Version 1 (the art, 17 transactions) is on Sepolia since 6 Nov 2026; version 2 reuses its PaintedArt and HATCHER.
+  `DeployAll` deploys on a local anvil only (it refuses any chain but 31337); Sepolia deploys run from private ops
+  scripts with the owner's OK.
 - Before casting opens, look at one caught net where players will see it: testnets.opensea.io (Sepolia) and any other
   target indexer or wallet (its thumbnail and its full view). Painted = fine; the small drawn hamster = that viewer
   cannot decode WebP (the fallback works; worth a README line); a blank card or a broken image = stop and report it
@@ -133,12 +173,15 @@ a net on one of the 16 spots of the Quantum Wheel (`../quantum/wheel_spec.md`) f
 
 ```
 # lib/forge-std is vendored in this repo (unchanged forge-std)
-forge test --offline                 # 131 tests
+forge test --offline                 # 196 tests (4 skip: the fork tests)
+SEPOLIA_RPC=https://ethereum-sepolia-rpc.publicnode.com SEPOLIA_FORK_BLOCK=<head - 8> \
+  forge test --match-path test/SqkFork.t.sol   # the REAL test SQK, forked
 forge test --offline --gas-report   # gas-report.txt
 python3 test/data/make_tier_vectors.py                    # regenerate the rank-rule tier vectors (deterministic)
 python3 test/data/make_reach_vectors.py                   # regenerate the wheel.py ideal_walk reach vectors
 python3 tools/pack_art.py --check                         # the art chunks and generated blocks match wheel/art/art.json
-node script/anvil-e2e.mjs <dir>   # local anvil only: DeployAll, cast, post the real 4 Nov
+node script/anvil-e2e.mjs <dir>   # local anvil only: a mock SQK, DeployAll (paid nets),
+                                                          # casters found by drawOf for each state, post the real 4 Nov
                                                           # result (poster), a made-up Legendary night, he slept, no
                                                           # chip result; checks every state, tokenURI gas and size
 node script/render-states.mjs <dir>   # Chrome: every state's image as <img src=data:...>

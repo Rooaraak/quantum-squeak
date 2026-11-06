@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 import {Test} from "forge-std/Test.sol";
-import {QuantumCatch, IPaintedArt} from "../src/QuantumCatch.sol";
+import {QuantumCatch, IPaintedArt, ISqk} from "../src/QuantumCatch.sol";
 
 abstract contract CatchBase is Test {
     // night of 2026-11-04 (Squeek day 4 Nov 12:00 UTC -> 5 Nov 12:00 UTC), the first healthy chip night
@@ -22,6 +22,7 @@ abstract contract CatchBase is Test {
     uint8 internal constant FIRST_1031 = 13; // v1: position 4 + 8505
     uint8 internal constant FIRST_1101_V12 = 1; // v1.2: position 9 + 8984 (out of reach that night)
     IPaintedArt internal constant NO_ART = IPaintedArt(address(0));
+    ISqk internal constant NO_SQK = ISqk(address(0)); // free nets (the v1 game): every older test means the same
 
     address internal hatcher = makeAddr("hatcher");
     address internal alice = makeAddr("alice");
@@ -31,7 +32,7 @@ abstract contract CatchBase is Test {
     QuantumCatch internal qc;
 
     function setUp() public virtual {
-        qc = new QuantumCatch(hatcher, NO_ART);
+        qc = new QuantumCatch(hatcher, NO_ART, NO_SQK, 0);
         vm.warp(START_1104 + 3600); // 13:00 UTC on 4 Nov: nets for the night of 4 Nov are open
     }
 
@@ -72,9 +73,78 @@ abstract contract CatchBase is Test {
         c = [uint16(244), 30, 496, 52, 491, 53, 593, 48, 286, 16, 539, 52, 489, 47, 514, 50];
     }
 
-    function _cast(address who, uint8 spot) internal returns (uint256 id) {
+    /// `who` casts its net for the open night (no spot: the night's result draws it)
+    function _cast(address who) internal returns (uint256 id) {
         vm.prank(who);
-        id = qc.castNet(spot);
+        id = qc.castNet();
+    }
+
+    // ---- the draw (the owner's rule, 6 Nov), written here independently of the contract: a running sum ----
+
+    /// the spot of the shot drawn for net `id` of night n: x = keccak256(abi.encode(n, sha, job, id)) mod the shots,
+    /// the first spot whose running sum of landings passes x; 255 when nothing landed
+    function _refDraw(uint32 n, bytes32 sha, bytes32 job, uint256 id, uint16[16] memory c) internal pure returns (uint8) {
+        uint256 shots;
+        for (uint256 s; s < 16; ++s) {
+            shots += c[s];
+        }
+        if (shots == 0) return 255;
+        uint256 x = uint256(keccak256(abi.encode(n, sha, job, id))) % shots;
+        uint256 sum;
+        for (uint256 s; s < 16; ++s) {
+            sum += c[s];
+            if (x < sum) return uint8(s);
+        }
+        revert("unreachable");
+    }
+
+    function _id(uint32 n, address who) internal pure returns (uint256) {
+        return (uint256(n) << 160) | uint160(who);
+    }
+
+    /// the next fresh test caster (never the hatcher, never a precompile or a cheat code address)
+    uint256 internal _nextCaster = 0x5EED00000000;
+
+    /// a fresh caster whose net for night n draws `spot` when night n is posted with counts c, job and sha
+    function _casterFor(uint32 n, uint8 spot, uint16[16] memory c, bytes32 job, bytes32 sha)
+        internal
+        returns (address who)
+    {
+        require(spot < 16 && c[spot] > 0, "a spot without landings is never drawn");
+        for (uint256 i; i < 100_000; ++i) {
+            who = address(uint160(_nextCaster++));
+            if (_refDraw(n, sha, job, _id(n, who), c) == spot) return who;
+        }
+        revert("no caster found");
+    }
+
+    /// cast, for the open night, a net that draws `spot` once the night is posted with counts c (and the tests' usual
+    /// JOB_1104 / SHA_1104, as _post / _postK / _postF post them)
+    function _castOn(uint8 spot, uint16[16] memory c) internal returns (uint256) {
+        return _castOnJ(spot, c, JOB_1104, SHA_1104);
+    }
+
+    function _castOnJ(uint8 spot, uint16[16] memory c, bytes32 job, bytes32 sha) internal returns (uint256) {
+        return _cast(_casterFor(qc.openNight(), spot, c, job, sha));
+    }
+
+    /// for the open night, one net per spot that has landings in c: ids[s] draws spot s once the night is posted with c
+    /// (JOB_1104 / SHA_1104); ids[s] = 0 for a spot without landings (never drawn). Fresh casters in order, each taken
+    /// for the first spot it draws that has no net yet.
+    function _castEvery(uint16[16] memory c) internal returns (uint256[16] memory ids) {
+        uint32 n = qc.openNight();
+        uint256 need;
+        for (uint256 s; s < 16; ++s) {
+            if (c[s] > 0) ++need;
+        }
+        for (uint256 i; need > 0 && i < 100_000; ++i) {
+            address who = address(uint160(_nextCaster++));
+            uint8 s = _refDraw(n, SHA_1104, JOB_1104, _id(n, who), c);
+            if (ids[s] != 0) continue;
+            ids[s] = _cast(who);
+            --need;
+        }
+        require(need == 0, "not every spot drawn");
     }
 
     /// a valid step count for `turns` when the test does not care about reach: 0 when he slept, else min(turns, 10)
@@ -111,6 +181,29 @@ abstract contract CatchBase is Test {
     function _one(uint8 spot, uint16 hits, uint16 rest) internal pure returns (uint16[16] memory c) {
         c[spot] = hits;
         c[(spot + 1) % 16] = rest;
+    }
+
+    // ---- tokenURI attributes, by name (which ones a net has depends on its state) ----
+
+    /// the JSON key of attribute `name`'s value in the metadata JSON j, or "" when the net has no such attribute
+    function _attrKey(string memory j, string memory name) internal view returns (string memory) {
+        for (uint256 i; i < 20; ++i) {
+            string memory key = string.concat(".attributes[", vm.toString(i), "]");
+            if (!vm.keyExistsJson(j, key)) return "";
+            if (keccak256(bytes(vm.parseJsonString(j, string.concat(key, ".trait_type")))) == keccak256(bytes(name))) {
+                return string.concat(key, ".value");
+            }
+        }
+        return "";
+    }
+
+    /// the attributes' trait types, in order
+    function _traitTypes(string memory j) internal view returns (string memory all) {
+        for (uint256 i; i < 20; ++i) {
+            string memory key = string.concat(".attributes[", vm.toString(i), "]");
+            if (!vm.keyExistsJson(j, key)) break;
+            all = string.concat(all, i == 0 ? "" : ",", vm.parseJsonString(j, string.concat(key, ".trait_type")));
+        }
     }
 
     // ---- the owner's rarity rule (5 Nov), written here independently of the contract: a walk and a plain sort ----

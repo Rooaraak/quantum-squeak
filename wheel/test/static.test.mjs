@@ -95,7 +95,8 @@ test('leak gate on the page (server paths, household words, emails, IPs, tokens,
   if (!WORDS.length) ctx.diagnostic('no private leak words configured (wheel/test/local.json): household-word check skipped');
   assert.equal(CFG.repoUrl, 'https://github.com/Rooaraak/quantum-squeak');
   assert.ok(html.includes(CFG.repoUrl), 'the repo link is in the page');
-  assert.deepEqual(leakHits(html, new Set([...CORES, ...(CFG.catchAddress ? [CFG.catchAddress.toLowerCase()] : [])])), []);
+  const own = [CFG.catchAddress, CFG.sqkAddress, CFG.faucetAddress].filter(Boolean).map((a) => a.toLowerCase());      // (v2: the test SQK token + its faucet)
+  assert.deepEqual(leakHits(html, new Set([...CORES, ...own])), []);
   assert.ok(!html.split(CFG.repoUrl).join('').toLowerCase().includes(ACCOUNT.toLowerCase()), 'the account name appears nowhere but in the repo link');
   assert.ok(!/TESTFIXTURE/.test(html), 'no test fixture in the real build');
   if (WORDS.includes(ACCOUNT.toLowerCase())) assert.ok(leakHits(`see ${ACCOUNT.toLowerCase()} here`, new Set()).some((h) => /household word/.test(h)), 'the gate still catches the name outside the link');
@@ -104,6 +105,7 @@ test('leak gate on the page (server paths, household words, emails, IPs, tokens,
 test('Quantum Catch: the name, the tagline verbatim, Powered by Squeekchain, GitHub links; no egg and no hatch anywhere', () => {
   assert.match(text, /<h1>.*<span>Quantum Catch<\/span><\/h1>/);
   assert.ok(text.includes(`<p class="lede">${TAGLINE}</p>`), 'the tagline, verbatim, under the name');
+  assert.ok(text.includes('<p class="headline">A real <em>quantum computer</em> decides which hamster you catch.</p>'), 'the headline: no picking (owner, 6 Nov)');
   assert.match(text, /Powered by Squeektoshi's real wheel on <b>Squeekchain<\/b>/);
   const plain = html.replace(/[A-Za-z0-9+/=]{200,}/g, '');               // base64 art can spell anything by chance
   assert.ok(!/hatch/i.test(plain), `no "hatch": ${(plain.match(/.{30}hatch.{30}/i) || [''])[0]}`);
@@ -169,9 +171,41 @@ test('rarity rule: the one-line explanation and the rank grid in How it works, t
   assert.match(plain(check), /the fewest is Epic \(Legendary if the chip's very first shot landed there\), the next Rare, the two after that Uncommon, the rest Common/, 'the recipe: the rank rule');
   const first = text.slice(text.indexOf('<header class="hero">'), text.indexOf('<div class="story">'));
   assert.ok(!/Legendary|Epic|least-visited/.test(first.replace(/<[^>]+>/g, ' ')), 'the first screen stays simple');
-  // the ring shows the tiers after the reveal: Legendary gets the gold tag
-  assert.match(css, /\.ring\.revealed \.spot\[data-tier="4"\] \.tag \{[^}]*background: var\(--r4\)/, 'a gold Legendary tag');
+  // the tiles say what each hamster was (a word from DATA, JS only); Legendary gets the gold word
+  assert.match(css, /\.lnd\[data-t="4"\] b \{[^}]*background: var\(--r4\)/, 'a gold Legendary word');
   assert.match(css, /--r4: #ffd66b/, 'gold');
+});
+
+// the game since 6 Nov (owner): no picking; a net costs 0.01 test SQK (burned) when the contract says so; one of the chip's
+// 4,000 drops is yours; chip noise = got away; a daily faucet. The words are the page's; tier words stay JS-only
+test('no picking: the claw-machine words, the 4 steps of How it works, last night\'s odds, the draw in the recipe', () => {
+  const plain = (h) => h.replace(/<[^>]+>/g, '').replace(/&#39;|&rsquo;/g, "'").replace(/\s+/g, ' ');
+  assert.ok(!/Pick (your|a) hamster|Your pick|Choose tonight's spot|Catch #|aria-pressed', String\(!!\(m && m\.spot/.test(text + scripts), 'no picker left');
+  const first = text.slice(text.indexOf('<section class="card play"'), text.indexOf('<div class="story">'));
+  assert.match(first, /<h2 id="stageh">Tonight's net<\/h2>/);
+  // the owner (6 Nov 15:25, "Why do we need this"): no tiles while nothing is known (tonight, a net waiting, a night not in
+  // the page yet); the roster block is hidden on those flat views and comes back on a night with data
+  assert.match(css, /#play\.flat \.pick \{ display: none \}/, 'no roster on the flat views');
+  assert.ok(scripts.includes("$('play').classList.toggle('flat', flat);"), 'flat = tonight or a night not in the page yet');
+  assert.ok(scripts.includes("const NOT_WIRED = () => `A net costs ${costLabel()} test SQK (burned). Casting opens soon; until then try a free practice net under Past nights.`;"), 'a build that says a net costs test SQK, on a contract that takes none (build.py checks this guard is here)');
+  // the old game's words are gone from every screen (My catches said "put it on a hamster"; the footer said "A free game")
+  assert.ok(!/put it on a hamster|on a spot|free game/i.test(plain(text)), `no pick-era or "free game" words: ${(plain(text).match(/.{30}(put it on a hamster|on a spot|free game).{30}/i) || [''])[0]}`);
+  assert.ok(!/put it on a hamster|free game/i.test(scripts), 'nor in the page\'s scripts');
+  assert.match(css, /@media \(hover: hover\) \{ \.spot:hover \{ border-color: var\(--cream\) \} \}/, 'no sticky hover frame on a tapped tile (touch screens)');
+  assert.match(first, /<h2 class="prh" id="prizesh">The prizes<\/h2><div class="prow" id="prow" role="list" aria-labelledby="prizesh"><\/div>/, 'the prizes: drawn by JS (composite)');
+  for (const k of ["`Cast a net · ${costLabel()} test SQK`", "'Cast a net · free'", "`Get today's free ${dripLabel()} test SQK`", "Today's free ${dripLabel()} is already claimed: come back tomorrow.`",
+    "` You also need ${costLabel()} test SQK (free daily from this page).`", "'Your hamster got away (chip noise).'", "'He slept: no catch that night.'", "`${when13(w)} · 1 is yours`",
+    "'burned · Sepolia test network'", "const OLD = 'old net (picked)'", "'Cast a practice net · free'"]) assert.ok(scripts.includes(k), `the words: ${k}`);
+  const how = text.slice(text.indexOf('<details class="card more" id="how">'), text.indexOf('<details class="card more" id="check">'));
+  const steps = how.match(/<ol class="steps4" id="howsteps">([\s\S]*?)<\/ol>/);
+  assert.ok(steps, 'How it works: the steps');
+  assert.deepEqual([...steps[1].matchAll(/<li><b>([^<]+)<\/b>/g)].map((m) => m[1]), ['Cast a net.', 'He runs.', 'The chip drops 4,000 times.', 'One drop is yours.'], 'the 4 claw-machine steps');
+  assert.match(plain(steps[1]), /If your drop is chip noise \(a spot he could not reach that night, or one with under 1% of the drops\), your hamster got away\./);
+  assert.match(plain(steps[1]), /drawn at random on-chain once the night's result is posted, so nobody can choose it or know it before/);
+  assert.match(how, /<h4 id="oddsh">Last night's odds<\/h4>[\s\S]*<tbody id="oddsrows"><\/tbody>/, 'last night\'s odds table (JS from DATA)');
+  const check = text.slice(text.indexOf('<details class="card more" id="check">'), text.indexOf('</details>\n    </div>\n  </div>'));
+  assert.match(plain(check), /Each net gets one of the night's landings: keccak256 of \(the night, the posted result's hash and job id, the net's token id\) modulo the number of landings/, 'the draw, in the recipe');
+  assert.match(css, /\.spot\.net\.drop::after \{ content: "YOURS" \}/, 'your drop\'s tile, after the replay');
 });
 
 const DATA_ = (() => { const m = scripts.match(/const DATA = (\{.*?\});\n/s); assert.ok(m, 'DATA literal'); return JSON.parse(m[1]); })();
@@ -185,9 +219,12 @@ test('recipe per night: the archive is v1.1 (up to 16 steps), each night\'s step
     if (D.chips[d]) { assert.deepEqual(D.chips[d].steps, n.steps, `${d}: the night's result is a run of its own recipe`); assert.equal(D.chips[d].recipe, n.recipe); }
   }
   for (const r of D.reruns) { assert.notEqual(r.recipe, D.nights[r.night].recipe, 're-runs are the other recipe'); assert.deepEqual(r.steps, QW.steps(D.nights[r.night].rounds.map((x) => x[1]), QW.capOf(r.recipe))); }
-  assert.deepEqual(D.config, { repoUrl: CFG.repoUrl, catchAddress: CFG.catchAddress, chainId: '0xaa36a7' }, 'config straight from wheel/config.json');
-  // deployed on Sepolia 2026-11-06 (block 12072952): the real build carries that address, lower case
-  assert.equal(D.config.catchAddress, '0xa0b3352b3a436c845e3bf2d251abeda3d474dfe0', 'the deployed QuantumCatch address');
+  // v2 keys (the test SQK token, its faucet, the cost label) only when wheel/config.json has them
+  const v2 = Object.fromEntries(['sqkAddress', 'faucetAddress', 'netCost'].filter((k) => k in CFG).map((k) => [k, k === 'netCost' ? String(CFG[k]) : CFG[k] ? CFG[k].toLowerCase() : null]));
+  assert.deepEqual(D.config, { repoUrl: CFG.repoUrl, catchAddress: CFG.catchAddress, chainId: '0xaa36a7', ...v2 }, 'config straight from wheel/config.json');
+  // v2 deployed on Sepolia 2026-11-06 (block 12077948; v1 0xa0b3…dfe0 at 12072952 is retired): the real build carries it, lower case
+  assert.equal(D.config.catchAddress, '0x151ec033c914252358bdcdba0548ac6a7b4f7f49', 'the deployed QuantumCatch v2 address');
+  assert.equal(D.config.faucetAddress, '0xf0a8e3ffc21377794d5e68bf5587ef96089135f3', 'the deployed SqkFaucet address');
   assert.deepEqual(D.core, { address: '0xfd6c166d4b8e2962e65746a13e5a0797cd4de0c4', genesis: 1793735400 });
 });
 
@@ -262,8 +299,9 @@ test('a test build with the QuantumCatch address: the address is in the config (
   assert.match(log, /NFT button: on, 0x5FbDB/);
   const t = fs.readFileSync(out, 'utf8'), D = JSON.parse(t.match(/const DATA = (\{.*?\});\n/s)[1]);
   assert.equal(D.config.catchAddress, A.toLowerCase());
-  assert.deepEqual(leakHits(t, new Set([...CORES, A.toLowerCase()])), []);
-  assert.ok(leakHits(t, new Set(CORES)).some((h) => h.includes(A.toLowerCase())), 'without the config value the gate would stop it');
+  const v2 = [CFG.sqkAddress, CFG.faucetAddress].filter(Boolean).map((a) => a.toLowerCase());     // (the test SQK + its faucet: wheel/config.json)
+  assert.deepEqual(leakHits(t, new Set([...CORES, ...v2, A.toLowerCase()])), []);
+  assert.ok(leakHits(t, new Set([...CORES, ...v2])).some((h) => h.includes(A.toLowerCase())), 'without the config value the gate would stop it');
   assert.ok(fs.existsSync(path.join(dir, 'results.json')));
   const bad = spawnSync('python3', [path.join(ROOT, 'wheel/build.py'), '--catch-address', '0x1234', '--out', out], { encoding: 'utf8' });
   assert.notEqual(bad.status, 0); assert.match(bad.stderr, /catchAddress must be an address/);

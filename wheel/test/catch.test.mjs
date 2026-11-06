@@ -1,12 +1,15 @@
 // Quantum Catch logic (wheel/catch.js): the night clock and the 21:00 UTC net lock (same rules as contracts/src/QuantumCatch.sol),
-// local nets (one per night), token ids, hand-made ABI encoding/decoding, the wallet flow against a mocked EIP-1193 provider,
+// local nets (one per night), token ids, hand-made ABI encoding/decoding, the wallet flow against a mocked EIP-1193 provider
+// (v2, no picking: castNet() without a spot, the drawn spot read back once posted; free nets; nets paid with 0.01 test SQK:
+// permit, allowance, approve fallback, NO_SQK; the v1 pick-a-spot contract refused; the test SQK faucet, once per night),
 // and the live SqueekCore read (decoded from a real recorded Sepolia response). Reach and rarity (the owner's rules) are
 // checked against the Python reference wheel/test/tier_ref.py on every spot.   node --test wheel/test/catch.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
+import os from 'node:os';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 
@@ -101,9 +104,8 @@ test('token id = (night << 160) | wallet, 32-byte hex; the low 160 bits are the 
 });
 
 test('ABI encoding by hand: selectors (= forge methodIdentifiers) and arguments', () => {
-  assert.equal(QC.enc.castNet(15), '0x6af74e5f' + pad(15));
-  assert.equal(QC.enc.castNet(0), '0x6af74e5f' + pad(0));
-  for (const bad of [16, -1, 1.5, '2']) assert.throws(() => QC.enc.castNet(bad), /spot/);
+  assert.equal(QC.enc.castNet(), '0x0612a854', 'castNet(): no argument (no picking)');
+  for (const bad of [15, 0, '2']) assert.throws(() => QC.enc.castNet(bad), /no spot/, 'a spot is refused, never sent');
   const id = QC.netId(20761, ADDR);
   assert.equal(QC.enc.result(id), '0x3c594059' + id.slice(2));
   assert.equal(QC.enc.tokenURI(id), '0xc87b56dd' + id.slice(2));
@@ -113,11 +115,12 @@ test('ABI encoding by hand: selectors (= forge methodIdentifiers) and arguments'
   const out = path.join(ROOT, 'contracts/out/QuantumCatch.sol/QuantumCatch.json');
   if (fs.existsSync(out)) {
     const m = JSON.parse(fs.readFileSync(out, 'utf8')).methodIdentifiers;
-    assert.equal(QC.SEL.castNet, '0x' + m['castNet(uint8)']); assert.equal(QC.SEL.result, '0x' + m['result(uint256)']); assert.equal(QC.SEL.tokenURI, '0x' + m['tokenURI(uint256)']);
+    assert.equal(QC.SEL.castNet, '0x' + m['castNet()']); assert.equal(QC.SEL.result, '0x' + m['result(uint256)']); assert.equal(QC.SEL.tokenURI, '0x' + m['tokenURI(uint256)']);
+    assert.equal(m['castNet(uint8)'], undefined, 'the build has no pick-a-spot castNet');
   }
   if (ethers) {
-    for (const [k, sig] of [['castNet', 'castNet(uint8)'], ['result', 'result(uint256)'], ['tokenURI', 'tokenURI(uint256)'], ['state', 'state()'], ['roundPage', 'roundPage(uint64,uint64,uint256)']]) assert.equal(QC.SEL[k], ethers.id(sig).slice(0, 10), sig);
-    assert.equal(QC.TOPIC_NETCAST, ethers.id('NetCast(uint32,address,uint8,uint256)'));
+    for (const [k, sig] of [['castNet', 'castNet()'], ['result', 'result(uint256)'], ['tokenURI', 'tokenURI(uint256)'], ['state', 'state()'], ['roundPage', 'roundPage(uint64,uint64,uint256)']]) assert.equal(QC.SEL[k], ethers.id(sig).slice(0, 10), sig);
+    assert.equal(QC.TOPIC_NETCAST, ethers.id('NetCast(uint32,address,uint256)'));
     assert.equal(QC.ERR.AlreadyCast, ethers.id('AlreadyCast(uint32,address)').slice(0, 10));
     assert.equal(QC.ERR.NonexistentToken, ethers.id('NonexistentToken(uint256)').slice(0, 10));
   }
@@ -125,15 +128,18 @@ test('ABI encoding by hand: selectors (= forge methodIdentifiers) and arguments'
 
 test('decoding result(), strings, NetCast logs and on-chain metadata', () => {
   const r = QC.dec.result('0x' + [1, 20761, 15, 808, 4000, 1, 15].map(pad).join(''));
-  assert.deepEqual(r, { status: 1, night: 20761, spot: 15, hits: 808, shots: 4000, tier: 1, looks: 15 });
+  assert.deepEqual(r, { status: 1, night: 20761, spot: 15, hits: 808, shots: 4000, tier: 1, looks: 15 }, 'caught: the drawn spot and its tier');
+  assert.deepEqual(QC.dec.result('0x' + [0, 20762, 255, 0, 0, 0, 0].map(pad).join('')), { status: 0, night: 20762, spot: null, hits: 0, shots: 0, tier: 0, looks: 0 }, 'waiting: no spot drawn yet (NO_SPOT 255 on chain)');
+  assert.deepEqual(QC.dec.result('0x' + [2, 20761, 0, 27, 4000, 0, 0].map(pad).join('')), { status: 2, night: 20761, spot: 0, hits: 27, shots: 4000, tier: 0, looks: 0 }, 'got away: its shot\'s spot, no looks');
+  assert.equal(QC.NO_SPOT, 255);
   assert.throws(() => QC.dec.result('0x' + pad(1)), /short/);
   const word = (s) => Buffer.from(s, 'utf8').toString('hex').padEnd(Math.ceil(Buffer.byteLength(s) / 32) * 64, '0');
   const str = (s) => '0x' + pad(32) + pad(Buffer.byteLength(s)) + word(s);
   assert.equal(QC.dec.string(str('hello')), 'hello');
   assert.equal(QC.dec.string(str('Quantum Catch · night of 2026-11-04 · ✓')), 'Quantum Catch · night of 2026-11-04 · ✓');
   const id = QC.netId(20762, ADDR);
-  const log = { address: CONTRACT, topics: [QC.TOPIC_NETCAST, '0x' + pad(20762), '0x' + pad(ADDR)], data: '0x' + pad(6) + id.slice(2) };
-  assert.deepEqual(QC.dec.netCast(log), { night: 20762, catcher: ADDR, spot: 6, tokenId: id });
+  const log = { address: CONTRACT, topics: [QC.TOPIC_NETCAST, '0x' + pad(20762), '0x' + pad(ADDR)], data: '0x' + id.slice(2) };
+  assert.deepEqual(QC.dec.netCast(log), { night: 20762, catcher: ADDR, tokenId: id }, 'NetCast(night, catcher, tokenId): no spot');
   assert.equal(QC.dec.netCast({ ...log, topics: ['0x' + pad(1), ...log.topics.slice(1)] }), null, 'other events are not a NetCast');
   const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10"/></svg>';
   const meta = { name: 'Quantum Catch: night of 2026-11-05, spot 6', attributes: [{ trait_type: 'Status', value: 'Waiting' }], image: 'data:image/svg+xml;base64,' + Buffer.from(svg).toString('base64') };
@@ -240,19 +246,51 @@ test('page engine and contract rule agree on every spot of every real chip run (
 });
 
 // ---------- the wallet flow, against a mocked EIP-1193 provider ----------
-const ALLOWED = new Set(['eth_requestAccounts', 'eth_accounts', 'eth_chainId', 'wallet_switchEthereumChain', 'wallet_addEthereumChain', 'eth_call', 'eth_getBalance', 'eth_getBlockByNumber', 'eth_sendTransaction', 'eth_getTransactionReceipt']);
+// The mock is the wallet plus a small chain: the QuantumCatch contract (CONTRACT: by default a v2 game with free nets,
+// NET_COST() = 0; o.netCost = a v2 contract that charges; o.v1 = the live v1 pick-a-spot contract, whose NET_COST() reverts),
+// the test SQK token (SQK, the real Sepolia address, as the page sees it) and the faucet (FAUCET, a stand-in address).
+// Only the wallet methods the page needs are allowed.
+const ALLOWED = new Set(['eth_requestAccounts', 'eth_accounts', 'eth_chainId', 'wallet_switchEthereumChain', 'wallet_addEthereumChain', 'eth_call', 'eth_getBalance', 'eth_getBlockByNumber', 'eth_sendTransaction', 'eth_getTransactionReceipt', 'eth_signTypedData_v4']);
+const SQK = '0xd78a3956cf63164d1fa1c622ad3c66623162fa1e';                // the test SQK token on Sepolia (public, no value)
+const FAUCET = '0xe7f1725e7734ce288f8367e1bb143e90bb3f0512';             // a stand-in faucet (anvil's second contract address)
+const CENT = 10n ** 16n;                                                 // 0.01 test SQK: what a v2 net costs
+const DRIP = 10n ** 16n;                                                 // 0.01 test SQK: the faucet's drip (one net a night)
+// the real token's DOMAIN_SEPARATOR() (the keccak hash of its EIP-712 domain), read from Sepolia on 6 Nov 2026
+const DOMAIN_HASH = '0x2cc99df9c423e838a7b45ff60b5ee38a' + 'd122ea209dca8da37a8d2f3befdf0017';
+// the real token's eip712Domain() answer, recorded from Sepolia on 6 Nov 2026 (block 12076658): fields 0x0f (name, version,
+// chainId, verifyingContract), "Squeek", "1", 11155111, the token itself, no salt, no extensions
+const DOMAIN_RAW = '0x0f0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000e000000000000000000000000000000000000000000000000000000000000001200000000000000000000000000000000000000000000000000000000000aa36a7000000000000000000000000d78a3956cf63164d1fa1c622ad3c66623162fa1e00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000160000000000000000000000000000000000000000000000000000000000000000653717565656b0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000131000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000';
+const DOMAIN_TYPES = [{ name: 'name', type: 'string' }, { name: 'version', type: 'string' }, { name: 'chainId', type: 'uint256' }, { name: 'verifyingContract', type: 'address' }];
+const PERMIT_TYPES = [{ name: 'owner', type: 'address' }, { name: 'spender', type: 'address' }, { name: 'value', type: 'uint256' }, { name: 'nonce', type: 'uint256' }, { name: 'deadline', type: 'uint256' }];
+const sel = (d) => d.slice(0, 10);
+const word = (d, i) => BigInt('0x' + d.slice(10 + 64 * i, 74 + 64 * i));
+const wordHex = (d, i) => '0x' + d.slice(10 + 64 * i, 74 + 64 * i);
+const strRet = (s) => '0x' + pad(32) + pad(Buffer.byteLength(s)) + Buffer.from(s, 'utf8').toString('hex').padEnd(Math.ceil(Buffer.byteLength(s) / 32) * 64, '0');
+const strTail = (s) => pad(Buffer.byteLength(s)) + Buffer.from(s, 'utf8').toString('hex').padEnd(Math.ceil(Buffer.byteLength(s) / 32) * 64, '0');
+const revert = (data) => Object.assign(new Error('execution reverted'), { code: 3, data });
+// how browser wallets often hand an eth_call revert back: wrapped, the code and the words one level down
+const wrapped = (data) => ({ code: -32603, message: 'Internal JSON-RPC error.', data: { code: 3, message: 'execution reverted', data } });
+// an eip712Domain() answer, encoded by hand: fields byte, name, version, chainId, verifyingContract, salt, extensions
+const domainRet = ({ fields, name = '', version = '', chainId = 0n, vc = '0x' + '0'.repeat(40), salt = 0n, ext = [] }) => {
+  const nameT = strTail(name), verT = strTail(version), at = 7 * 32;
+  return '0x' + fields.toString(16).padStart(2, '0').padEnd(64, '0') + pad(at) + pad(at + nameT.length / 2) + pad(chainId) + pad(vc) + pad(salt)
+    + pad(at + nameT.length / 2 + verT.length / 2) + nameT + verT + pad(ext.length) + ext.map(pad).join('');
+};
 function mockWallet(o = {}) {
-  const calls = [];
-  let chain = o.chain || '0x1', sent = null, polls = 0;
+  const calls = [], me = (o.account || ADDR).toLowerCase(), cost = o.v1 ? null : (o.netCost ?? 0n), token = o.sqkAddr || SQK;   // cost null: the v1 contract
+  let chain = o.chain || '0x1', nsent = 0;
+  const polls = {}, txs = {};
+  const st = { bal: o.sqkBalance ?? 0n, allow: o.allowance ?? 0n, nonce: o.nonce ?? 0n, claimed: !!o.claimed, left: o.faucetLeft ?? 500n * 10n ** 18n, burned: 0n };
   const err = (code, message, data) => Object.assign(new Error(message), { code, data });
+  const rv = (data) => (o.wrapReverts ? wrapped(data) : revert(data));     // o.wrapReverts: the wallet wraps every revert
   const eth = {
-    calls,
+    calls, signed: [], sent: [], st,
     async request({ method, params }) {
       calls.push({ method, params });
       assert.ok(ALLOWED.has(method), `the page never asks the wallet for ${method}`);
       switch (method) {
-        case 'eth_requestAccounts': if (o.noAccounts) throw err(4001, 'User rejected the request.'); return [ADDR.toUpperCase().replace('0X', '0x')];
-        case 'eth_accounts': return [ADDR];
+        case 'eth_requestAccounts': if (o.noAccounts) throw err(4001, 'User rejected the request.'); return [me.toUpperCase().replace('0X', '0x')];
+        case 'eth_accounts': return [me];
         case 'eth_chainId': return chain;
         case 'eth_getBalance': if (o.walletBalanceFails) throw new Error('not supported'); assert.equal(chain, '0xaa36a7', 'the balance is asked only on Sepolia'); return o.walletBalance || '0x56bc75e2d63100000';
         case 'eth_getBlockByNumber': if (o.noBlock) throw new Error('not supported'); return { number: '0x10', timestamp: '0x' + Math.floor((o.blockMs || NOW) / 1000).toString(16) };
@@ -262,18 +300,90 @@ function mockWallet(o = {}) {
           chain = params[0].chainId; return null;
         case 'wallet_addEthereumChain': eth.added = params[0]; chain = params[0].chainId; return null;
         case 'eth_call': {
-          const d = params[0].data;
-          if (d.startsWith(QC.SEL.result)) { if (o.alreadyHas) return '0x' + [0, 20762, 3, 0, 0, 0, 3].map(pad).join(''); throw err(3, 'execution reverted', QC.ERR.NonexistentToken + d.slice(10)); }
-          throw new Error('unexpected eth_call ' + d.slice(0, 10));
+          const { to, data: d, from } = params[0];
+          assert.equal(chain, '0xaa36a7', 'eth_call through the wallet only on Sepolia');
+          if (to === CONTRACT) {
+            if (d.startsWith(QC.SEL.result)) { if (o.alreadyHas) return '0x' + [0, 20762, 3, 0, 0, 0, 3].map(pad).join(''); throw rv(QC.ERR.NonexistentToken + d.slice(10)); }
+            if (d === QC.SEL.netCost) { if (o.netCostFails) throw new Error('Failed to fetch'); if (cost === null) throw rv('0x'); return '0x' + pad(cost); }
+            if (d === QC.SEL.sqk) { if (cost === null) throw rv('0x'); return '0x' + pad(cost ? token : 0); }
+            if (sel(d) === QC.SEL.castNetWithPermit) {                   // the simulation of the paid cast, from the caster
+              assert.equal(from, me, 'simulated from the caster');
+              if (o.simFails) throw new Error('Failed to fetch');
+              if (o.simRevert) throw rv(o.simRevert);
+              return '0x';
+            }
+            if (d === QC.SEL.castNet) {                                    // the simulation of a plain castNet(), from the caster
+              assert.equal(from, me, 'simulated from the caster');
+              if (o.castSimFails) throw new Error('Failed to fetch');
+              if (o.castSimRevert) throw rv(o.castSimRevert);
+              return '0x' + pad(QC.netId(o.chainNight || 20762, me));
+            }
+          }
+          if (to === token) {
+            if (sel(d) === QC.SEL.balanceOf) { assert.equal(d, QC.enc.balanceOf(me)); return '0x' + pad(st.bal); }
+            if (sel(d) === QC.SEL.allowance) { assert.equal(d, QC.enc.allowance(me, CONTRACT), 'allowance(caster, the contract)'); return '0x' + pad(st.allow); }
+            if (sel(d) === QC.SEL.nonces) { assert.equal(d, QC.enc.nonces(me)); return '0x' + pad(st.nonce); }
+            if (d === QC.SEL.eip712Domain) { if (o.domain === 'name') throw rv('0x'); return o.domainRaw || DOMAIN_RAW; }
+            if (d === QC.SEL.name) return strRet(o.tokenName || 'Squeek');
+          }
+          if (to === FAUCET) {
+            if (sel(d) === QC.SEL.canClaim) { assert.equal(d, QC.enc.canClaim(me)); return '0x' + pad(st.claimed ? 0 : 1); }
+            if (d === QC.SEL.remaining) return '0x' + pad(st.left);
+            if (d === QC.SEL.drip) return '0x' + pad(DRIP);
+            if (d === QC.SEL.token) return '0x' + pad(o.faucetToken || token);
+            if (d === QC.SEL.claim) {                                      // the simulation of claim(), from the claimer
+              assert.equal(from, me, 'simulated from the claimer');
+              if (o.claimSimFails) throw new Error('Failed to fetch');
+              if (o.claimSimRevert) throw rv(o.claimSimRevert);
+              return '0x';
+            }
+          }
+          throw new Error('unexpected eth_call ' + to + ' ' + sel(d));
         }
-        case 'eth_sendTransaction':
+        case 'eth_signTypedData_v4': {
+          if (o.sign === 'unsupported') throw err(4200, 'The requested method is not supported by this Ethereum provider.');
+          if (o.sign === 'missing') throw err(-32601, 'The method "eth_signTypedData_v4" does not exist / is not available.');
+          if (o.sign === 'reject') throw err(4001, 'User rejected the request.');
+          if (o.sign === 'reject-worded') throw err(4001, 'User rejected: this request is not supported on this device.');
+          assert.equal(params[0], me, 'signed by the connected account');
+          assert.equal(typeof params[1], 'string', 'v4 takes the typed data as a JSON string');
+          const td = JSON.parse(params[1]);
+          eth.signed.push(td);
+          if (o.signer) return o.signer.signTypedData(td.domain, { Permit: td.types.Permit }, td.message);
+          return '0x' + '11'.repeat(32) + '22'.repeat(32) + (o.sigV || '1c');
+        }
+        case 'eth_sendTransaction': {
           if (o.sendError) throw o.sendError;
-          sent = params[0]; return '0x' + 'ab'.repeat(32);
+          const tx = params[0], hash = '0x' + ['ab', 'cd', 'ef', '12'][nsent++].repeat(32);
+          eth.sent.push(tx); txs[hash] = tx; return hash;
+        }
         case 'eth_getTransactionReceipt': {
-          if (++polls < 3) return null;
+          const h = params[0], tx = txs[h];
+          assert.ok(tx, 'a receipt only for a sent transaction');
+          polls[h] = (polls[h] || 0) + 1;
+          if (polls[h] < 3) return null;
           if (o.failed) return { status: '0x0', logs: [] };
-          const n = o.chainNight || 20762, id = QC.netId(n, ADDR);
-          return { status: '0x1', logs: [{ address: CONTRACT, topics: ['0x' + pad(7), '0x0', '0x0'], data: '0x' }, { address: CONTRACT.toUpperCase().replace('0X', '0x'), topics: [QC.TOPIC_NETCAST, '0x' + pad(n), '0x' + pad(ADDR)], data: '0x' + pad(sent ? BigInt(sent.data.slice(-64)) : 0) + id.slice(2) }] };
+          if (tx.to === token) {                                         // approve(spender, amount)
+            assert.equal(sel(tx.data), QC.SEL.approve);
+            if (o.approveFails) return { status: '0x0', logs: [] };
+            assert.equal(wordHex(tx.data, 0), '0x' + pad(CONTRACT)); st.allow = word(tx.data, 1);
+            return { status: '0x1', logs: [] };
+          }
+          if (tx.to === FAUCET) {                                        // claim()
+            assert.equal(tx.data, QC.SEL.claim);
+            st.claimed = true; st.left -= DRIP; st.bal += DRIP;
+            return { status: '0x1', logs: [{ address: FAUCET, topics: ['0x' + pad(9), '0x' + pad(me)], data: '0x' + pad(1) }, { address: FAUCET, topics: [QC.TOPIC_CLAIMED, '0x' + pad(me)], data: '0x' + pad(DRIP) }] };
+          }
+          const n = o.chainNight || 20762, id = QC.netId(n, me), logs = [{ address: CONTRACT, topics: ['0x' + pad(7), '0x0', '0x0'], data: '0x' }];
+          if (cost) {                                                    // a paid net: the contract pulls the cost and burns it
+            if (sel(tx.data) === QC.SEL.castNetWithPermit && !o.permitIgnored) st.allow = cost;
+            if (st.allow < cost || st.bal < cost) return { status: '0x0', logs: [] };
+            st.allow -= cost; st.bal -= cost; st.burned += cost; st.nonce += sel(tx.data) === QC.SEL.castNetWithPermit ? 1n : 0n;
+            logs.push({ address: CONTRACT, topics: [QC.TOPIC_NETPAID, '0x' + pad(n), '0x' + pad(me)], data: '0x' + pad(cost) });
+          }
+          assert.ok(tx.data === QC.SEL.castNet || (sel(tx.data) === QC.SEL.castNetWithPermit && tx.data.length === 10 + 4 * 64), 'castNet() or castNetWithPermit(deadline, v, r, s): never a spot');
+          logs.push({ address: CONTRACT.toUpperCase().replace('0X', '0x'), topics: [QC.TOPIC_NETCAST, '0x' + pad(n), '0x' + pad(me)], data: '0x' + id.slice(2) });
+          return { status: '0x1', logs };
         }
       }
       throw new Error('unexpected ' + method);
@@ -283,32 +393,34 @@ function mockWallet(o = {}) {
 }
 const NOW = Date.parse('2026-11-05T17:30:00Z');
 const fastOpts = (extra) => ({ now: () => NOW, sleep: () => Promise.resolve(), pollMs: 1, timeoutMs: 1e9, ...extra });
+const count = (eth, m) => eth.calls.filter((c) => c.method === m).length;
+const runSteps = async (eth, extra) => { const steps = []; const r = await QC.castNetNft(eth, CONTRACT, fastOpts({ onStep: (s) => steps.push(s), ...extra })); return { r, steps }; };
 
-test('wallet: connect, add + switch to Sepolia, one castNet transaction, token id and night from the NetCast log', async () => {
+test('wallet: connect, add + switch to Sepolia, one castNet() transaction (no spot), token id and night from the NetCast log', async () => {
   const eth = mockWallet({ unknownChain: true }), steps = [];
-  const r = await QC.castNetNft(eth, CONTRACT, 6, fastOpts({ onStep: (s) => steps.push(s) }));
-  assert.deepEqual(r, { txHash: '0x' + 'ab'.repeat(32), night: 20762, day: '2026-11-05', spot: 6, tokenId: QC.netId(20762, ADDR), catcher: ADDR });
+  const r = await QC.castNetNft(eth, CONTRACT, fastOpts({ onStep: (s) => steps.push(s) }));
+  assert.deepEqual(r, { txHash: '0x' + 'ab'.repeat(32), night: 20762, day: '2026-11-05', tokenId: QC.netId(20762, ADDR), catcher: ADDR }, 'no spot: the chip draws it once the night is posted');
   assert.equal(eth.added.chainId, '0xaa36a7'); assert.equal(eth.added.nativeCurrency.symbol, 'ETH'); assert.ok(eth.added.rpcUrls[0].startsWith('https://'));
   const sends = eth.calls.filter((c) => c.method === 'eth_sendTransaction');
   assert.equal(sends.length, 1, 'exactly one transaction');
-  assert.deepEqual(sends[0].params[0], { from: ADDR, to: CONTRACT, data: QC.enc.castNet(6), value: '0x0' });
+  assert.deepEqual(sends[0].params[0], { from: ADDR, to: CONTRACT, data: QC.enc.castNet(), value: '0x0' });
   assert.deepEqual(steps, ['connect', 'network', 'check', 'send', 'wait', 'done']);
   // the chain's own night wins over the viewer's clock (a cast right at 21:00 UTC can land in the next night)
-  const late = await QC.castNetNft(mockWallet({ chain: '0xaa36a7', chainNight: 20763 }), CONTRACT, 2, fastOpts());
+  const late = await QC.castNetNft(mockWallet({ chain: '0xaa36a7', chainNight: 20763 }), CONTRACT, fastOpts());
   assert.equal(late.night, 20763); assert.equal(late.day, '2026-11-06');
   // the "already cast?" check asks about the night of the chain's latest block (not the viewer's clock), else the viewer's clock
   const chk = mockWallet({ chain: '0xaa36a7', blockMs: Date.parse('2026-11-05T21:30:00Z') });
-  await QC.castNetNft(chk, CONTRACT, 2, fastOpts());
+  await QC.castNetNft(chk, CONTRACT, fastOpts());
   assert.equal(chk.calls.find((c) => c.method === 'eth_call').params[0].data, QC.enc.result(QC.netId(20763, ADDR)), 'after 21:00 UTC chain time: the 6 Nov net');
   const nob = mockWallet({ chain: '0xaa36a7', noBlock: true });
-  await QC.castNetNft(nob, CONTRACT, 2, fastOpts());
+  await QC.castNetNft(nob, CONTRACT, fastOpts());
   assert.equal(nob.calls.find((c) => c.method === 'eth_call').params[0].data, QC.enc.result(QC.netId(20762, ADDR)), 'no block: the viewer\'s clock (5 Nov)');
 });
 
 test('wallet: plain-word errors; nothing is sent when this wallet already has tonight\'s net', async () => {
-  const say = async (o, spot = 6) => { try { await QC.castNetNft(mockWallet(o), CONTRACT, spot, fastOpts()); return 'no error'; } catch (e) { return QC.plainError(e); } };
+  const say = async (o) => { try { await QC.castNetNft(mockWallet(o), CONTRACT, fastOpts()); return 'no error'; } catch (e) { return QC.plainError(e); } };
   const already = mockWallet({ chain: '0xaa36a7', alreadyHas: true });
-  await assert.rejects(QC.castNetNft(already, CONTRACT, 6, fastOpts()), (e) => e.code === 'already');
+  await assert.rejects(QC.castNetNft(already, CONTRACT, fastOpts()), (e) => e.code === 'already');
   assert.equal(already.calls.filter((c) => c.method === 'eth_sendTransaction').length, 0, 'no transaction when the net exists');
   assert.match(await say({ chain: '0xaa36a7', alreadyHas: true }), /already has a net/);
   assert.match(await say({ noAccounts: true }), /said no in your wallet\. Nothing was sent/);
@@ -318,31 +430,365 @@ test('wallet: plain-word errors; nothing is sent when this wallet already has to
   assert.match(await say({ chain: '0xaa36a7', sendError: Object.assign(new Error('execution reverted'), { code: 3, data: QC.ERR.AlreadyCast + pad(20762) + pad(ADDR) }) }), /already has a net/);
   assert.match(await say({ chain: '0xaa36a7', sendError: { code: -32603, message: 'Internal JSON-RPC error.', data: { originalError: { data: QC.ERR.AlreadyCast + pad(1) + pad(ADDR) } } } }), /already has a net/, 'nested error data (MetaMask style)');
   assert.match(await say({ chain: '0xaa36a7', failed: true }), /did not go through/);
-  assert.match(await say({ chain: '0xaa36a7' }, 16), /spot/);
+  // the old call shape (a spot before the options) is refused before the wallet is asked anything
+  const old = mockWallet({ chain: '0xaa36a7' });
+  await assert.rejects(QC.castNetNft(old, CONTRACT, 6, fastOpts()), /no spot/);
+  assert.equal(old.calls.length, 0);
   assert.match(QC.plainError(Object.assign(new Error('x'), { code: -32002 })), /already asking you something/);
   assert.match(QC.plainError(new Error('weird')), /Something went wrong/);
   assert.match(QC.plainError({ code: 'timeout' }), /may still arrive/);
-  assert.match(QC.plainError({ code: 'nowallet' }), /wallet/);
+  assert.match(QC.plainError({ code: 'nowallet' }), /No wallet found in this browser: casting a net needs a browser wallet on the Sepolia test network \(the page still works for watching\)/);
+  assert.doesNotMatch(QC.plainError({ code: 'nowallet' }), /optional/, 'a net IS its NFT (R6\'): without a wallet the page is for watching');
 });
 
 test('wallet: no Sepolia test ETH stops before the network prompt (public RPC check), or before the send (the wallet\'s own check)', async () => {
   const say = (e) => QC.plainError(e);
   const a = mockWallet(), seen = [];
-  await assert.rejects(QC.castNetNft(a, CONTRACT, 6, fastOpts({ balance: async (who) => { seen.push(who); return 0n; } })), (e) => e.code === 'nofunds' && /no Sepolia test ETH.*faucet.*Nothing was sent/.test(say(e)));
+  await assert.rejects(QC.castNetNft(a, CONTRACT, fastOpts({ balance: async (who) => { seen.push(who); return 0n; } })), (e) => e.code === 'nofunds' && /no Sepolia test ETH.*faucet.*Nothing was sent/.test(say(e)));
   assert.deepEqual(a.calls.map((c) => c.method), ['eth_requestAccounts'], 'one prompt (connect), then the faucet line: no network switch, no transaction');
   assert.deepEqual(seen, [ADDR], 'the balance of the connected account');
   // the public RPC is blocked (null/throws): the wallet's own read-only eth_getBalance once it is on Sepolia
   for (const balance of [async () => { throw new Error('Failed to fetch'); }, undefined]) {
     const b = mockWallet({ unknownChain: true, walletBalance: '0x0' });
-    await assert.rejects(QC.castNetNft(b, CONTRACT, 6, fastOpts({ balance })), (e) => e.code === 'nofunds');
+    await assert.rejects(QC.castNetNft(b, CONTRACT, fastOpts({ balance })), (e) => e.code === 'nofunds');
     assert.ok(!b.calls.some((c) => c.method === 'eth_sendTransaction'), 'nothing sent');
     assert.ok(b.calls.some((c) => c.method === 'eth_getBalance'));
   }
   // with funds (either check) the one transaction goes out; an unanswered check never blocks it
   for (const [balance, o] of [[async () => 10n ** 15n, {}], [async () => { throw new Error('x'); }, { walletBalanceFails: true }]]) {
     const c = mockWallet({ chain: '0xaa36a7', ...o });
-    const r = await QC.castNetNft(c, CONTRACT, 6, fastOpts({ balance }));
-    assert.equal(r.spot, 6); assert.equal(c.calls.filter((x) => x.method === 'eth_sendTransaction').length, 1);
+    const r = await QC.castNetNft(c, CONTRACT, fastOpts({ balance }));
+    assert.equal(r.night, 20762); assert.equal(c.calls.filter((x) => x.method === 'eth_sendTransaction').length, 1);
+  }
+});
+
+// ---------- v2: a net costs 0.01 test SQK, burned (castNetWithPermit / castNet after an approve) ----------
+test('v2 free nets (NET_COST() = 0): the plain path, one castNet(); the live v1 pick-a-spot contract (no NET_COST(), it reverts) is refused before anything is sent', async () => {
+  for (const wrapReverts of [false, true]) {
+    const eth = mockWallet({ chain: '0xaa36a7', netCost: 0n, wrapReverts });
+    const { r, steps } = await runSteps(eth);
+    assert.deepEqual(r, { txHash: '0x' + 'ab'.repeat(32), night: 20762, day: '2026-11-05', tokenId: QC.netId(20762, ADDR), catcher: ADDR });
+    assert.deepEqual(steps, ['connect', 'network', 'check', 'send', 'wait', 'done'], 'the plain steps');
+    assert.deepEqual(eth.calls.filter((c) => c.method === 'eth_call').map((c) => [c.params[0].to, c.params[0].data]), [[CONTRACT, QC.enc.result(QC.netId(20762, ADDR))], [CONTRACT, QC.enc.netCost()], [CONTRACT, QC.enc.castNet()]], 'no token reads; the cast simulated once');
+    assert.deepEqual(eth.sent, [{ from: ADDR, to: CONTRACT, data: QC.enc.castNet(), value: '0x0' }]);
+    assert.equal(count(eth, 'eth_signTypedData_v4'), 0, 'no signature');
+    // the v1 contract takes castNet(uint8 spot): castNet() would only revert there, so nothing is signed or sent
+    const v1 = mockWallet({ chain: '0xaa36a7', v1: true, wrapReverts }), seen = [];
+    await assert.rejects(QC.castNetNft(v1, CONTRACT, fastOpts({ onStep: (x) => seen.push(x) })), (e) => e.code === 'config' && /do not match.*pick-a-spot.*Nothing was sent/.test(QC.plainError(e)));
+    assert.deepEqual(seen, ['connect', 'network', 'check']);
+    assert.equal(v1.sent.length + count(v1, 'eth_signTypedData_v4'), 0);
+  }
+  // NET_COST() unanswered (the network, not a revert) is not "free": it stops, nothing sent (castNet would fail unpaid)
+  const nf = mockWallet({ chain: '0xaa36a7', netCost: CENT, netCostFails: true, sqkBalance: CENT });
+  await assert.rejects(QC.castNetNft(nf, CONTRACT, fastOpts()), /Failed to fetch/);
+  assert.equal(nf.sent.length, 0); assert.equal(count(nf, 'eth_signTypedData_v4'), 0);
+  assert.equal(await QC.netCostOf(async () => { throw revert('0x'); }, CONTRACT), 0n, 'a revert: free');
+  assert.equal(await QC.netCostOf(async () => { throw wrapped('0x'); }, CONTRACT), 0n, 'an empty revert wrapped by the wallet (v1 NET_COST() in a browser wallet): free');
+  assert.equal(await QC.netCostOf(async () => { throw { code: -32603, message: 'Internal JSON-RPC error.', error: { message: 'execution reverted' } }; }, CONTRACT), 0n, 'wrapped under error');
+  await assert.rejects(QC.netCostOf(async () => { throw { code: -32603, message: 'Internal JSON-RPC error.', data: { code: -32000, message: 'nonce too low' } }; }, CONTRACT), (e) => e.code === -32603, 'a wrapped non-revert is not free');
+  await assert.rejects(QC.netCostOf(async () => { throw { code: -32603, message: 'Internal JSON-RPC error.' }; }, CONTRACT), (e) => e.code === -32603);
+  assert.equal(await QC.netCostOf(async () => '0x' + pad(CENT), CONTRACT), CENT);
+  await assert.rejects(QC.netCostOf(async () => '0x', CONTRACT), /no data/, 'no answer at all is not free either');
+});
+
+test('v2 permit path: ONE signature (eth_signTypedData_v4) + ONE transaction (castNetWithPermit); the domain from eip712Domain() = the real token\'s', async (ctx) => {
+  const signer = ethers ? ethers.Wallet.createRandom() : null, who = signer ? signer.address.toLowerCase() : ADDR;
+  const eth = mockWallet({ chain: '0xaa36a7', netCost: CENT, sqkBalance: 10n * CENT, nonce: 3n, account: who, signer });
+  const { r, steps } = await runSteps(eth, { sqk: SQK.toUpperCase().replace('0X', '0x') });
+  assert.deepEqual(r, { txHash: '0x' + 'ab'.repeat(32), night: 20762, day: '2026-11-05', tokenId: QC.netId(20762, who), catcher: who }, 'the same return shape as a free net');
+  assert.deepEqual(steps, ['connect', 'network', 'check', 'sqk-check', 'sqk-sign', 'send', 'wait', 'done']);
+  assert.equal(count(eth, 'eth_signTypedData_v4'), 1, 'one signature'); assert.equal(count(eth, 'eth_sendTransaction'), 1, 'one transaction');
+  const order = eth.calls.map((c) => c.method).filter((m) => /^eth_(sign|send)|^wallet_/.test(m));
+  assert.deepEqual(order, ['eth_signTypedData_v4', 'eth_sendTransaction'], 'already on Sepolia: the signature, then the one transaction');
+  const td = eth.signed[0], deadline = BigInt(Math.floor(NOW / 1000) + QC.PERMIT_TTL);
+  assert.equal(QC.PERMIT_TTL, 3600);
+  assert.equal(td.primaryType, 'Permit');
+  assert.deepEqual(td.domain, { name: 'Squeek', version: '1', chainId: 11155111, verifyingContract: SQK });
+  assert.deepEqual(td.types, { EIP712Domain: DOMAIN_TYPES, Permit: PERMIT_TYPES });
+  assert.deepEqual(td.message, { owner: who, spender: CONTRACT, value: '10000000000000000', nonce: '3', deadline: String(deadline) }, 'exactly the net\'s cost, to the contract, the token\'s nonce, chain time + 1 h');
+  const tx = eth.sent[0];
+  assert.deepEqual([tx.from, tx.to, tx.value, sel(tx.data), (tx.data.length - 10) / 64], [who, CONTRACT, '0x0', QC.SEL.castNetWithPermit, 4]);
+  assert.equal(word(tx.data, 0), deadline, 'castNetWithPermit(deadline, v, r, s): no spot');
+  const sim = eth.calls.find((c) => c.method === 'eth_call' && c.params[0].data === tx.data);
+  assert.ok(sim && sim.params[0].from === who, 'simulated (eth_call from the caster) before the one transaction');
+  assert.deepEqual([eth.st.bal, eth.st.burned, eth.st.allow], [9n * CENT, CENT, 0n], 'the mock chain: 0.01 burned, no allowance left');
+  if (!ethers) { ctx.diagnostic('ethers not found (ETHERS_PATH): the signature recovery and the real domain hash are not cross-checked'); return; }
+  assert.equal(ethers.TypedDataEncoder.hashDomain(td.domain), DOMAIN_HASH, 'the domain hashes to the real token\'s DOMAIN_SEPARATOR()');
+  assert.deepEqual(td.types.EIP712Domain, ethers.TypedDataEncoder.getPayload(td.domain, { Permit: td.types.Permit }, td.message).types.EIP712Domain);
+  const v = Number(word(tx.data, 1)), rr = wordHex(tx.data, 2), ss = wordHex(tx.data, 3);
+  assert.equal(ethers.verifyTypedData(td.domain, { Permit: td.types.Permit }, td.message, { v, r: rr, s: ss }), signer.address, 'v, r, s go to the contract in its order and recover the caster');
+});
+
+test('v2 permit path: a token without eip712Domain() gets name() + version "1" + the chain id + the token (the same domain)', async (ctx) => {
+  const eth = mockWallet({ chain: '0xaa36a7', netCost: CENT, sqkBalance: CENT, domain: 'name', wrapReverts: true });   // (its revert wrapped by the wallet)
+  const { steps } = await runSteps(eth);
+  assert.deepEqual(steps, ['connect', 'network', 'check', 'sqk-check', 'sqk-sign', 'send', 'wait', 'done']);
+  assert.ok(eth.calls.some((c) => c.method === 'eth_call' && c.params[0].to === SQK && c.params[0].data === QC.SEL.name), 'name() asked');
+  const td = eth.signed[0];
+  assert.deepEqual(td.domain, { name: 'Squeek', version: '1', chainId: 11155111, verifyingContract: SQK });
+  assert.deepEqual(td.types.EIP712Domain, DOMAIN_TYPES);
+  // the mock's signature (r = 32 bytes of 11, s = 32 bytes of 22, v byte 1c): v 28, r, s straight into castNetWithPermit
+  const tx = eth.sent[0];
+  assert.deepEqual([Number(word(tx.data, 1)), wordHex(tx.data, 2), wordHex(tx.data, 3)], [28, '0x' + '11'.repeat(32), '0x' + '22'.repeat(32)]);
+  if (ethers) assert.equal(ethers.TypedDataEncoder.hashDomain(td.domain), DOMAIN_HASH, 'name() + "1": the real DOMAIN_SEPARATOR() too');
+  else ctx.diagnostic('ethers not found: the domain hash is not cross-checked');
+});
+
+test('v2: EIP-5267 domains (only the fields the token names; extensions = no permit, the approve path) and signatures (v 0/1, EIP-2098)', async () => {
+  const call = (raw) => async (to, d) => (d === QC.SEL.eip712Domain ? raw : strRet('Other'));
+  const d = QC.dec.eip712Domain(DOMAIN_RAW);
+  assert.deepEqual(d, { fields: 15, name: 'Squeek', version: '1', chainId: 11155111n, verifyingContract: SQK, salt: '0x' + pad(0), extensions: 0 }, 'the real recorded answer');
+  assert.equal(domainRet({ fields: 15, name: 'Squeek', version: '1', chainId: 11155111n, vc: SQK }), DOMAIN_RAW, 'the hand encoder = the real bytes');
+  assert.deepEqual(await QC.tokenDomain(call(DOMAIN_RAW), SQK, 1), { fields: [['name', 'string'], ['version', 'string'], ['chainId', 'uint256'], ['verifyingContract', 'address']], domain: { name: 'Squeek', version: '1', chainId: 11155111, verifyingContract: SQK } }, 'the token\'s own chain id, not the argument');
+  const noVer = await QC.tokenDomain(call(domainRet({ fields: 0x1d, name: 'X', chainId: 11155111n, vc: SQK, salt: 5n })), SQK, 11155111);
+  assert.deepEqual(noVer.domain, { name: 'X', chainId: 11155111, verifyingContract: SQK, salt: '0x' + pad(5) }, 'no version field: none in the domain; a salt: in it');
+  assert.deepEqual(QC.permitTypedData(noVer, ADDR, CONTRACT, CENT, 0n, 1n).types.EIP712Domain.map((x) => x.name), ['name', 'chainId', 'verifyingContract', 'salt']);
+  assert.equal(await QC.tokenDomain(call(domainRet({ fields: 15, name: 'X', version: '1', chainId: 1n, vc: SQK, ext: [7] })), SQK, 1), null, 'extensions: no generic domain');
+  assert.equal(await QC.tokenDomain(call(domainRet({ fields: 0x2f, name: 'X', version: '1', chainId: 1n, vc: SQK })), SQK, 1), null, 'an unknown field bit');
+  await assert.rejects(QC.tokenDomain(async () => { throw new Error('Failed to fetch'); }, SQK, 1), /Failed to fetch/, 'the network is not "no domain"');
+  // a token whose domain this code cannot build: no signature is asked, approve(exactly the cost) + castNet
+  const ext = mockWallet({ chain: '0xaa36a7', netCost: CENT, sqkBalance: CENT, domainRaw: domainRet({ fields: 15, name: 'Squeek', version: '1', chainId: 11155111n, vc: SQK, ext: [1] }) });
+  await runSteps(ext);
+  assert.equal(count(ext, 'eth_signTypedData_v4'), 0);
+  assert.deepEqual(ext.sent.map((t) => [t.to, t.data]), [[SQK, QC.enc.approve(CONTRACT, CENT)], [CONTRACT, QC.enc.castNet()]]);
+  // signatures
+  const r = '11'.repeat(32), s = '22'.repeat(32);
+  assert.deepEqual(QC.splitSig('0x' + r + s + '1b'), { v: 27, r: '0x' + r, s: '0x' + s });
+  assert.deepEqual(QC.splitSig('0x' + r + s + '00'), { v: 27, r: '0x' + r, s: '0x' + s }, 'v 0 = 27');
+  assert.deepEqual(QC.splitSig('0x' + r + s + '01'), { v: 28, r: '0x' + r, s: '0x' + s }, 'v 1 = 28');
+  assert.deepEqual(QC.splitSig('0x' + r + (BigInt('0x' + s) | (1n << 255n)).toString(16)), { v: 28, r: '0x' + r, s: '0x' + s }, 'EIP-2098 compact: the top bit of vs is the parity');
+  assert.deepEqual(QC.splitSig('0x' + r + s), { v: 27, r: '0x' + r, s: '0x' + s });
+  for (const bad of ['0x', '0x' + r, '0x' + r + s + '1d', '0x' + r + s + '1b00', 'nope']) assert.throws(() => QC.splitSig(bad), (e) => e.code === 'sig');
+  assert.throws(() => QC.enc.castNetWithPermit(16, 1n, 27, '0x' + r, '0x' + s), /no spot/, 'the old shape with a spot is refused');
+  assert.throws(() => QC.enc.castNetWithPermit(1n, 29, '0x' + r, '0x' + s), /v must be/);
+  assert.throws(() => QC.enc.castNetWithPermit(1n, 27, '0x' + r.slice(2), '0x' + s), /32 bytes/);
+  if (ethers) {
+    const sig = ethers.Signature.from({ r: '0x' + r, s: '0x' + s, v: 28 });
+    assert.deepEqual(QC.splitSig(sig.serialized), { v: 28, r: '0x' + r, s: '0x' + s }, 'ethers\' 65-byte form');
+    assert.deepEqual(QC.splitSig(sig.compactSerialized), { v: 28, r: '0x' + r, s: '0x' + s }, 'ethers\' EIP-2098 form');
+  }
+});
+
+test('v2: an allowance already in place: plain castNet, no signature; exactly enough test SQK is enough', async () => {
+  const eth = mockWallet({ chain: '0xaa36a7', netCost: CENT, sqkBalance: CENT, allowance: CENT });
+  const { r, steps } = await runSteps(eth);
+  assert.equal(r.tokenId, QC.netId(20762, ADDR));
+  assert.deepEqual(steps, ['connect', 'network', 'check', 'sqk-check', 'send', 'wait', 'done']);
+  assert.equal(count(eth, 'eth_signTypedData_v4'), 0);
+  assert.deepEqual(eth.sent, [{ from: ADDR, to: CONTRACT, data: QC.enc.castNet(), value: '0x0' }]);
+  assert.deepEqual([eth.st.bal, eth.st.burned], [0n, CENT]);
+});
+
+test('v2: a wallet that cannot sign typed data: approve(contract, exactly 0.01) then castNet, reported as sqk-approve; a failed approve sends nothing more', async () => {
+  for (const sign of ['unsupported', 'missing']) {
+    const eth = mockWallet({ chain: '0xaa36a7', netCost: CENT, sqkBalance: 5n * CENT, sign });
+    const { r, steps } = await runSteps(eth);
+    assert.equal(r.night, 20762); assert.equal(r.txHash, '0x' + 'cd'.repeat(32), 'the cast is the second transaction');
+    assert.deepEqual(steps, ['connect', 'network', 'check', 'sqk-check', 'sqk-sign', 'sqk-approve', 'send', 'wait', 'done'], sign);
+    assert.deepEqual(eth.sent, [{ from: ADDR, to: SQK, data: QC.enc.approve(CONTRACT, CENT), value: '0x0' }, { from: ADDR, to: CONTRACT, data: QC.enc.castNet(), value: '0x0' }]);
+    assert.equal(word(eth.sent[0].data, 1), CENT, 'never an unlimited approval: exactly the net\'s cost');
+    const i = eth.calls.findIndex((c) => c.method === 'eth_sendTransaction'), j = eth.calls.findIndex((c, k) => k > i && c.method === 'eth_getTransactionReceipt' && c.params[0] === '0x' + 'ab'.repeat(32));
+    assert.ok(j > i && eth.calls.slice(j).some((c) => c.method === 'eth_sendTransaction'), 'the cast goes out after the approve\'s receipt');
+    assert.deepEqual([eth.st.bal, eth.st.burned, eth.st.allow], [4n * CENT, CENT, 0n]);
+  }
+  const bad = mockWallet({ chain: '0xaa36a7', netCost: CENT, sqkBalance: CENT, sign: 'missing', approveFails: true });
+  await assert.rejects(QC.castNetNft(bad, CONTRACT, fastOpts()), (e) => e.code === 'failed' && e.what === 'approve' && /did not go through/.test(QC.plainError(e)));
+  assert.equal(bad.sent.length, 1, 'no cast after a failed approve');
+  const slow = mockWallet({ chain: '0xaa36a7', netCost: CENT, sqkBalance: CENT, sign: 'missing' });
+  let t = NOW;
+  await assert.rejects(QC.castNetNft(slow, CONTRACT, { now: () => (t += 1000), sleep: async () => {}, pollMs: 1, timeoutMs: 1500 }), (e) => e.code === 'timeout' && e.what === 'approve' && /approval may still go through/.test(QC.plainError(e)));
+  assert.equal(slow.sent.length, 1);
+});
+
+test('v2: no to the signature is a no (nothing sent, never an approve instead); too little test SQK stops before any prompt (NO_SQK, the faucet)', async () => {
+  for (const sign of ['reject', 'reject-worded']) {                  // 4001 is a no, whatever words come with it
+    const no = mockWallet({ chain: '0xaa36a7', netCost: CENT, sqkBalance: CENT, sign });
+    await assert.rejects(QC.castNetNft(no, CONTRACT, fastOpts()), (e) => e.code === 4001 && /said no in your wallet\. Nothing was sent/.test(QC.plainError(e)));
+    assert.equal(no.sent.length, 0, 'no transaction, no approve fallback');
+  }
+  for (const sqkBalance of [0n, CENT - 1n]) {
+    const eth = mockWallet({ chain: '0xaa36a7', netCost: CENT, sqkBalance }), steps = [];
+    let err = null;
+    await QC.castNetNft(eth, CONTRACT, fastOpts({ onStep: (s) => steps.push(s) })).catch((e) => { err = e; });
+    assert.ok(err && err.code === 'NO_SQK', 'code NO_SQK');
+    assert.deepEqual([err.cost, err.balance, err.sqk], [CENT, sqkBalance, SQK], 'the cost, the balance and the token on the error');
+    assert.match(QC.plainError(err), /costs 0\.01 test SQK \(it gets burned\).*faucet.*Nothing was sent/);
+    assert.deepEqual(steps, ['connect', 'network', 'check', 'sqk-check']);
+    assert.equal(count(eth, 'eth_signTypedData_v4') + count(eth, 'eth_sendTransaction'), 0, 'no signature, no transaction');
+  }
+  assert.match(QC.plainError({ code: 'NO_SQK' }), /a little test SQK/);
+  assert.match(QC.plainError(revert(QC.ERR.InsufficientBalance + pad(ADDR) + pad(0) + pad(CENT))), /test SQK.*faucet/, 'the token\'s own balance revert');
+  assert.match(QC.plainError(revert(QC.ERR.InsufficientAllowance + pad(CONTRACT) + pad(0) + pad(CENT))), /not approved, so nothing was sent/);
+  // the page's expected token (opts.sqk) differs from the contract's SQK(): stop before any signature
+  const other = mockWallet({ chain: '0xaa36a7', netCost: CENT, sqkBalance: CENT });
+  await assert.rejects(QC.castNetNft(other, CONTRACT, fastOpts({ sqk: ADDR })), (e) => e.code === 'config' && /do not match/.test(QC.plainError(e)));
+  assert.equal(count(other, 'eth_signTypedData_v4') + count(other, 'eth_sendTransaction'), 0);
+  // already cast tonight: said before any token read
+  const al = mockWallet({ chain: '0xaa36a7', netCost: CENT, sqkBalance: 0n, alreadyHas: true });
+  await assert.rejects(QC.castNetNft(al, CONTRACT, fastOpts()), (e) => e.code === 'already');
+  assert.ok(!al.calls.some((c) => c.method === 'eth_call' && c.params[0].to === SQK));
+});
+
+test('v2: the permit cast is simulated first: a token that ignored the permit = the approve path; already cast = nothing sent; an unanswered simulation goes on', async () => {
+  const allowRev = QC.ERR.InsufficientAllowance + pad(CONTRACT) + pad(0) + pad(CENT);
+  for (const wrapReverts of [false, true]) {
+    const ign = mockWallet({ chain: '0xaa36a7', netCost: CENT, sqkBalance: CENT, simRevert: allowRev, permitIgnored: true, wrapReverts });
+    const { steps } = await runSteps(ign);
+    assert.deepEqual(steps, ['connect', 'network', 'check', 'sqk-check', 'sqk-sign', 'sqk-approve', 'send', 'wait', 'done']);
+    assert.equal(count(ign, 'eth_signTypedData_v4'), 1);
+    assert.deepEqual(ign.sent.map((t) => [t.to, t.data]), [[SQK, QC.enc.approve(CONTRACT, CENT)], [CONTRACT, QC.enc.castNet()]], 'castNet, not the dead permit');
+    const al = mockWallet({ chain: '0xaa36a7', netCost: CENT, sqkBalance: CENT, simRevert: QC.ERR.AlreadyCast + pad(20762) + pad(ADDR), wrapReverts });
+    await assert.rejects(QC.castNetNft(al, CONTRACT, fastOpts()), (e) => e.code === 'already');
+    assert.equal(al.sent.length, 0);
+  }
+  const odd = mockWallet({ chain: '0xaa36a7', netCost: CENT, sqkBalance: CENT, simRevert: '0xdeadbeef' });
+  await assert.rejects(QC.castNetNft(odd, CONTRACT, fastOpts()), (e) => QC.isRevert(e) && /Something went wrong/.test(QC.plainError(e)));
+  assert.equal(odd.sent.length, 0, 'an unknown revert: nothing sent');
+  const bal = mockWallet({ chain: '0xaa36a7', netCost: CENT, sqkBalance: CENT, simRevert: QC.ERR.InsufficientBalance + pad(ADDR) + pad(0) + pad(CENT) });
+  await assert.rejects(QC.castNetNft(bal, CONTRACT, fastOpts()), (e) => e.code === 'NO_SQK');
+  const off = mockWallet({ chain: '0xaa36a7', netCost: CENT, sqkBalance: CENT, simFails: true });
+  await runSteps(off);
+  assert.deepEqual(off.sent.map((t) => sel(t.data)), [QC.SEL.castNetWithPermit], 'the simulation did not answer: the one transaction still goes out');
+});
+
+test('sqkInfo: the cost, the token, the wallet\'s test SQK and the faucet, read-only, through a call function or the wallet', async () => {
+  const eth = mockWallet({ chain: '0xaa36a7', netCost: CENT, sqkBalance: 3n * CENT, faucetLeft: 42n * DRIP });
+  const want = { cost: CENT, sqk: SQK, balance: 3n * CENT, faucetLeft: 42n * DRIP, drip: DRIP, claimed: false };
+  assert.deepEqual(await QC.sqkInfo(eth, CONTRACT, FAUCET, ADDR), want, 'through the wallet (EIP-1193)');
+  assert.deepEqual(await QC.sqkInfo(QC.walletCall(eth), CONTRACT, FAUCET, ADDR.toUpperCase().replace('0X', '0x')), want, 'through a call(to, data) function (QC.rpcCall)');
+  assert.ok(eth.calls.every((c) => c.method === 'eth_call' || c.method === 'eth_chainId'), 'read-only: eth_call (and the chain id) only');
+  const off = mockWallet({ chain: '0x1', netCost: CENT });
+  await assert.rejects(QC.sqkInfo(off, CONTRACT, FAUCET, ADDR), (e) => e.code === 'chain', 'a wallet on another network: no numbers from there');
+  assert.deepEqual(off.calls.map((c) => c.method), ['eth_chainId']);
+  assert.deepEqual(await QC.sqkInfo(eth, CONTRACT, null, null), { cost: CENT, sqk: SQK, balance: null, faucetLeft: null, drip: null, claimed: null }, 'no faucet, no wallet yet');
+  assert.deepEqual(await QC.sqkInfo(eth, CONTRACT, FAUCET, null), { ...want, balance: null, claimed: null });
+  assert.deepEqual(await QC.sqkInfo(mockWallet({ chain: '0xaa36a7', v1: true }), CONTRACT, null, ADDR), { cost: 0n, sqk: null, balance: null, faucetLeft: null, drip: null, claimed: null }, 'the live v1 contract: free nets (read-only)');
+  assert.deepEqual(await QC.sqkInfo(mockWallet({ chain: '0xaa36a7', netCost: 0n }), CONTRACT, null, ADDR), { cost: 0n, sqk: null, balance: null, faucetLeft: null, drip: null, claimed: null }, 'v2 without SQK: free nets');
+  await assert.rejects(QC.sqkInfo(mockWallet({ chain: '0xaa36a7', netCost: CENT, faucetToken: ADDR }), CONTRACT, FAUCET, ADDR), (e) => e.code === 'config', 'a faucet for another token');
+  await assert.rejects(QC.sqkInfo(mockWallet({ chain: '0xaa36a7', netCost: CENT, netCostFails: true }), CONTRACT, FAUCET, ADDR), /Failed to fetch/);
+  const claimed = mockWallet({ chain: '0xaa36a7', netCost: CENT, claimed: true });
+  assert.equal((await QC.sqkInfo(claimed, CONTRACT, FAUCET, ADDR)).claimed, true, 'claimed = canClaim() is false: already claimed this net night');
+  assert.ok(claimed.calls.some((c) => c.method === 'eth_call' && c.params[0].to === FAUCET && c.params[0].data === QC.enc.canClaim(ADDR)));
+  assert.deepEqual([QC.units(CENT), QC.units(10n ** 17n), QC.units(0n), QC.units(564n * 10n ** 18n), QC.units(1n), QC.units(-CENT), QC.units(1234n, 2)], ['0.01', '0.1', '0', '564', '0.000000000000000001', '-0.01', '12.34']);
+});
+
+test('v2: every cast is simulated right before it is sent: a burned net (result() cannot see it) = AlreadyCast = nothing sent, free or with an allowance in place; an unanswered simulation goes on', async () => {
+  const already = QC.ERR.AlreadyCast + pad(20762) + pad(ADDR);
+  for (const wrapReverts of [false, true]) {
+    for (const o of [{ netCost: 0n }, { netCost: CENT, sqkBalance: CENT, allowance: CENT }]) {
+      const eth = mockWallet({ chain: '0xaa36a7', castSimRevert: already, wrapReverts, ...o }), steps = [];
+      await assert.rejects(QC.castNetNft(eth, CONTRACT, fastOpts({ onStep: (x) => steps.push(x) })), (e) => e.code === 'already' && /already has a net/.test(QC.plainError(e)));
+      assert.equal(eth.sent.length + count(eth, 'eth_signTypedData_v4'), 0, `nothing signed or sent (cost ${o.netCost})`);
+      assert.ok(!steps.includes('send'));
+      const sim = eth.calls.find((c) => c.method === 'eth_call' && c.params[0].data === QC.enc.castNet());
+      assert.ok(sim && sim.params[0].from === ADDR && sim.params[0].to === CONTRACT, 'castNet() simulated from the caster');
+    }
+  }
+  // not enough test SQK by the time of the cast: NO_SQK, nothing sent; an unknown revert: its own words, nothing sent
+  const nb = mockWallet({ chain: '0xaa36a7', netCost: CENT, sqkBalance: CENT, allowance: CENT, castSimRevert: QC.ERR.InsufficientBalance + pad(ADDR) + pad(0) + pad(CENT) });
+  await assert.rejects(QC.castNetNft(nb, CONTRACT, fastOpts()), (e) => e.code === 'NO_SQK');
+  assert.equal(nb.sent.length, 0);
+  const odd = mockWallet({ chain: '0xaa36a7', netCost: 0n, castSimRevert: '0xdeadbeef' });
+  await assert.rejects(QC.castNetNft(odd, CONTRACT, fastOpts()), (e) => QC.isRevert(e) && /Nothing was taken/.test(QC.plainError(e)));
+  assert.equal(odd.sent.length, 0);
+  // right after our own approve a node may not see the allowance yet: an allowance revert lets the cast go out
+  const lag = mockWallet({ chain: '0xaa36a7', netCost: CENT, sqkBalance: CENT, sign: 'unsupported', castSimRevert: QC.ERR.InsufficientAllowance + pad(CONTRACT) + pad(0) + pad(CENT) });
+  assert.equal((await QC.castNetNft(lag, CONTRACT, fastOpts())).night, 20762);
+  assert.deepEqual(lag.sent.map((t) => t.data), [QC.enc.approve(CONTRACT, CENT), QC.enc.castNet()]);
+  // the simulation does not answer (a wallet without eth_call from, the network): the one transaction still goes out
+  const off = mockWallet({ chain: '0xaa36a7', netCost: 0n, castSimFails: true });
+  assert.equal((await QC.castNetNft(off, CONTRACT, fastOpts())).night, 20762);
+  assert.equal(off.sent.length, 1);
+  // the permit path keeps its own simulation (of castNetWithPermit): no second one of castNet()
+  const pm = mockWallet({ chain: '0xaa36a7', netCost: CENT, sqkBalance: CENT });
+  await QC.castNetNft(pm, CONTRACT, fastOpts());
+  assert.ok(!pm.calls.some((c) => c.method === 'eth_call' && c.params[0].data === QC.enc.castNet()));
+});
+
+test('v2: opts.netCost (what the page expects a net to cost, in wei) must be the contract\'s NET_COST(), else nothing is signed or sent', async () => {
+  const eth = mockWallet({ chain: '0xaa36a7', netCost: CENT, sqkBalance: CENT });
+  await assert.rejects(QC.castNetNft(eth, CONTRACT, fastOpts({ netCost: CENT / 10n })), (e) => e.code === 'config' && /do not match/.test(QC.plainError(e)));
+  assert.equal(eth.sent.length + count(eth, 'eth_signTypedData_v4'), 0);
+  for (const nc of [CENT, String(CENT)]) assert.equal((await QC.castNetNft(mockWallet({ chain: '0xaa36a7', netCost: CENT, sqkBalance: CENT }), CONTRACT, fastOpts({ netCost: nc }))).night, 20762);
+  await assert.rejects(QC.castNetNft(mockWallet({ chain: '0xaa36a7', netCost: 0n }), CONTRACT, fastOpts({ netCost: CENT })), (e) => e.code === 'config', 'a free contract is not what a paid page expects');
+});
+
+test('faucet: claim() is simulated right before it is sent: claimed tonight / empty by then = nothing sent; an unanswered simulation goes on', async () => {
+  for (const wrapReverts of [false, true]) {
+    const c = mockWallet({ chain: '0xaa36a7', claimSimRevert: QC.ERR.AlreadyClaimedTonight + pad(20762), wrapReverts });
+    await assert.rejects(QC.claimFaucet(c, FAUCET, fastOpts()), (e) => e.code === 'claimed');
+    assert.equal(c.sent.length, 0);
+    const e2 = mockWallet({ chain: '0xaa36a7', claimSimRevert: QC.ERR.FaucetEmpty, wrapReverts });
+    await assert.rejects(QC.claimFaucet(e2, FAUCET, fastOpts()), (e) => e.code === 'empty');
+    assert.equal(e2.sent.length, 0);
+  }
+  const odd = mockWallet({ chain: '0xaa36a7', claimSimRevert: '0xdeadbeef' });
+  await assert.rejects(QC.claimFaucet(odd, FAUCET, fastOpts()), (e) => QC.isRevert(e));
+  assert.equal(odd.sent.length, 0);
+  const off = mockWallet({ chain: '0xaa36a7', claimSimFails: true });
+  assert.equal((await QC.claimFaucet(off, FAUCET, fastOpts())).amount, DRIP);
+  const sim = off.calls.find((x) => x.method === 'eth_call' && x.params[0].data === QC.SEL.claim);
+  assert.ok(sim && sim.params[0].from === ADDR && sim.params[0].to === FAUCET, 'claim() simulated from the claimer');
+});
+
+test('faucet: ONE claim() transaction, the amount from the Claimed log; already claimed this night (canClaim false) / empty / no test ETH send nothing', async () => {
+  const eth = mockWallet({ unknownChain: true }), steps = [];
+  const r = await QC.claimFaucet(eth, FAUCET.toUpperCase().replace('0X', '0x'), fastOpts({ onStep: (s) => steps.push(s) }));
+  assert.deepEqual(r, { txHash: '0x' + 'ab'.repeat(32), to: ADDR, amount: DRIP });
+  assert.deepEqual(steps, ['connect', 'network', 'faucet', 'wait', 'done']);
+  assert.deepEqual(eth.sent, [{ from: ADDR, to: FAUCET, data: QC.SEL.claim, value: '0x0' }]);
+  assert.equal(eth.added.chainId, '0xaa36a7', 'added + switched to Sepolia first');
+  assert.equal(count(eth, 'eth_signTypedData_v4'), 0);
+  const again = await QC.claimFaucet(eth, FAUCET, fastOpts()).catch((e) => e);
+  assert.equal(again.code, 'claimed'); assert.match(QC.plainError(again), /already got today's free test SQK.*one claim per wallet per night.*21:00 UTC/);
+  assert.equal(eth.sent.length, 1, 'the second claim sends nothing');
+  const empty = mockWallet({ chain: '0xaa36a7', faucetLeft: DRIP - 1n });
+  await assert.rejects(QC.claimFaucet(empty, FAUCET, fastOpts()), (e) => e.code === 'empty' && /faucet is empty/.test(QC.plainError(e)));
+  assert.equal(empty.sent.length, 0);
+  const broke = mockWallet();
+  await assert.rejects(QC.claimFaucet(broke, FAUCET, fastOpts({ balance: async () => 0n })), (e) => e.code === 'nofunds');
+  assert.deepEqual(broke.calls.map((c) => c.method), ['eth_requestAccounts'], 'no network prompt, no transaction');
+  const failed = mockWallet({ chain: '0xaa36a7', failed: true });
+  await assert.rejects(QC.claimFaucet(failed, FAUCET, fastOpts()), (e) => e.code === 'failed' && e.what === 'faucet');
+  let t = NOW;
+  await assert.rejects(QC.claimFaucet(mockWallet({ chain: '0xaa36a7' }), FAUCET, { now: () => (t += 1000), sleep: async () => {}, pollMs: 1, timeoutMs: 1500 }), (e) => e.code === 'timeout' && /test SQK may still arrive/.test(QC.plainError(e)));
+  assert.match(QC.plainError(revert(QC.ERR.AlreadyClaimedTonight + pad(20762))), /already got today's free test SQK/, 'the contract\'s own revert');
+  assert.match(QC.plainError(revert(QC.ERR.FaucetEmpty)), /faucet is empty/);
+  assert.match(await QC.claimFaucet(mockWallet({ chain: '0xaa36a7', sendError: Object.assign(new Error('User denied transaction signature.'), { code: 4001 }) }), FAUCET, fastOpts()).catch((e) => QC.plainError(e)), /said no/);
+  assert.equal(QC.dec.claimedLog({ topics: [QC.TOPIC_NETCAST, '0x' + pad(ADDR)], data: '0x' + pad(1) }), null, 'other events are not a Claimed');
+});
+
+test('v2 selectors, topics and errors: keccak of the signatures (ethers), and the forge build once it has the v2 contracts', () => {
+  const fns = { castNet: 'castNet()', castNetWithPermit: 'castNetWithPermit(uint256,uint8,bytes32,bytes32)', netCost: 'NET_COST()', sqk: 'SQK()', balanceOf: 'balanceOf(address)', allowance: 'allowance(address,address)',
+    approve: 'approve(address,uint256)', nonces: 'nonces(address)', eip712Domain: 'eip712Domain()', name: 'name()', claim: 'claim()', canClaim: 'canClaim(address)', remaining: 'remaining()', drip: 'DRIP()', token: 'TOKEN()' };
+  const errs = { AlreadyClaimedTonight: 'AlreadyClaimedTonight(uint32)', FaucetEmpty: 'FaucetEmpty()', InsufficientBalance: 'ERC20InsufficientBalance(address,uint256,uint256)', InsufficientAllowance: 'ERC20InsufficientAllowance(address,uint256,uint256)' };
+  assert.equal(QC.enc.castNetWithPermit(99n, 27, '0x' + '11'.repeat(32), '0x' + '22'.repeat(32)), QC.SEL.castNetWithPermit + pad(99) + pad(27) + '11'.repeat(32) + '22'.repeat(32));
+  assert.equal(QC.enc.approve(CONTRACT, CENT), QC.SEL.approve + pad(CONTRACT) + pad(CENT));
+  assert.equal(QC.enc.allowance(ADDR, CONTRACT), QC.SEL.allowance + pad(ADDR) + pad(CONTRACT));
+  const id = new Map([[QC.TOPIC_NETPAID, 'NetPaid(uint32,address,uint256)'], [QC.TOPIC_CLAIMED, 'Claimed(address,uint256)']]);
+  assert.deepEqual(QC.dec.netPaid({ topics: [QC.TOPIC_NETPAID, '0x' + pad(20762), '0x' + pad(ADDR)], data: '0x' + pad(CENT) }), { night: 20762, catcher: ADDR, burned: CENT });
+  if (ethers) {
+    for (const [k, s] of Object.entries(fns)) assert.equal(QC.SEL[k], ethers.id(s).slice(0, 10), s);
+    for (const [k, s] of Object.entries(errs)) assert.equal(QC.ERR[k], ethers.id(s).slice(0, 10), s);
+    for (const [t, s] of id) assert.equal(t, ethers.id(s), s);
+  }
+  const art = (name) => { const f = path.join(ROOT, `contracts/out/${name}.sol/${name}.json`); return fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')) : null; };
+  const abiSig = (a) => `${a.name}(${a.inputs.map((x) => x.type).join(',')})`;
+  const qc = art('QuantumCatch');
+  if (qc && qc.methodIdentifiers['NET_COST()']) {                    // the v2 build: every v2 function the page calls is in it
+    for (const k of ['castNet', 'castNetWithPermit', 'netCost', 'sqk']) assert.equal(QC.SEL[k], '0x' + qc.methodIdentifiers[fns[k]], `QuantumCatch ${fns[k]}`);
+    const ev = qc.abi.filter((a) => a.type === 'event').map(abiSig);
+    assert.ok(ev.includes('NetPaid(uint32,address,uint256)') && ev.includes('NetCast(uint32,address,uint256)'), ev.join(' '));
+    const ab = qc.abi.map((a) => a.type + ' ' + (a.name ? abiSig(a) : ''));
+    for (const s of ['error AlreadyCast(uint32,address)', 'error NonexistentToken(uint256)']) assert.ok(ab.includes(s), `QuantumCatch has ${s}`);
+    assert.equal(QC.ERR.AlreadyCast, '0x' + (ethers ? ethers.id('AlreadyCast(uint32,address)').slice(2, 10) : QC.ERR.AlreadyCast.slice(2)));
+    assert.equal(qc.methodIdentifiers['NO_SPOT()'] !== undefined, true, 'NO_SPOT() = 255: result().spot before the draw');
+  }
+  const fa = art('SqkFaucet');
+  if (fa) {
+    for (const k of ['claim', 'canClaim', 'remaining', 'drip', 'token']) assert.equal(QC.SEL[k], '0x' + fa.methodIdentifiers[fns[k]], `SqkFaucet ${fns[k]}`);
+    const ab = fa.abi.filter((a) => a.name).map((a) => a.type + ' ' + abiSig(a));
+    for (const s of ['error AlreadyClaimedTonight(uint32)', 'error FaucetEmpty()', 'event Claimed(address,uint256)']) assert.ok(ab.includes(s), `SqkFaucet has ${s}: ${ab.join(', ')}`);
   }
 });
 
@@ -357,7 +803,7 @@ test('my nets: result(tokenId) for recent nights through eth_call; nights withou
   const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>').toString('base64');
   const uri = 'data:application/json;base64,' + Buffer.from(JSON.stringify({ name: 'n', attributes: [], image: 'data:image/svg+xml;base64,' + svg })).toString('base64');
   const enc = (s) => '0x' + pad(32) + pad(Buffer.byteLength(s)) + Buffer.from(s).toString('hex').padEnd(Math.ceil(Buffer.byteLength(s) / 32) * 64, '0');
-  const have = { [QC.netId(20761, ADDR)]: [1, 20761, 15, 808, 4000, 1, 15], [QC.netId(20759, ADDR)]: [2, 20759, 0, 12, 4000, 0, 0] };
+  const have = { [QC.netId(20762, ADDR)]: [0, 20762, 255, 0, 0, 0, 0], [QC.netId(20761, ADDR)]: [1, 20761, 15, 808, 4000, 1, 15], [QC.netId(20759, ADDR)]: [2, 20759, 0, 12, 4000, 0, 0] };
   const seen = [];
   const call = async (to, data) => {
     assert.equal(to, CONTRACT); seen.push(data.slice(0, 10));
@@ -366,10 +812,12 @@ test('my nets: result(tokenId) for recent nights through eth_call; nights withou
     return data.startsWith(QC.SEL.result) ? '0x' + have[id].map(pad).join('') : enc(uri);
   };
   const nets = await QC.myNets(call, CONTRACT, ADDR, [20762, 20761, 20760, 20759]);
-  assert.deepEqual(nets.map((x) => [x.night, x.status, x.spot, x.tier]), [[20761, 1, 15, 1], [20759, 2, 0, 0]]);
-  assert.equal(nets[0].tokenId, QC.netId(20761, ADDR));
-  assert.equal(nets[0].image, 'data:image/svg+xml;base64,' + svg);
-  assert.equal(seen.filter((s) => s === QC.SEL.tokenURI).length, 2);
+  assert.deepEqual(nets.map((x) => [x.night, x.status, x.spot, x.tier]), [[20762, 0, null, 0], [20761, 1, 15, 1], [20759, 2, 0, 0]], 'the drawn spot + tier once posted, no spot before');
+  assert.equal(nets[1].tokenId, QC.netId(20761, ADDR));
+  assert.equal(nets[1].image, 'data:image/svg+xml;base64,' + svg);
+  assert.equal(seen.filter((s) => s === QC.SEL.tokenURI).length, 3);
+  assert.deepEqual(await QC.readNet(call, CONTRACT, QC.netId(20761, ADDR)), { status: 1, night: 20761, spot: 15, hits: 808, shots: 4000, tier: 1, looks: 15 }, 'readNet: the drawn spot and tier');
+  assert.equal(await QC.readNet(call, CONTRACT, QC.netId(20760, ADDR)), null, 'no net (or a burned one): null');
   await assert.rejects(QC.myNets(async () => { throw new Error('Failed to fetch'); }, CONTRACT, ADDR, [20762]), /Failed to fetch/, 'a network error is not "no net"');
 });
 
@@ -428,4 +876,33 @@ test('rpc call: a plain JSON-RPC eth_call POST; errors come back as errors', asy
   assert.deepEqual(body.params, [{ to: FIX.core, data: '0xc19d93fb' }, 'latest']); assert.equal(body.method, 'eth_call');
   const bad = QC.rpcCall(async () => ({ ok: true, json: async () => ({ error: { code: 3, message: 'execution reverted', data: '0x2f4163e7' } }) }), 'https://x.invalid');
   await assert.rejects(bad(FIX.core, '0x00'), (e) => e.code === 3 && /revert/.test(e.message));
+});
+
+// the page build and this (v2) catch.js against the live v1 contract: catch.js refuses v1 ('config'), so a page without a
+// guard would ship a dead NFT button and is refused. The page v2 template has the guard (const NOT_WIRED: it reads NET_COST()
+// and says "Casting opens soon" instead of a button, RULINGS 52/58), so it builds, with a note. The switch is one step:
+// catchAddress to the v2 deploy, or null (watch-only).
+test('build.py: v2 catch.js with the v1 catchAddress: refused without the not-wired guard (nothing written); this page has it; null (watch-only) builds', () => {
+  const dir = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'qc-build-')), out = path.join(dir, 'p.html'), V1 = '0xa0B3352b3a436c845E3BF2D251ABeda3D474Dfe0';
+  // build.py with the template read through a filter (here: the guard taken out)
+  const noGuard = ['-c', ['import builtins, io, runpy, sys', 'real = builtins.open',
+    'def fake(p, *a, **k):',
+    "    if str(p).endswith('page.template.html') and not (a and 'w' in a[0]):",
+    "        return io.StringIO(real(p, *a, **k).read().replace('const NOT_WIRED = ', 'const NOT_WIRED_GONE = '))",
+    '    return real(p, *a, **k)',
+    'builtins.open = fake', 'sys.argv = sys.argv[1:]', 'runpy.run_path(sys.argv[0], run_name="__main__")'].join('\n'), path.join(ROOT, 'wheel/build.py')];
+  try {
+    const bad = spawnSync('python3', [...noGuard, '--catch-address', V1, '--out', out], { encoding: 'utf8' });
+    assert.notEqual(bad.status, 0, bad.stdout + bad.stderr);
+    assert.match(bad.stderr, /refused: wheel\/catch\.js is the v2 wallet code .* catchAddress 0xa0b3352b3a436c845e3bf2d251abeda3d474dfe0 is the v1 contract .* this page has no not-wired guard/);
+    assert.ok(!fs.existsSync(out), 'nothing written');
+    const v1 = spawnSync('python3', [path.join(ROOT, 'wheel/build.py'), '--catch-address', V1, '--out', out], { encoding: 'utf8' });
+    assert.equal(v1.status, 0, v1.stdout + v1.stderr);
+    assert.match(v1.stderr, /^note: catchAddress 0xa0b3352b3a436c845e3bf2d251abeda3d474dfe0 is the v1 contract: wallet visitors see the not-wired line/m);
+    assert.ok(fs.readFileSync(out, 'utf8').includes('const NOT_WIRED = '), 'the built page has the guard');
+    fs.rmSync(out);
+    const ok = spawnSync('python3', [path.join(ROOT, 'wheel/build.py'), '--catch-address', 'null', '--out', out], { encoding: 'utf8' });
+    assert.equal(ok.status, 0, ok.stdout + ok.stderr);
+    assert.match(ok.stdout, /NFT button: off/);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });

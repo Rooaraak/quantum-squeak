@@ -24,8 +24,9 @@ Squeektoshi's real night programs a quantum walk on a ring of 16 spots (one hams
   first); with n of them, rank r: Epic r = n, Rare r = n - 1, Uncommon r = n - 3 or n - 2, Common r <= n - 4.
   **Legendary**: the Epic spot when the chip's very first shot of the night landed on it (the result file's
   `shots_in_order[0]`, a position, turned onto the ring like the counts: spot = (position + total turns) mod 16). Every
-  other spot: he got away. With 8 catchable spots: 4 Common, 2 Uncommon, 1 Rare, 1 Epic (Legendary on about 1 net in
-  250). Tier codes 0 got away, 1 Common .. 5 Legendary; checked against `contracts/test/data/tier-vectors.json`. The
+  other spot: he got away. With 8 catchable spots: 4 Common, 2 Uncommon, 1 Rare, 1 Epic (per net, Legendary is about
+  the Epic spot's share squared: about 1 in 250 on the 10-step nights, 1 in 190 to 1 in 1,700 on the real nights).
+  Tier codes 0 got away, 1 Common .. 5 Legendary; checked against `contracts/test/data/tier-vectors.json`. The
   spot's 4 bits pick the hamster (bit 0 party hat, bit 1 glasses, bit 2 scarf, bit 3 grin), as on the v9 wish board.
 - **Proof**: the same IBM job carries the twin test (CHSH, 4 card pairs x 250 shots, as in dawn_run.py). Any fixed
   plan wins at most 75 %; a perfect chip about 85.4 %. A demonstration on one chip, not a lab-grade test.

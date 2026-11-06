@@ -32,36 +32,23 @@ contract CatchFuzzTest is CatchBase {
         assertEq(qc.openNightAt(t), offset < 32400 ? n : n + 1);
     }
 
-    function testFuzz_castNet_lands_in_the_open_night(uint256 t, address who, uint8 spot) public {
+    function testFuzz_castNet_lands_in_the_open_night(uint256 t, address who) public {
         t = bound(t, 43200, MAX_T);
-        spot = uint8(bound(spot, 0, 15));
         vm.assume(who != address(0) && who != hatcher);
         assumeNotForgeAddress(who);
         vm.warp(t);
         vm.prank(who);
-        uint256 id = qc.castNet(spot);
+        uint256 id = qc.castNet();
         assertEq(id >> 160, _refOpen(t));
         assertEq(address(uint160(id)), who);
         assertEq(qc.ownerOf(id), who);
         (, uint32 night, uint8 s,,,, uint8 looks) = qc.result(id);
         assertEq(night, _refOpen(t));
-        assertEq(s, spot);
-        assertEq(looks, spot);
+        assertEq(s, 255, "no spot until the night is posted");
+        assertEq(looks, 0);
         vm.prank(who);
         vm.expectRevert(abi.encodeWithSelector(QuantumCatch.AlreadyCast.selector, uint32(_refOpen(t)), who));
-        qc.castNet(spot);
-    }
-
-    function testFuzz_spot_range(uint8 spot) public {
-        vm.prank(alice);
-        if (spot >= 16) {
-            vm.expectRevert(abi.encodeWithSelector(QuantumCatch.SpotOutOfRange.selector, spot));
-            qc.castNet(spot);
-        } else {
-            qc.castNet(spot);
-            (,, uint8 s,,,,) = qc.result(qc.netId(N1104, alice));
-            assertEq(s, spot);
-        }
+        qc.castNet();
     }
 
     function testFuzz_ids_are_unique(uint32 n1, address a1, uint32 n2, address a2) public view {
@@ -73,7 +60,7 @@ contract CatchFuzzTest is CatchBase {
     }
 
     function testFuzz_missing_ids_revert(uint256 id) public {
-        uint256 mine = _cast(alice, 3);
+        uint256 mine = _cast(alice);
         vm.assume(id != mine);
         vm.expectRevert(abi.encodeWithSelector(QuantumCatch.NonexistentToken.selector, id));
         qc.ownerOf(id);
@@ -152,10 +139,10 @@ contract CatchFuzzTest is CatchBase {
         turns = uint32(bound(turns, 1, type(uint32).max));
         steps = uint8(bound(steps, 1, 16));
         if (steps > turns) steps = uint8(turns);
-        uint256 id = _cast(alice, spot);
         uint16[16] memory c;
-        c[spot] = uint16(bound(hits, 0, 4000));
+        c[spot] = uint16(bound(hits, 10, 4000)); // (the 1 % line is 40)
         c[(spot + 1) % 16] = 4000 - c[spot];
+        uint256 id = _castOn(spot, c); // a net whose shot lands on `spot`
         vm.warp(OVER_1104);
         _postK(N1104, c, turns, steps);
         bool reach = _walkReach(spot, turns, steps);
@@ -195,35 +182,44 @@ contract CatchFuzzTest is CatchBase {
         assertEq(per[1], n > 4 ? n - 4 : 0);
     }
 
-    function testFuzz_result_state(uint8 spot, uint16[16] memory c, uint32 turns) public {
-        spot = uint8(bound(spot, 0, 15));
+    /// any caster, any numbers: the net's spot is the reference draw and its outcome is that spot's
+    function testFuzz_result_state(address who, uint16[16] memory c, uint32 turns) public {
+        vm.assume(who != address(0) && who != hatcher);
+        assumeNotForgeAddress(who);
         uint256 sum;
         for (uint256 i; i < 16; ++i) {
             sum += c[i];
         }
         if (turns == 0) c = [uint16(0), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-        else if (sum == 0) c[spot] = 1;
+        else if (sum == 0) c[uint160(who) % 16] = 1;
         sum = 0;
         for (uint256 i; i < 16; ++i) {
             sum += c[i];
         }
-        uint256 id = _cast(alice, spot);
+        uint256 id = _cast(who);
         vm.warp(OVER_1104);
         _post(N1104, c, turns);
-        (uint8 status,,, uint16 hits, uint32 shots, uint8 tier,) = qc.result(id);
+        _checkResult(id, c, sum, turns);
+    }
+
+    function _checkResult(uint256 id, uint16[16] memory c, uint256 sum, uint32 turns) internal view {
+        (uint8 status,, uint8 spot, uint16 hits, uint32 shots, uint8 tier,) = qc.result(id);
         if (turns == 0) {
             assertEq(status, 3);
+            assertEq(spot, 255);
             assertEq(tier, 0);
             assertEq(shots, 0);
             assertEq(qc.reachOf(id), 0);
-        } else {
-            bool reach = _walkReach(spot, turns, _stepsFor(turns));
-            assertEq(hits, c[spot]);
-            assertEq(shots, sum);
-            assertEq(qc.reachOf(id), reach ? 1 : 2);
-            assertEq(tier, _refTiers(c, turns, _stepsFor(turns), _firstOf(c))[spot]);
-            if (!reach) assertEq(tier, 0);
-            assertEq(status, tier > 0 ? 1 : 2);
+            return;
         }
+        assertEq(spot, _refDraw(N1104, SHA_1104, JOB_1104, id, c), "the reference draw");
+        assertGt(c[spot], 0, "a spot with landings");
+        bool reach = _walkReach(spot, turns, _stepsFor(turns));
+        assertEq(hits, c[spot]);
+        assertEq(shots, sum);
+        assertEq(qc.reachOf(id), reach ? 1 : 2);
+        assertEq(tier, _refTiers(c, turns, _stepsFor(turns), _firstOf(c))[spot]);
+        if (!reach) assertEq(tier, 0);
+        assertEq(status, tier > 0 ? 1 : 2);
     }
 }

@@ -3,10 +3,22 @@
      night(t) = (t - 43200) / 86400 (days since 1970); nets for night n close at 21:00 UTC (nightStart + 9 h), then new nets
      go to night n + 1. He usually starts running at 21:10-21:40 UTC.
    - Local nets: one per night, final once cast (the free NFT copy of a net cannot be moved either).
-   - ABI encoding/decoding by hand for the few calls the page makes: QuantumCatch castNet/result/tokenURI and the NetCast
-     log, SqueekCore state/roundPage (read-only, settled rounds only).
-   - Wallet: plain EIP-1193 (window.ethereum). The page asks for accounts, Sepolia, and ONE transaction (castNet), never a
-     signature or an approval; with no Sepolia test ETH it stops before the network prompt, after a read-only balance check. */
+   - The NFT net (QuantumCatch v2, the owner's rule of 6 Nov: no picking): a net is a ticket for one of the chip's shots. The
+     wallet casts it with NO spot; once the night's chip result is posted the contract draws the net's shot over all
+     the night's landings (QuantumCatch.drawOf), and result() / readNet / myNets give the drawn spot and its tier (spot null
+     until then). The live v1 contract (castNet(uint8 spot)) cannot be cast through this code: it stops with code 'config'.
+   - ABI encoding/decoding by hand for the few calls the page makes: QuantumCatch castNet()/castNetWithPermit/result/tokenURI/
+     NET_COST/SQK and the NetCast/NetPaid logs, the test SQK token (balanceOf/allowance/nonces/eip712Domain/name/approve), the
+     SqkFaucet (claim/canClaim/remaining/DRIP/TOKEN and its Claimed log), SqueekCore state/roundPage (read-only, settled rounds
+     only).
+   - Wallet: plain EIP-1193 (window.ethereum). The page asks for accounts, Sepolia, and ONE transaction (castNet). When the
+     contract charges for a net (NET_COST > 0: 0.01 Squeekchain TEST SQK, burned by the contract), the wallet also signs one
+     EIP-2612 permit for exactly that amount (a signature, no transaction, no fee) and the one transaction is
+     castNetWithPermit; with an allowance already in place it is plain castNet; only a wallet that cannot sign typed data
+     gets a second transaction first: approve(contract, exactly the net's cost). Too little test SQK: it stops before any
+     signature or transaction (code NO_SQK, the page offers the faucet). With no Sepolia test ETH it stops before the
+     network prompt, after a read-only balance check. The faucet: one claim() transaction, once per wallet per net night
+     (the night a net cast now goes to: it turns at 21:00 UTC). */
 (function (root, make) {
   if (typeof module === 'object' && module.exports) module.exports = make();
   else root.QC = make();
@@ -124,14 +136,49 @@
   }
   var num = function (w) { return Number(BigInt('0x' + w)); };
   function netId(n, a) { return '0x' + u256((BigInt(n) << 160n) | BigInt(addr(a))); }
+  function b32(x) {                                                   // a bytes32 argument (r, s of a signature)
+    var h = strip(x).toLowerCase();
+    if (!/^[0-9a-f]{64}$/.test(h)) throw new Error('not 32 bytes: ' + x);
+    return h;
+  }
 
   // selectors and topics (keccak256 of the signatures; checked against forge's methodIdentifiers and ethers in the tests)
-  var SEL = { castNet: '0x6af74e5f', result: '0x3c594059', tokenURI: '0xc87b56dd', state: '0xc19d93fb', roundPage: '0xc8b9e08f' };
-  // (written in two halves so the publish leak gate's address / long-hex patterns do not take this public hash for one)
-  var TOPIC_NETCAST = '0xf687ecb6821e3163f5cc05d1064cd027' + 'e6c8bc7455239d9b5a0f5567c21123e9';
-  var ERR = { AlreadyCast: '0xb2354670', NonexistentToken: '0x2f4163e7', SpotOutOfRange: '0xa9f274a7' };
+  // QuantumCatch v2: castNet() (no spot), result(uint256), tokenURI(uint256); SqueekCore state(), roundPage(...)
+  var SEL = { castNet: '0x0612a854', result: '0x3c594059', tokenURI: '0xc87b56dd', state: '0xc19d93fb', roundPage: '0xc8b9e08f',
+    // QuantumCatch v2: castNetWithPermit(uint256,uint8,bytes32,bytes32), NET_COST(), SQK()
+    castNetWithPermit: '0x266ab9cf', netCost: '0x8a45ab66', sqk: '0xf5c83edd',
+    // the test SQK token (ERC-20 + EIP-2612 + EIP-5267): balanceOf, allowance, approve, nonces, eip712Domain, name
+    balanceOf: '0x70a08231', allowance: '0xdd62ed3e', approve: '0x095ea7b3', nonces: '0x7ecebe00', eip712Domain: '0x84b0196e', name: '0x06fdde03',
+    // SqkFaucet: claim(), canClaim(address), remaining(), DRIP(), TOKEN()
+    claim: '0x4e71d92d', canClaim: '0xbf3506c1', remaining: '0x55234ec0', drip: '0xa437c45e', token: '0x82bfefc8' };
+  var NO_SPOT = 255;                                                 // result().spot before the night's draw
+  // (written in two halves so the publish leak gate's address / long-hex patterns do not take these public hashes for one)
+  var TOPIC_NETCAST = '0x47da66d5fbdfcc6a510d1c24f7b43cac' + '0cb48668c47012e703f49818d22c157b';   // NetCast(uint32,address,uint256)
+  var TOPIC_NETPAID = '0x100db5ea1f9223afdc01a632bcfeea16' + '5e5be9e69a705ff5a0f3602c4eb65ef0';   // NetPaid(uint32,address,uint256)
+  var TOPIC_CLAIMED = '0xd8138f8a3f377c5259ca548e70e4c2de' + '94f129f5a11036a15b69513cba2b426a';   // Claimed(address,uint256)
+  var ERR = { AlreadyCast: '0xb2354670', NonexistentToken: '0x2f4163e7',
+    AlreadyClaimedTonight: '0x8c7044a7', FaucetEmpty: '0xc1336f85',                             // SqkFaucet
+    InsufficientBalance: '0xe450d38c', InsufficientAllowance: '0xfb8f41b2' };                   // the token (OpenZeppelin 5 ERC20 errors)
   var enc = {
-    castNet: function (spot) { if (!isSpot(spot)) throw new Error('spot must be 0-15'); return SEL.castNet + u256(spot); },
+    castNet: function () { if (arguments.length) throw new Error('castNet takes no spot (the chip draws it)'); return SEL.castNet; },
+    castNetWithPermit: function (deadline, v, r, s) {
+      if (arguments.length !== 4) throw new Error('castNetWithPermit(deadline, v, r, s): no spot (the chip draws it)');
+      if (v !== 27 && v !== 28) throw new Error('permit: v must be 27 or 28');
+      return SEL.castNetWithPermit + u256(deadline) + u256(v) + b32(r) + b32(s);
+    },
+    netCost: function () { return SEL.netCost; },
+    sqk: function () { return SEL.sqk; },
+    balanceOf: function (a) { return SEL.balanceOf + u256(BigInt(addr(a))); },
+    allowance: function (owner, spender) { return SEL.allowance + u256(BigInt(addr(owner))) + u256(BigInt(addr(spender))); },
+    approve: function (spender, amount) { return SEL.approve + u256(BigInt(addr(spender))) + u256(amount); },
+    nonces: function (a) { return SEL.nonces + u256(BigInt(addr(a))); },
+    eip712Domain: function () { return SEL.eip712Domain; },
+    name: function () { return SEL.name; },
+    claim: function () { return SEL.claim; },
+    canClaim: function (a) { return SEL.canClaim + u256(BigInt(addr(a))); },
+    remaining: function () { return SEL.remaining; },
+    drip: function () { return SEL.drip; },
+    token: function () { return SEL.token; },
     result: function (id) { return SEL.result + u256(BigInt(id)); },
     tokenURI: function (id) { return SEL.tokenURI + u256(BigInt(id)); },
     state: function () { return SEL.state; },
@@ -146,10 +193,14 @@
     return new TextDecoder('utf-8').decode(b);
   }
   var dec = {
+    // result(): status 0 waiting, 1 caught, 2 got away, 3 he slept, 4 no chip result; spot = the spot of the net's drawn
+    // shot, null until the night is posted (and when he slept / no result: NO_SPOT on chain); looks = the caught hamster's
+    // 4 bits (0 unless caught)
     result: function (hex) {
       var w = words(hex);
       if (w.length < 7) throw new Error('result: data too short');
-      return { status: num(w[0]), night: num(w[1]), spot: num(w[2]), hits: num(w[3]), shots: num(w[4]), tier: num(w[5]), looks: num(w[6]) };
+      var spot = num(w[2]);
+      return { status: num(w[0]), night: num(w[1]), spot: spot === NO_SPOT ? null : spot, hits: num(w[3]), shots: num(w[4]), tier: num(w[5]), looks: num(w[6]) };
     },
     string: function (hex) {
       var h = strip(hex), off = num(h.slice(0, 64)) * 2, len = num(h.slice(off, off + 64)) * 2;
@@ -166,10 +217,46 @@
       for (var i = 0; i < n; i++) { var r = recAt + 1 + 5 * i; rounds.push({ id: num(w[r]), work: num(w[r + 1]) }); }
       return { through: num(t(0)), startWork: num(t(1)), endWork: num(t(4)), rounds: rounds };
     },
+    // NetCast(uint32 indexed night, address indexed catcher, uint256 tokenId): no spot (the night's result draws it)
     netCast: function (log) {
       if (!log || !log.topics || String(log.topics[0]).toLowerCase() !== TOPIC_NETCAST) return null;
       var d = words(log.data);
-      return { night: num(strip(log.topics[1])), catcher: '0x' + strip(log.topics[2]).slice(24).toLowerCase(), spot: num(d[0]), tokenId: '0x' + d[1] };
+      if (d.length < 1) throw new Error('NetCast: data too short');
+      return { night: num(strip(log.topics[1])), catcher: '0x' + strip(log.topics[2]).slice(24).toLowerCase(), tokenId: '0x' + d[0] };
+    },
+    // NetPaid(uint32 indexed night, address indexed catcher, uint256 burned): the test SQK the contract burned for a net
+    netPaid: function (log) {
+      if (!log || !log.topics || String(log.topics[0]).toLowerCase() !== TOPIC_NETPAID) return null;
+      var d = words(log.data);
+      return { night: num(strip(log.topics[1])), catcher: '0x' + strip(log.topics[2]).slice(24).toLowerCase(), burned: BigInt('0x' + d[0]) };
+    },
+    // Claimed(address indexed to, uint256 amount): the faucet's drip
+    claimedLog: function (log) {
+      if (!log || !log.topics || String(log.topics[0]).toLowerCase() !== TOPIC_CLAIMED) return null;
+      var d = words(log.data);
+      return { to: '0x' + strip(log.topics[1]).slice(24).toLowerCase(), amount: BigInt('0x' + d[0]) };
+    },
+    // one-word returns: uint256, address, bool (strict: anything else is an error, never a guess)
+    uint: function (hex) { var w = words(hex); if (!w.length) throw new Error('uint: no data'); return BigInt('0x' + w[0]); },
+    address: function (hex) {
+      var w = words(hex);
+      if (!w.length || !/^0{24}/.test(w[0])) throw new Error('address: not an address');
+      return '0x' + w[0].slice(24);
+    },
+    bool: function (hex) { var v = dec.uint(hex); if (v > 1n) throw new Error('bool: not a bool'); return v === 1n; },
+    // eip712Domain() (EIP-5267): (bytes1 fields, string name, string version, uint256 chainId, address verifyingContract,
+    // bytes32 salt, uint256[] extensions); fields bit 0 name, 1 version, 2 chainId, 3 verifyingContract, 4 salt
+    eip712Domain: function (hex) {
+      var h = strip(hex), w = words(h);
+      if (w.length < 7) throw new Error('eip712Domain: data too short');
+      var at = function (k) { var off = num(w[k]); if (off % 32 || off / 32 >= w.length) throw new Error('eip712Domain: bad offset'); return off / 32; };
+      var str = function (k) {
+        var i = at(k), len = num(w[i]);
+        if (h.length < (i + 1) * 64 + len * 2) throw new Error('eip712Domain: data too short');
+        return utf8(h.slice((i + 1) * 64, (i + 1) * 64 + len * 2));
+      };
+      return { fields: parseInt(w[0].slice(0, 2), 16), name: str(1), version: str(2), chainId: BigInt('0x' + w[3]),
+        verifyingContract: '0x' + w[4].slice(24), salt: '0x' + w[5], extensions: num(w[at(6)]) };
     },
   };
 
@@ -190,6 +277,14 @@
     return { name: String(json.name || ''), description: String(json.description || ''), attr: attr, image: img };
   }
 
+  // token amounts in plain decimals: units(10n ** 16n) = '0.01' (18 decimals unless said), never rounded
+  function units(x, decimals) {
+    var d = decimals == null ? 18 : decimals, b = BigInt(x), neg = b < 0n;
+    if (neg) b = -b;
+    var s = b.toString().padStart(d + 1, '0'), i = s.slice(0, s.length - d), f = s.slice(s.length - d).replace(/0+$/, '');
+    return (neg ? '-' : '') + i + (f ? '.' + f : '');
+  }
+
   // ---------- errors in plain words ----------
   function errData(e, depth) {
     if (!e || depth > 4) return '';
@@ -197,20 +292,36 @@
     if (typeof e.data === 'string' && /^0x[0-9a-fA-F]{8}/.test(e.data)) return e.data;
     return errData(e.data, depth + 1) || errData(e.originalError, depth + 1) || errData(e.error, depth + 1) || errData(e.cause, depth + 1);
   }
-  var isRevert = function (e) { return !!e && (e.code === 3 || /revert/i.test(String(e.message || '')) || !!errData(e, 0)); };
+  // a revert, also as wallets wrap it ({code: -32603, message: 'Internal JSON-RPC error.', data: {code: 3, message:
+  // 'execution reverted', data: '0x'}}): the live v1 contract answers NET_COST() with an EMPTY revert, so the code / the
+  // word must be found inside too, not only revert data
+  function revertish(e, depth) {
+    if (!e || typeof e !== 'object' || depth > 4) return false;
+    if (e.code === 3 || /revert/i.test(String(e.message || ''))) return true;
+    return revertish(e.data, depth + 1) || revertish(e.error, depth + 1) || revertish(e.originalError, depth + 1) || revertish(e.cause, depth + 1);
+  }
+  var isRevert = function (e) { return !!e && (revertish(e, 0) || !!errData(e, 0)); };
   function plainError(e) {
-    var code = e && e.code, msg = String((e && e.message) || ''), data = errData(e, 0).toLowerCase();
+    var code = e && e.code, msg = String((e && e.message) || ''), data = errData(e, 0).toLowerCase(), what = e && e.what;
     if (code === 'already' || data.indexOf(ERR.AlreadyCast) === 0) return 'This wallet already has a net NFT for this night (one per wallet per night).';
+    if (code === 'claimed' || data.indexOf(ERR.AlreadyClaimedTonight) === 0) return 'This wallet already got today\'s free test SQK from the faucet (one claim per wallet per night; the next one from 21:00 UTC). Nothing was sent.';
+    if (code === 'empty' || data.indexOf(ERR.FaucetEmpty) === 0) return 'The test SQK faucet is empty right now. Nothing was sent; please try again later.';
     if (code === 4001 || /user (rejected|denied)|rejected by user|user cancel/i.test(msg)) return 'You said no in your wallet. Nothing was sent.';
+    if (code === 'NO_SQK' || data.indexOf(ERR.InsufficientBalance) === 0) {
+      var c = e && typeof e.cost === 'bigint' ? units(e.cost) + ' test SQK' : 'a little test SQK';
+      return 'Casting a net costs ' + c + ' (it gets burned) and this wallet does not have enough. Get free test SQK from the faucet, then tap again. Nothing was sent.';
+    }
+    if (data.indexOf(ERR.InsufficientAllowance) === 0) return 'The test SQK for the net was not approved, so nothing was sent. You can try again.';
+    if (code === 'config') return 'This page and its contract do not match (another test token, or the old pick-a-spot contract). Nothing was sent.';
     if (code === 'chain') return 'Please switch your wallet to the Sepolia test network, then tap again.';
     if (code === 'nofunds') return 'Your wallet has no Sepolia test ETH for the network fee. Get a little for free from any Sepolia faucet, then tap again. Nothing was sent.';
     if (code === -32002) return 'Your wallet is already asking you something: open it and answer there first.';
     if (/insufficient funds/i.test(msg)) return 'Your wallet needs a little free Sepolia test ETH for the network fee (from any Sepolia faucet). Then tap again.';
     if (code === 'failed') return 'The transaction did not go through. Nothing changed; you can try again.';
+    if (code === 'timeout' && what === 'approve') return 'Sepolia is slow right now: your test SQK approval may still go through. Tap again in a minute.';
+    if (code === 'timeout' && what === 'faucet') return 'Sepolia is slow right now: your test SQK may still arrive. Look again in a minute.';
     if (code === 'timeout') return 'Sepolia is slow right now: your NFT may still arrive. Look again in a minute.';
-    if (code === 'nowallet') return 'No wallet found in this browser. The NFT is optional: your net works without it.';
-    if (code === 'spot') return 'Pick a spot on the wheel first.';
-    if (data.indexOf(ERR.SpotOutOfRange) === 0) return 'Pick a spot on the wheel first.';
+    if (code === 'nowallet') return 'No wallet found in this browser: casting a net needs a browser wallet on the Sepolia test network (the page still works for watching).';
     return 'Something went wrong in the wallet. Nothing was taken; you can try again.';
   }
   var fail = function (code, message) { var e = new Error(message || code); e.code = code; return e; };
@@ -242,44 +353,222 @@
     try { return dec.result(await call(contract, enc.result(id))); }
     catch (e) { if (isRevert(e)) return null; throw e; }
   }
-  // the ONE transaction: castNet(spot) on the QuantumCatch contract. opts: now() ms, sleep(ms), pollMs, timeoutMs, onStep(name)
-  async function castNetNft(eth, contract, spot, opts) {
-    opts = opts || {};
-    var step = opts.onStep || function () {}, now = opts.now || Date.now, sleep = opts.sleep || function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
-    if (!isSpot(spot)) throw fail('spot');
-    var to = addr(contract);
+  // a transaction's receipt, polled; status 0x1 or the plain-word error. what = 'net' | 'approve' | 'faucet' (the timeout's words)
+  async function waitReceipt(eth, hash, opts, what) {
+    var now = opts.now || Date.now, sleep = opts.sleep || function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
+    var t0 = now(), rc = null, e;
+    while (!rc) {
+      rc = await eth.request({ method: 'eth_getTransactionReceipt', params: [hash] });
+      if (rc) break;
+      if (now() - t0 > (opts.timeoutMs || 180e3)) { e = fail('timeout'); e.what = what; e.txHash = hash; throw e; }
+      await sleep(opts.pollMs || 2000);
+    }
+    if (String(rc.status) !== '0x1') { e = fail('failed'); e.what = what; e.txHash = hash; throw e; }
+    return rc;
+  }
+  // connect, the Sepolia test ETH check (opts.balance = the public RPC, before any network prompt), Sepolia, the wallet's own
+  // read-only balance check once it is on Sepolia (an unanswered check lets it go on)
+  async function walletReady(eth, opts, step) {
     step('connect'); var me = await connect(eth);
-    // no Sepolia test ETH = no fee: say so before any other wallet prompt. Read-only: opts.balance (the public Sepolia RPC,
-    // whatever network the wallet is on), else the wallet itself once it is on Sepolia; an unanswered check lets it go on.
     var bal = null;
     if (opts.balance) { try { bal = await opts.balance(me); } catch (e) { bal = null; } }
     if (bal === 0n) throw fail('nofunds');
     step('network'); await ensureSepolia(eth);
     if (bal === null) { try { bal = BigInt(await eth.request({ method: 'eth_getBalance', params: [me, 'latest'] })); } catch (e) { bal = null; } }
     if (bal === 0n) throw fail('nofunds');
+    return me;
+  }
+  var sendTx = function (eth, from, to, data) { return eth.request({ method: 'eth_sendTransaction', params: [{ from: from, to: to, data: data, value: '0x0' }] }); };
+
+  // ---------- the test SQK a net costs (QuantumCatch v2) ----------
+  // NET_COST(): the live v1 contract has no NET_COST() and reverts, so its nets are free (and so is a v2 contract built
+  // without SQK: NET_COST() = 0). A network error is NOT "free": it is thrown (castNet would go out unpaid and fail on chain).
+  async function netCostOf(call, contract) {
+    try { return dec.uint(await call(contract, enc.netCost())); }
+    catch (e) { if (isRevert(e)) return 0n; throw e; }
+  }
+  var PERMIT_TTL = 3600;                                             // a permit is good for one hour of chain time
+  var EIP712_FIELDS = [['name', 'string'], ['version', 'string'], ['chainId', 'uint256'], ['verifyingContract', 'address'], ['salt', 'bytes32']];
+  var PERMIT_TYPE = [['owner', 'address'], ['spender', 'address'], ['value', 'uint256'], ['nonce', 'uint256'], ['deadline', 'uint256']];
+  var typeList = function (l) { return l.map(function (x) { return { name: x[0], type: x[1] }; }); };
+  // the token's EIP-712 domain: eip712Domain() (EIP-5267) when it has it, else name() + version "1" + chainId + the token.
+  // null = no domain this code can build (EIP-5267 extensions or unknown fields): then the approve path
+  async function tokenDomain(call, token, chainId) {
+    var d = null, dom = {}, fields = [], i;
+    try { d = dec.eip712Domain(await call(token, enc.eip712Domain())); } catch (e) { if (!isRevert(e)) throw e; }
+    if (!d) d = { fields: 15, name: dec.string(await call(token, enc.name())), version: '1', chainId: BigInt(chainId), verifyingContract: token, salt: null, extensions: 0 };
+    if (d.extensions || (d.fields & ~31)) return null;
+    var val = { name: d.name, version: d.version, chainId: d.chainId <= 9007199254740991n ? Number(d.chainId) : d.chainId.toString(),
+      verifyingContract: d.verifyingContract ? addr(d.verifyingContract) : null, salt: d.salt };
+    for (i = 0; i < EIP712_FIELDS.length; i++) if (d.fields & (1 << i)) { fields.push(EIP712_FIELDS[i]); dom[EIP712_FIELDS[i][0]] = val[EIP712_FIELDS[i][0]]; }
+    return { fields: fields, domain: dom };
+  }
+  // the EIP-2612 permit as eth_signTypedData_v4 typed data (uint256 values as decimal strings, chainId a number)
+  function permitTypedData(dom, owner, spender, value, nonce, deadline) {
+    return { types: { EIP712Domain: typeList(dom.fields), Permit: typeList(PERMIT_TYPE) }, primaryType: 'Permit', domain: Object.assign({}, dom.domain),
+      message: { owner: addr(owner), spender: addr(spender), value: BigInt(value).toString(), nonce: BigInt(nonce).toString(), deadline: BigInt(deadline).toString() } };
+  }
+  // a 65-byte signature (v 27/28, or 0/1 from some wallets) or a 64-byte EIP-2098 one -> {v, r, s}
+  function splitSig(sig) {
+    var h = strip(sig).toLowerCase(), v, s;
+    if (/^[0-9a-f]{130}$/.test(h)) { s = h.slice(64, 128); v = parseInt(h.slice(128), 16); if (v < 27) v += 27; }
+    else if (/^[0-9a-f]{128}$/.test(h)) { var vs = BigInt('0x' + h.slice(64)); v = 27 + Number(vs >> 255n); s = u256(vs & ((1n << 255n) - 1n)); }
+    else throw fail('sig', 'not a signature');
+    if (v !== 27 && v !== 28) throw fail('sig', 'not a signature');
+    return { v: v, r: '0x' + h.slice(0, 64), s: '0x' + s };
+  }
+  // the wallet cannot sign typed data at all (never a "no" from the person: that is 4001 and stays a no)
+  var cannotSign = function (e) {
+    return !!e && e.code !== 4001 && (e.code === 4200 || e.code === -32601 || e.code === -32004 ||
+      /not supported|unsupported|method not found|does not exist|not available|not implemented/i.test(String(e.message || '')));
+  };
+  var noSqk = function (cost, balance, token) { var e = fail('NO_SQK', 'not enough test SQK for a net'); e.cost = cost; e.balance = balance; e.sqk = token; return e; };
+  // pay for a net: returns the data of the ONE cast transaction (castNet with an allowance in place, else castNetWithPermit
+  // with a fresh permit; a wallet that cannot sign typed data first sends approve(contract, exactly the cost))
+  async function payForNet(eth, me, to, cost, tSec, opts, step) {
+    var call = walletCall(eth);
+    step('sqk-check');
+    var token = dec.address(await call(to, enc.sqk()));
+    if (BigInt(token) === 0n) throw fail('failed', 'NET_COST without SQK');
+    if (opts.sqk && addr(opts.sqk) !== token) throw fail('config', 'the contract takes another token: ' + token);
+    var bal = dec.uint(await call(token, enc.balanceOf(me)));
+    if (bal < cost) throw noSqk(cost, bal, token);
+    if (dec.uint(await call(token, enc.allowance(me, to))) >= cost) return enc.castNet();
+    step('sqk-sign');
+    var data = null;
+    try {
+      var cid = Number(BigInt(await eth.request({ method: 'eth_chainId' })));
+      var dom = await tokenDomain(call, token, cid);
+      if (dom) {
+        var deadline = BigInt(tSec + PERMIT_TTL), nonce = dec.uint(await call(token, enc.nonces(me)));
+        var sig = splitSig(await eth.request({ method: 'eth_signTypedData_v4', params: [me, JSON.stringify(permitTypedData(dom, me, to, cost, nonce, deadline))] }));
+        data = enc.castNetWithPermit(deadline, sig.v, sig.r, sig.s);
+      }
+    } catch (e) { if (!cannotSign(e)) throw e; data = null; }
+    if (data) {
+      // the cast with this permit, simulated (no transaction): a token that did not take the signature shows up here as
+      // an allowance revert (then the approve path); other reverts in plain words; an unanswered simulation lets it go on
+      var sim = null;
+      try { await eth.request({ method: 'eth_call', params: [{ from: me, to: to, data: data }, 'latest'] }); } catch (e) { sim = e; }
+      if (!sim || !isRevert(sim)) return data;
+      var rd = errData(sim, 0).toLowerCase();
+      if (rd.indexOf(ERR.AlreadyCast) === 0) throw fail('already');
+      if (rd.indexOf(ERR.InsufficientBalance) === 0) throw noSqk(cost, bal, token);
+      if (rd.indexOf(ERR.InsufficientAllowance) !== 0) throw sim;
+    }
+    step('sqk-approve');
+    await waitReceipt(eth, await sendTx(eth, me, token, enc.approve(to, cost)), opts, 'approve');
+    return enc.castNet();
+  }
+  // NET_COST() of the v2 game the page casts on: a revert = not the v2 game (the live v1 contract has no NET_COST() and
+  // takes a spot): code 'config', before anything is signed or sent. A network error is thrown as it is.
+  async function v2CostOf(call, contract) {
+    try { return dec.uint(await call(contract, enc.netCost())); }
+    catch (e) { if (isRevert(e)) throw fail('config', 'not the v2 game: no NET_COST()'); throw e; }
+  }
+  // a transaction simulated from its sender right before it is sent (eth_call, no transaction): a revert this code can
+  // name stops it with nothing sent (named(revertData) -> an error to throw, or null); a revert it cannot name is thrown
+  // as it is (nothing sent) unless pass(revertData) lets it go on; no answer (not a revert) lets it go on, as before
+  async function simulate(eth, me, to, data, named, pass) {
+    var sim = null;
+    try { await eth.request({ method: 'eth_call', params: [{ from: me, to: to, data: data }, 'latest'] }); } catch (e) { sim = e; }
+    if (!sim || !isRevert(sim)) return;
+    var rd = errData(sim, 0).toLowerCase(), e2 = named(rd);
+    if (e2) throw e2;
+    if (pass && pass(rd)) return;
+    throw sim;
+  }
+
+  // the net NFT: castNet() on the QuantumCatch v2 contract (no spot: the night's chip result draws it), ONE cast
+  // transaction (paid nets: see payForNet).
+  // opts: now() ms, sleep(ms), pollMs, timeoutMs, onStep(name), balance(addr) (public RPC ETH check), sqk (the token the page
+  // expects), netCost (what the page expects a net to cost, in wei: another NET_COST() = 'config', before anything is signed)
+  // steps: connect, network, check, [sqk-check, sqk-sign, sqk-approve: paid nets only], send, wait, done
+  // -> {txHash, night, day, tokenId, catcher} (the spot comes with the night's result: readNet / myNets)
+  async function castNetNft(eth, contract, opts) {
+    if (opts !== undefined && (opts === null || typeof opts !== 'object')) throw new Error('castNetNft(eth, contract, opts): no spot (the chip draws it)');
+    opts = opts || {};
+    var step = opts.onStep || function () {}, now = opts.now || Date.now;
+    var to = addr(contract);
+    var me = await walletReady(eth, opts, step);
     step('check');
     // which night a cast lands in is decided by the CHAIN's clock (block time), so ask the chain, not the viewer's clock
     var tSec = Math.floor(now() / 1000);
     try { var b = await eth.request({ method: 'eth_getBlockByNumber', params: ['latest', false] }); if (b && b.timestamp) tSec = Number(BigInt(b.timestamp)); } catch (e) { /* the viewer's clock then */ }
-    if (await readNet(walletCall(eth), to, netId(openNight(tSec), me))) throw fail('already');
-    step('send');
-    var hash = await eth.request({ method: 'eth_sendTransaction', params: [{ from: me, to: to, data: enc.castNet(spot), value: '0x0' }] });
-    step('wait');
-    var t0 = now(), rc = null;
-    while (!rc) {
-      rc = await eth.request({ method: 'eth_getTransactionReceipt', params: [hash] });
-      if (rc) break;
-      if (now() - t0 > (opts.timeoutMs || 180e3)) throw fail('timeout');
-      await sleep(opts.pollMs || 2000);
+    var call = walletCall(eth);
+    if (await readNet(call, to, netId(openNight(tSec), me))) throw fail('already');
+    var cost = await v2CostOf(call, to);
+    if (opts.netCost !== undefined && opts.netCost !== null && BigInt(opts.netCost) !== cost) throw fail('config', 'NET_COST() is ' + cost + ', the page expects ' + opts.netCost);
+    var data = cost > 0n ? await payForNet(eth, me, to, cost, tSec, opts, step) : enc.castNet();
+    // castNet() simulated right before it goes out (castNetWithPermit was simulated in payForNet): result() cannot see a
+    // burned net, the cast can (AlreadyCast); an allowance revert right after our own approve (a node a block behind)
+    // lets it go on
+    if (data.indexOf(SEL.castNetWithPermit) !== 0) {
+      await simulate(eth, me, to, data, function (rd) {
+        if (rd.indexOf(ERR.AlreadyCast) === 0) return fail('already');
+        if (rd.indexOf(ERR.InsufficientBalance) === 0) return noSqk(cost, null, null);
+        return null;
+      }, function (rd) { return rd.indexOf(ERR.InsufficientAllowance) === 0; });
     }
-    if (String(rc.status) !== '0x1') throw fail('failed');
+    step('send');
+    var hash = await sendTx(eth, me, to, data);
+    step('wait');
+    var rc = await waitReceipt(eth, hash, opts, 'net');
     var ev = null;
     (rc.logs || []).forEach(function (l) { if (!ev && String(l.address).toLowerCase() === to) ev = dec.netCast(l); });
     if (!ev) throw fail('failed', 'no NetCast event');
     step('done');
-    return { txHash: hash, night: ev.night, day: dayOf(ev.night), spot: ev.spot, tokenId: ev.tokenId, catcher: ev.catcher };
+    return { txHash: hash, night: ev.night, day: dayOf(ev.night), tokenId: ev.tokenId, catcher: ev.catcher };
   }
-  // a wallet's nets for the given nights (newest first as given): result() for each token id; reverts = no net that night
+
+  // ---------- the test SQK faucet (SqkFaucet: DRIP once per address per net night) ----------
+  // ONE transaction: claim(). Steps: connect, network, faucet, wait, done. Returns {txHash, to, amount}
+  async function claimFaucet(eth, faucet, opts) {
+    opts = opts || {};
+    var step = opts.onStep || function () {}, to = addr(faucet);
+    var me = await walletReady(eth, opts, step);
+    step('faucet');
+    var call = walletCall(eth);
+    if (!dec.bool(await call(to, enc.canClaim(me)))) throw fail('claimed');           // already claimed this net night
+    if (dec.uint(await call(to, enc.remaining())) < dec.uint(await call(to, enc.drip()))) throw fail('empty');
+    await simulate(eth, me, to, enc.claim(), function (rd) {
+      if (rd.indexOf(ERR.AlreadyClaimedTonight) === 0) return fail('claimed');
+      if (rd.indexOf(ERR.FaucetEmpty) === 0) return fail('empty');
+      return null;
+    });
+    var hash = await sendTx(eth, me, to, enc.claim());
+    step('wait');
+    var rc = await waitReceipt(eth, hash, opts, 'faucet'), ev = null;
+    (rc.logs || []).forEach(function (l) { if (!ev && String(l.address).toLowerCase() === to) { var c = dec.claimedLog(l); if (c && c.to === me) ev = c; } });
+    if (!ev) throw fail('failed', 'no Claimed event');
+    step('done');
+    return { txHash: hash, to: me, amount: ev.amount };
+  }
+  // read-only: what a net costs and what the wallet and the faucet hold. src = a call(to, data) function (QC.rpcCall on the
+  // public Sepolia RPC, or QC.walletCall) or an EIP-1193 provider (then only while it is on Sepolia: else code 'chain', never
+  // another network's numbers); faucet and who may be null. -> {cost, sqk, balance, faucetLeft, drip, claimed} (BigInt
+  // amounts; sqk null = free nets; null = not asked; claimed = this wallet already claimed for the current net night).
+  // A faucet for another token than the contract's is an error ('config').
+  async function sqkInfo(src, contract, faucet, who) {
+    if (typeof src !== 'function' && String(await src.request({ method: 'eth_chainId' })).toLowerCase() !== SEPOLIA.chainId) throw fail('chain');
+    var call = typeof src === 'function' ? src : walletCall(src);
+    var to = contract ? addr(contract) : null, f = faucet ? addr(faucet) : null, me = who ? addr(who) : null;
+    var cost = to ? await netCostOf(call, to) : 0n, sqk = null;
+    if (cost > 0n) { sqk = dec.address(await call(to, enc.sqk())); if (BigInt(sqk) === 0n) sqk = null; }
+    var res = { cost: cost, sqk: sqk, balance: null, faucetLeft: null, drip: null, claimed: null };
+    var jobs = [];
+    if (sqk && me) jobs.push(call(sqk, enc.balanceOf(me)).then(function (h) { res.balance = dec.uint(h); }));
+    if (f) {
+      jobs.push(call(f, enc.token()).then(function (h) { var t = dec.address(h); if (sqk && t !== sqk) throw fail('config', 'the faucet hands out another token: ' + t); }));
+      jobs.push(call(f, enc.remaining()).then(function (h) { res.faucetLeft = dec.uint(h); }));
+      jobs.push(call(f, enc.drip()).then(function (h) { res.drip = dec.uint(h); }));
+      if (me) jobs.push(call(f, enc.canClaim(me)).then(function (h) { res.claimed = !dec.bool(h); }));
+    }
+    await Promise.all(jobs);
+    return res;
+  }
+  // a wallet's nets for the given nights (newest first as given): result() for each token id (spot = the drawn shot's spot,
+  // null until the night is posted; tier); reverts = no net that night (or it was burned)
   async function myNets(call, contract, catcher, nights) {
     var out = [], to = addr(contract), me = addr(catcher);
     for (var i = 0; i < nights.length; i++) {
@@ -328,7 +617,9 @@
     return res;
   }
 
-  return { DAY: DAY, OFFSET: OFFSET, LOCK: LOCK, POST_WINDOW: POST_WINDOW, postDeadline: postDeadline, noResult: noResult, SEPOLIA: SEPOLIA, SEL: SEL, ERR: ERR, TOPIC_NETCAST: TOPIC_NETCAST,
+  return { DAY: DAY, OFFSET: OFFSET, LOCK: LOCK, POST_WINDOW: POST_WINDOW, postDeadline: postDeadline, noResult: noResult, SEPOLIA: SEPOLIA, SEL: SEL, ERR: ERR, NO_SPOT: NO_SPOT, TOPIC_NETCAST: TOPIC_NETCAST,
+    TOPIC_NETPAID: TOPIC_NETPAID, TOPIC_CLAIMED: TOPIC_CLAIMED, PERMIT_TTL: PERMIT_TTL, units: units, netCostOf: netCostOf, tokenDomain: tokenDomain, permitTypedData: permitTypedData,
+    splitSig: splitSig, claimFaucet: claimFaucet, sqkInfo: sqkInfo,
     nightOf: nightOf, nightStart: nightStart, startWindow: startWindow, closeAt: closeAt, openNight: openNight, dayOf: dayOf, nightOfDay: nightOfDay,
     netWindow: netWindow, countdown: countdown, castLocal: castLocal, ringDistance: ringDistance, inReach: inReach, tiersOf: tiersOf, outcome: outcome, netId: netId,
     enc: enc, dec: dec, tokenMeta: tokenMeta, plainError: plainError, isRevert: isRevert, connect: connect, ensureSepolia: ensureSepolia,

@@ -31,7 +31,7 @@ contract PaintedCatchTest is CatchBase, ArtChunks {
 
     function setUp() public override {
         art = new PaintedArt(_deployChunks());
-        qc = new QuantumCatch(hatcher, IPaintedArt(address(art)));
+        qc = new QuantumCatch(hatcher, IPaintedArt(address(art)), NO_SQK, 0);
         vm.warp(START_1104 + 3600);
     }
 
@@ -160,7 +160,7 @@ contract PaintedCatchTest is CatchBase, ArtChunks {
         uint8[6] memory tiers = [uint8(1), 2, 3, 5, 1, 1]; // Common body, Uncommon tiger, Rare circuit, Legendary gold
         uint256[6] memory ids;
         for (uint256 k; k < 6; ++k) {
-            ids[k] = _cast(address(uint160(0xB000 + k)), spots[k]);
+            ids[k] = _castOn(spots[k], _counts1104v12()); // a net whose shot lands on spots[k]
         }
         vm.warp(OVER_1104);
         _postF(N1104, _counts1104v12(), TURNS_1104, STEPS_1104_V12, 7);
@@ -170,10 +170,14 @@ contract PaintedCatchTest is CatchBase, ArtChunks {
             assertEq(tier, tiers[k], vm.toString(spots[k]));
             _assertPainted(ids[k], spots[k], tiers[k]);
         }
-        // the next night, the real first shot (spot 3): spot 7 is Epic (crystal)
+    }
+
+    /// (its own test: each painted check decodes about 300 KB, and one test has a gas cap)
+    function test_the_epic_skin() public {
+        // the night after, the real first shot (spot 3): spot 7 is Epic (crystal)
         uint32 n = N1104 + 1;
         vm.warp(qc.nightStart(n) + 60);
-        uint256 epic = _cast(alice, 7);
+        uint256 epic = _castOn(7, _counts1104v12());
         vm.warp(qc.nightOverAt(n));
         _postF(n, _counts1104v12(), TURNS_1104, STEPS_1104_V12, FIRST_1104_V12);
         (,,,,, uint8 t,) = qc.result(epic);
@@ -182,8 +186,8 @@ contract PaintedCatchTest is CatchBase, ArtChunks {
     }
 
     function test_no_painted_hamster_unless_caught() public {
-        uint256 waiting = _cast(alice, 15);
-        uint256 out = _cast(bob, 0); // 4 Nov v1.2: out of reach (40 landings = 1 %: chip noise)
+        uint256 waiting = _cast(alice);
+        uint256 out = _castOn(0, _counts1104v12()); // 4 Nov v1.2: out of reach (40 landings = 1 %: chip noise)
         _assertNotPainted(waiting);
         vm.warp(OVER_1104);
         _postF(N1104, _counts1104v12(), TURNS_1104, STEPS_1104_V12, FIRST_1104_V12);
@@ -191,7 +195,7 @@ contract PaintedCatchTest is CatchBase, ArtChunks {
         assertTrue(_find(s, bytes('id="outofreach"')) != type(uint256).max);
 
         vm.warp(qc.nightStart(N1104 + 1) + 60);
-        uint256 slept = _cast(alice, 5);
+        uint256 slept = _cast(alice);
         vm.warp(qc.nightOverAt(N1104 + 1));
         uint16[16] memory zero;
         _postF(N1104 + 1, zero, 0, 0, 0);
@@ -200,16 +204,16 @@ contract PaintedCatchTest is CatchBase, ArtChunks {
         assertTrue(_find(s, bytes('<g id="hamster">')) != type(uint256).max, "the drawn hamster, asleep");
 
         vm.warp(qc.nightStart(N1104 + 2) + 60);
-        uint256 lost = _cast(bob, 5);
+        uint256 lost = _cast(bob);
         vm.warp(qc.postDeadline(N1104 + 2));
         s = _assertNotPainted(lost);
         assertTrue(_find(s, bytes("NO CHIP RESULT")) != type(uint256).max);
     }
 
     function test_art_that_reverts_falls_back_to_the_drawn_hamster() public {
-        QuantumCatch q2 = new QuantumCatch(hatcher, IPaintedArt(address(new RevertingArt())));
-        vm.prank(alice);
-        uint256 id = q2.castNet(15);
+        QuantumCatch q2 = new QuantumCatch(hatcher, IPaintedArt(address(new RevertingArt())), NO_SQK, 0);
+        vm.prank(_casterFor(N1104, 15, _counts1104(), JOB_1104, SHA_1104)); // its shot on spot 15: Common
+        uint256 id = q2.castNet();
         vm.warp(OVER_1104);
         vm.prank(hatcher);
         q2.postNight(N1104, _counts1104(), TURNS_1104, STEPS_1104, JOB_1104, SHA_1104, FIRST_1104);
@@ -219,17 +223,17 @@ contract PaintedCatchTest is CatchBase, ArtChunks {
         assertEq(_find(svg, bytes('id="painted"')), type(uint256).max);
         assertEq(_find(svg, bytes('id="fallback"')), type(uint256).max, "full size: no fallback group without art");
         string memory j = string(_b64(T.after_(uri, bytes(JSON_PREFIX).length)));
-        assertEq(vm.parseJsonString(j, ".attributes[3].value"), "Common");
+        assertEq(vm.parseJsonString(j, _attrKey(j, "Tier")), "Common");
     }
 
     /// the heaviest fragment (looks 15: hat, glasses, scarf, grin, in the circuit skin = Rare; 99,541 bytes) through
     /// the real path: a night where spot 15 is Rare. The eth_call a wallet makes must stay under 30M gas.
     function test_gas_the_heaviest_tokenURI() public {
-        uint256 id = _cast(alice, 15);
-        uint256 light = _cast(bob, 1);
-        vm.warp(OVER_1104);
         uint16[16] memory c = _counts1104v12();
         (c[11], c[15]) = (c[15], c[11]); // 15 gets 260: rank 7 of 8 = Rare; 11 gets 525
+        uint256 id = _castOn(15, c);
+        uint256 light = _castOn(1, c);
+        vm.warp(OVER_1104);
         _postF(N1104, c, TURNS_1104, STEPS_1104_V12, FIRST_1104_V12);
         (,,,,, uint8 tier,) = qc.result(id);
         assertEq(tier, 3);

@@ -11,6 +11,18 @@ interface IPaintedArt {
     function hamster(uint8 looks, uint8 tier) external view returns (string memory);
 }
 
+/// @notice the Squeekchain TEST token SQK on Sepolia (no money value): an ERC-20 whose burn(uint256) burns from the
+///         caller's own balance, with EIP-2612 permit. Only what the game calls (and the views a page reads).
+interface ISqk {
+    function transferFrom(address from, address to, uint256 value) external returns (bool);
+    /// @dev burns `value` from msg.sender (OpenZeppelin ERC20Burnable: no return value)
+    function burn(uint256 value) external;
+    function permit(address owner, address spender, uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s)
+        external;
+    function balanceOf(address account) external view returns (uint256);
+    function allowance(address owner, address spender) external view returns (uint256);
+}
+
 interface IERC721Receiver {
     function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data)
         external
@@ -18,30 +30,55 @@ interface IERC721Receiver {
 }
 
 /// @title Quantum Catch
-/// @notice A free game on Sepolia (no value, no token, nothing to pay). Every night the real hamster Squeektoshi's wheel
-///         run programs a quantum walk on a ring of 16 spots that runs on a real IBM quantum computer the next morning.
-///         Before his night you cast a NET on one spot (an ERC-721). A spot is CATCHABLE that night if it is in reach
-///         and the chip lands on it in at least 1 % of its shots; a net on a catchable spot catches that spot's hamster,
-///         otherwise the hamster got away. A net on a spot out of reach tonight never catches. Rarity is the spot's
-///         rank among the night's catchable spots by landings: the one with the fewest is Epic, the next Rare, the two
-///         after that Uncommon, the rest Common; the Epic spot is Legendary when the chip's very first shot of the night
-///         landed on it.
+/// @notice A game on the Sepolia TEST network (nothing in it has money value). Every night the real hamster
+///         Squeektoshi's wheel run programs a quantum walk on a ring of 16 spots that runs on a real IBM quantum
+///         computer the next day.
+///         Before his night you cast a NET (an ERC-721): a ticket for one of the chip's shots. Nobody picks a spot
+///         (the owner's rule, 6 Nov). Once the hatcher posts the night's chip result, each net gets exactly one of the
+///         night's shots, drawn at random over ALL its landings (drawOf), so the chip's landings decide the spot: a
+///         spot with more landings is drawn more often. A spot is CATCHABLE that night if it is in reach and the chip
+///         lands on it in at least 1 % of its shots; a net whose shot landed on a catchable spot catches that spot's
+///         hamster, otherwise the hamster got away (out of reach: only chip noise lands there; or under 1 %). So the
+///         chance of catching nothing is the chip's own noise share, decided by the quantum hardware. Rarity is the
+///         drawn spot's rank among the night's catchable spots by landings: the one with the fewest is Epic, the next
+///         Rare, the two after that Uncommon, the rest Common; the Epic spot is Legendary when the chip's very first
+///         shot of the night landed on it.
 ///         The net resolves in place once the hatcher posts the night's chip result. If no result is posted within
-///         14 days after the night ends, the net reads "No chip result" for good.
+///         14 days after the night ends, the net reads "No chip result" for good. A night he slept draws nothing.
+///         A net costs NET_COST of the Squeekchain TEST token SQK (test tokens, no money value; a faucet hands them
+///         out), and that SQK is burned in the same call: the game never keeps, holds or moves it anywhere else. With
+///         SQK unset (address 0) nets are free (NET_COST 0), as in the first version.
+///         A net's holder (or an address it approved for that net or for all its nets, such as a later game contract)
+///         can burn it; nobody else can, and a burned net can never be cast again.
 /// @dev No owner, no admin, no pause, no proxy, no setters, no withdraw, nothing payable. The immutable HATCHER can only
 ///      post one result record per finished night, inside the post window; it can never mint, hold, move, approve or
-///      burn a net. The contract cannot check the posted numbers (they come from the hatcher's off-chain run); it
-///      checks only that they are self-consistent. The immutable ART (PaintedArt, or none) only paints a caught
-///      hamster; the immutable RENDERER (CatchArt, created by the constructor: pure functions, no storage) writes the
-///      metadata, in its own contract only to keep this one under the EIP-170 size cap.
+///      burn a net, and it is not a player. The contract cannot check the posted numbers (they come from the hatcher's
+///      off-chain run); it checks only that they are self-consistent. The immutable ART (PaintedArt, or none) only
+///      paints a caught hamster; the immutable RENDERER (CatchArt, created by the constructor: pure functions, no
+///      storage) writes the metadata, in its own contract only to keep this one under the EIP-170 size cap.
+///      The draw (drawOf): x = uint256(keccak256(abi.encode(night, resultSha256, jobId, tokenId))) % shots, then
+///      spots 0..15 in order, each taking its count of the values (x < counts[0]: spot 0; else x - counts[0] <
+///      counts[1]: spot 1; ...). It is computed when read, never stored, from the posted record. The sha256 of the
+///      chip's result file and the IBM job id exist only after the chip ran, the morning after the nets closed, so
+///      no caster can know or choose its draw (the token id is fixed by the night and the caster). The hatcher posts
+///      the file's numbers, which anyone can check against the file, and it holds no net; but it learns every draw
+///      before it posts (and could choose among chip runs or re-serialized files), so it is trusted for the draws as
+///      for every number (the metadata says so). The modulo bias is below
+///      2^-235 (shots <= 16 * 65535).
+///      The immutable SQK and NET_COST (fixed at deploy, no setter): castNet takes exactly NET_COST from the caller's
+///      own allowance (transferFrom caller -> this game) and burns it at once (SQK.burn: from this game's balance), so
+///      the game's SQK balance is the same before and after every cast; it can only ever take NET_COST from a wallet
+///      that casts its own net in that same call, never from anyone else, never more. SQK sent to this contract by a
+///      plain transfer stays here for good (there is no withdraw). castNetWithPermit sets that allowance from an
+///      EIP-2612 signature first; a permit someone already submitted (front-run) is ignored, its allowance is used.
 ///      A Squeek day runs 12:00 to 12:00 UTC: night(t) = (t - 43200) / 86400. Nets for night n close 9 h after it
 ///      starts (21:00 UTC, before he starts running at 21:10-21:40 UTC); after that, new nets go to night n + 1.
 ///      Reach: the walk starts on spot turns % 16 (his start) and each step moves it one spot, so after k steps a
 ///      perfect walk lands only on positions with the parity of k that are at most k spots from his start around the
 ///      ring: a spot is in reach that night iff (spot + turns + steps) is even AND its ring distance from spot
 ///      turns % 16 is at most steps (position = spot - turns mod 16). From 7 steps on the distance never excludes a
-///      spot of the right parity. Landings on a spot out of reach are chip noise, so a net there never catches:
-///      GOT_AWAY, tier 0, its landings still shown, and the metadata says why. Known gap (contracts/README.md): a step
+///      spot of the right parity. Landings on a spot out of reach are chip noise, so a net whose shot is drawn there
+///      never catches: GOT_AWAY, tier 0, its landings still shown, and the metadata says why. Known gap (contracts/README.md): a step
 ///      after the first with 700+ turns flips the coin fully and walks back, so such a night can call a spot in reach
 ///      that the walk cannot reach.
 ///      Rarity (the owner's rule, 5 Nov; tiersOf): the catchable spots ranked by landings, most first, equal landings
@@ -70,6 +107,9 @@ contract QuantumCatch {
     uint8 public constant SLEPT = 3;
     uint8 public constant NO_RESULT = 4;
 
+    /// @notice result().spot / spotOf before a spot is drawn (waiting, he slept, no chip result)
+    uint8 public constant NO_SPOT = 255;
+
     uint8 public constant REACH_UNKNOWN = 0; // waiting, he slept, or no chip result
     uint8 public constant IN_REACH = 1;
     uint8 public constant OUT_OF_REACH = 2; // a perfect walk cannot land here tonight: never catches (landings = noise)
@@ -86,6 +126,10 @@ contract QuantumCatch {
     IPaintedArt public immutable ART;
     /// @notice the metadata renderer (JSON + SVG), created by the constructor: pure functions only, no storage, no owner
     CatchArt public immutable RENDERER;
+    /// @notice the token a net is paid in and burned (Squeekchain TEST SQK; address(0) = free nets)
+    ISqk public immutable SQK;
+    /// @notice the SQK burned per net (0 when SQK is unset: free)
+    uint256 public immutable NET_COST;
 
     // ------------------------------------------------------------------ events
 
@@ -94,7 +138,10 @@ contract QuantumCatch {
     event ApprovalForAll(address indexed owner, address indexed operator, bool approved);
     /// @dev ERC-4906: every net of the posted night has new metadata
     event BatchMetadataUpdate(uint256 _fromTokenId, uint256 _toTokenId);
-    event NetCast(uint32 indexed night, address indexed catcher, uint8 spot, uint256 tokenId);
+    /// @notice `catcher` cast its net `tokenId` for `night` (no spot: the night's chip result draws it)
+    event NetCast(uint32 indexed night, address indexed catcher, uint256 tokenId);
+    /// @notice `catcher` paid `burned` SQK for its net of `night`, and it was burned (not emitted for free nets)
+    event NetPaid(uint32 indexed night, address indexed catcher, uint256 burned);
     event NightPosted(
         uint32 indexed night, uint32 shots, uint32 turns, bytes32 jobId, bytes32 resultSha256, uint8 firstShot
     );
@@ -103,8 +150,13 @@ contract QuantumCatch {
 
     error ZeroHatcher();
     error ArtHasNoCode(address art);
+    error SqkHasNoCode(address sqk);
+    /// @dev free nets (SQK unset) need netCost 0; paid nets need netCost > 0
+    error BadNetCost(uint256 netCost);
+    /// @dev castNetWithPermit on a game with free nets: there is nothing to permit
+    error FreeNets();
+    error SqkTransferFailed();
     error TimeOutOfRange(uint256 t);
-    error SpotOutOfRange(uint8 spot);
     error AlreadyCast(uint32 night, address catcher);
     error HatcherIsNotAPlayer();
     error NotHatcher();
@@ -126,8 +178,8 @@ contract QuantumCatch {
     // ------------------------------------------------------------------ storage
 
     struct Net {
-        address owner; // nonzero = exists (nets are never burned)
-        uint8 spot;
+        address owner; // the holder; nonzero = exists (zero before the cast and after a burn)
+        bool cast; // set by the cast, never cleared: a burned net's id can never be cast (minted) again
     }
 
     struct Night {
@@ -148,11 +200,21 @@ contract QuantumCatch {
     mapping(address => mapping(address => bool)) private _operators;
     mapping(uint32 => Night) private _nights;
 
-    constructor(address hatcher, IPaintedArt art) {
+    /// @param sqk the token a net is paid in and burned; address(0) = free nets (then netCost must be 0)
+    /// @param netCost the SQK burned per net (> 0 when sqk is set)
+    constructor(address hatcher, IPaintedArt art, ISqk sqk, uint256 netCost) {
         if (hatcher == address(0)) revert ZeroHatcher();
         if (address(art) != address(0) && address(art).code.length == 0) revert ArtHasNoCode(address(art));
+        if (address(sqk) == address(0)) {
+            if (netCost != 0) revert BadNetCost(netCost);
+        } else {
+            if (address(sqk).code.length == 0) revert SqkHasNoCode(address(sqk));
+            if (netCost == 0) revert BadNetCost(netCost);
+        }
         HATCHER = hatcher;
         ART = art;
+        SQK = sqk;
+        NET_COST = netCost;
         RENDERER = new CatchArt();
     }
 
@@ -200,20 +262,64 @@ contract QuantumCatch {
 
     // ------------------------------------------------------------------ the game
 
-    /// @notice cast your net on one of the 16 spots for the open night; free, one per wallet per night
-    function castNet(uint8 spot) external returns (uint256 tokenId) {
-        if (spot >= SPOTS) revert SpotOutOfRange(spot);
+    /// @notice cast your net for the open night, one per wallet per night: a ticket for one of the chip's shots (the
+    ///         night's chip result draws its spot; nobody picks one). With SQK set it costs NET_COST SQK, burned in
+    ///         this call: approve this game for NET_COST first (or use castNetWithPermit)
+    function castNet() external returns (uint256 tokenId) {
+        return _castNet();
+    }
+
+    /// @notice castNet in one transaction without a separate approve: first sets this game's allowance to NET_COST
+    ///         from your EIP-2612 permit signature (owner = you, spender = this game, value = NET_COST), then casts.
+    ///         If the permit cannot be used (someone already submitted it, or it is invalid) it is ignored and the
+    ///         allowance already there is used; without enough allowance the cast reverts.
+    ///         An EIP-2612 permit SETS the allowance: a larger allowance this wallet gave the game before (even an
+    ///         unlimited one) is replaced by NET_COST, which the cast then uses up (0 left). Only the caster's own nets
+    ///         ever spend it; with an allowance already in place, plain castNet is the call to use.
+    function castNetWithPermit(uint256 deadline, uint8 v, bytes32 r, bytes32 s) external returns (uint256 tokenId) {
+        if (address(SQK) == address(0)) revert FreeNets();
+        try SQK.permit(msg.sender, address(this), NET_COST, deadline, v, r, s) {} catch {}
+        return _castNet();
+    }
+
+    function _castNet() internal returns (uint256 tokenId) {
         if (msg.sender == HATCHER) revert HatcherIsNotAPlayer();
         uint32 n = openNightAt(block.timestamp);
         tokenId = netId(n, msg.sender);
-        // the id encodes the CASTER, so a net given away still blocks a second net from the same wallet
-        if (_nets[tokenId].owner != address(0)) revert AlreadyCast(n, msg.sender);
-        _nets[tokenId] = Net({owner: msg.sender, spot: spot});
+        // the id encodes the CASTER, so a net given away (or burned) still blocks a second net from the same wallet
+        if (_nets[tokenId].cast) revert AlreadyCast(n, msg.sender);
+        // effects before the token calls (checks-effects-interactions): the net is recorded before SQK runs any code
+        _nets[tokenId] = Net({owner: msg.sender, cast: true});
         unchecked {
             ++_balances[msg.sender];
         }
+        uint256 cost = NET_COST;
+        if (cost != 0) {
+            // pull exactly NET_COST from the caster (its own allowance) and burn it: the game keeps nothing
+            if (!SQK.transferFrom(msg.sender, address(this), cost)) revert SqkTransferFailed();
+            SQK.burn(cost);
+        }
         emit Transfer(address(0), msg.sender, tokenId);
-        emit NetCast(n, msg.sender, spot, tokenId);
+        emit NetCast(n, msg.sender, tokenId);
+        if (cost != 0) emit NetPaid(n, msg.sender, cost);
+    }
+
+    /// @notice burn net `tokenId`: by its holder, or an address the holder approved for this net or for all its nets
+    ///         (e.g. a later game contract the holder approves). It is gone for good: ownerOf, tokenURI, result and
+    ///         traitsOf revert, it no longer counts in balanceOf, and its id can never be cast again (the id encodes
+    ///         the night and the caster: the caster's net for that night stays used). No admin burn; the hatcher can
+    ///         never hold or be approved for a net, so it can never burn one.
+    function burn(uint256 tokenId) external {
+        address owner = ownerOf(tokenId);
+        if (msg.sender != owner && _approved[tokenId] != msg.sender && !_operators[owner][msg.sender]) {
+            revert NotOwnerNorApproved(msg.sender, tokenId);
+        }
+        delete _approved[tokenId];
+        unchecked {
+            --_balances[owner];
+        }
+        _nets[tokenId].owner = address(0); // `cast` stays set
+        emit Transfer(owner, address(0), tokenId);
     }
 
     /// @notice the hatcher posts night n's chip result once, after the night is over and before postDeadline(n)
@@ -314,6 +420,41 @@ contract QuantumCatch {
         }
     }
 
+    /// @notice the spot the shot drawn for net `tokenId` landed on, for a night's numbers (the owner's rule, 6 Nov): one
+    ///         of the night's shots at random over ALL its landings: x = uint256(keccak256(abi.encode(n, resultSha256,
+    ///         jobId, tokenId))) % shots (shots = the sum of counts), then spots 0..15 in order, each taking its count
+    ///         of the values. NO_SPOT when nothing landed (he slept). A posted night's net draws
+    ///         drawOf(its night, the record's resultSha256 and jobId, its id, the record's counts).
+    function drawOf(uint32 n, bytes32 resultSha256, bytes32 jobId, uint256 tokenId, uint16[16] calldata counts)
+        external
+        pure
+        returns (uint8)
+    {
+        uint256 packed;
+        uint256 shots;
+        for (uint256 i; i < 16; ++i) {
+            packed |= uint256(counts[i]) << (16 * i);
+            shots += counts[i];
+        }
+        return _draw(packed, shots, n, resultSha256, jobId, tokenId);
+    }
+
+    /// @dev the drawn shot's spot: always a spot with at least one landing; NO_SPOT when there are no shots
+    function _draw(uint256 packed, uint256 shots, uint32 n, bytes32 sha, bytes32 job, uint256 tokenId)
+        internal
+        pure
+        returns (uint8)
+    {
+        if (shots == 0) return NO_SPOT;
+        uint256 x = uint256(keccak256(abi.encode(n, sha, job, tokenId))) % shots;
+        for (uint256 s; s < 16; ++s) {
+            uint256 c = (packed >> (16 * s)) & 0xFFFF;
+            if (x < c) return uint8(s);
+            x -= c;
+        }
+        return NO_SPOT; // unreachable: x < shots = the sum of the counts
+    }
+
     /// @dev tonight's catchable spots as a 16-bit mask: in reach and at least 1 % of the shots (none when no shots)
     function _catchable(uint256 packed, uint256 shots, uint256 turns, uint256 steps) internal pure returns (uint256 mask) {
         if (shots == 0) return 0;
@@ -347,27 +488,76 @@ contract QuantumCatch {
     }
 
     /// @notice how a net turned out
-    /// @return status 0 waiting for the chip, 1 caught, 2 got away (under 1 %, or out of reach tonight), 3 he slept,
-    ///         4 no chip result (none was posted before postDeadline(night): final)
+    /// @return status 0 waiting for the chip, 1 caught, 2 got away (its shot landed under 1 %, or out of reach
+    ///         tonight), 3 he slept (nothing drawn), 4 no chip result (none was posted before postDeadline(night): final)
     /// @return night the night the net was cast for
-    /// @return spot the spot the net is on
+    /// @return spot the spot its drawn shot landed on (drawOf), NO_SPOT (255) until the night's result is posted, and
+    ///         when he slept or no result came
     /// @return hits the chip's landings on that spot (shown even when out of reach: then they are chip noise)
     /// @return shots the chip's shots that night
-    /// @return tier 0 none, 1 Common, 2 Uncommon, 3 Rare, 4 Epic, 5 Legendary: the rank among the night's catchable spots
-    ///         (tiersOf; always 0 out of reach)
-    /// @return looks the hamster's 4 traits: bit 0 hat, bit 1 glasses, bit 2 neckwear, bit 3 face (= the spot)
+    /// @return tier 0 none, 1 Common, 2 Uncommon, 3 Rare, 4 Epic, 5 Legendary: the drawn spot's rank among the night's
+    ///         catchable spots (tiersOf; always 0 out of reach)
+    /// @return looks the caught hamster's 4 traits (= the drawn spot): bit 0 hat, bit 1 glasses, bit 2 neckwear, bit 3
+    ///         face; 0 unless caught
     function result(uint256 tokenId)
         external
         view
         returns (uint8 status, uint32 night, uint8 spot, uint16 hits, uint32 shots, uint8 tier, uint8 looks)
     {
         CatchArt.Card memory c = _card(tokenId);
-        return (c.status, c.night, c.spot, c.hits, c.shots, c.tier, c.spot);
+        return (c.status, c.night, c.spot, c.hits, c.shots, c.tier, c.status == CAUGHT ? c.spot : 0);
     }
 
-    /// @notice whether a perfect walk could land on this net's spot that night: 0 not known (waiting, he slept, no
-    ///         chip result), 1 in reach (the right parity and at most `steps` spots from his start, spot turns % 16),
-    ///         2 out of reach tonight (landings there are chip noise; the net never catches)
+    /// @notice the spot net `tokenId`'s drawn shot landed on: NO_SPOT (255) until the night's result is posted (and
+    ///         when he slept or no result came)
+    function spotOf(uint256 tokenId) external view returns (uint8) {
+        return _card(tokenId).spot;
+    }
+
+    /// @notice a net's traits in one stable read (for later games built on these nets). Before the night is posted
+    ///         (also when no chip result came): posted false, everything else 0. When he slept: posted true, caught
+    ///         false, spot NO_SPOT (nothing drawn), the rest 0.
+    /// @return night the night the net was cast for
+    /// @return posted whether the night's chip result is posted
+    /// @return caught whether its drawn shot caught the hamster on its spot
+    /// @return spot the drawn shot's spot (also when the hamster got away)
+    /// @return hat the caught hamster wears a party hat (the spot's bit 0); false unless caught
+    /// @return glasses round glasses (bit 1); false unless caught
+    /// @return scarf a striped scarf (bit 2); false unless caught
+    /// @return grin a grin, else calm (bit 3); false unless caught
+    /// @return tier 0 none, 1 Common, 2 Uncommon, 3 Rare, 4 Epic, 5 Legendary
+    function traitsOf(uint256 tokenId)
+        external
+        view
+        returns (
+            uint32 night,
+            bool posted,
+            bool caught,
+            uint8 spot,
+            bool hat,
+            bool glasses,
+            bool scarf,
+            bool grin,
+            uint8 tier
+        )
+    {
+        CatchArt.Card memory c = _card(tokenId);
+        night = c.night;
+        if (c.status == WAITING || c.status == NO_RESULT) return (night, false, false, 0, false, false, false, false, 0);
+        posted = true;
+        spot = c.spot; // NO_SPOT when he slept
+        if (c.status != CAUGHT) return (night, true, false, spot, false, false, false, false, 0);
+        caught = true;
+        hat = spot & 1 == 1;
+        glasses = (spot >> 1) & 1 == 1;
+        scarf = (spot >> 2) & 1 == 1;
+        grin = (spot >> 3) & 1 == 1;
+        tier = c.tier;
+    }
+
+    /// @notice whether a perfect walk could land on the spot of this net's drawn shot that night: 0 not known
+    ///         (waiting, he slept, no chip result), 1 in reach (the right parity and at most `steps` spots from his
+    ///         start, spot turns % 16), 2 out of reach tonight (landings there are chip noise; the net never catches)
     function reachOf(uint256 tokenId) external view returns (uint8) {
         return _card(tokenId).reach;
     }
@@ -383,10 +573,9 @@ contract QuantumCatch {
     }
 
     function _card(uint256 tokenId) internal view returns (CatchArt.Card memory c) {
-        Net memory t = _nets[tokenId];
-        if (t.owner == address(0)) revert NonexistentToken(tokenId);
+        if (_nets[tokenId].owner == address(0)) revert NonexistentToken(tokenId);
         c.night = uint32(tokenId >> 160);
-        c.spot = t.spot;
+        c.spot = NO_SPOT; // nothing drawn until a ran night is posted
         Night storage r = _nights[c.night];
         if (!r.posted) {
             if (block.timestamp >= postDeadline(c.night)) c.status = NO_RESULT; // final: it can never be posted now
@@ -403,13 +592,16 @@ contract QuantumCatch {
         c.steps = r.steps;
         c.start = r.ringTurn;
         c.firstShot = r.firstShot;
-        c.hits = uint16(c.counts >> (16 * uint256(t.spot)));
-        c.reach = _inReach(t.spot, r.turns, r.steps) ? IN_REACH : OUT_OF_REACH;
-        // out of reach: he could not land here, so the landings here are chip noise and never catch (not catchable)
-        (uint256 rank, uint256 n) = _rank(c.counts, _catchable(c.counts, c.shots, r.turns, r.steps), t.spot);
+        // the net's one shot, drawn over all the night's landings (shots > 0 on a ran night: a spot with a landing)
+        uint8 s = _draw(c.counts, c.shots, c.night, c.sha, c.jobId, tokenId);
+        c.spot = s;
+        c.hits = uint16(c.counts >> (16 * uint256(s)));
+        c.reach = _inReach(s, r.turns, r.steps) ? IN_REACH : OUT_OF_REACH;
+        // out of reach: he could not land there, so the landings there are chip noise and never catch (not catchable)
+        (uint256 rank, uint256 n) = _rank(c.counts, _catchable(c.counts, c.shots, r.turns, r.steps), s);
         c.rank = uint8(rank);
         c.catchable = uint8(n);
-        c.tier = _tier(rank, n, r.firstShot == t.spot);
+        c.tier = _tier(rank, n, r.firstShot == s);
         c.status = c.tier == 0 ? GOT_AWAY : CAUGHT;
     }
 

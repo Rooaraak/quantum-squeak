@@ -6,6 +6,8 @@ result reaches the page without a rebuild of the page; the claude.ai preview blo
   python3 wheel/build.py --chips 'wheel/test/fixtures/wheel-*.json' --out /some/scratch/test-page.html   (tests only)
   python3 wheel/build.py --catch-address 0x...    (the QuantumCatch contract: test builds only until it is deployed;
                                                    the real value lives in wheel/config.json, null = no NFT button)
+  python3 wheel/build.py --sqk-address 0x... --faucet-address 0x...   (the test SQK and its faucet: test builds on a
+                                                   local anvil only; else wheel/config.json sqkAddress / faucetAddress)
   python3 wheel/build.py --repo-url https://github.com/<owner>/<repo>   (else wheel/config.json repoUrl)
 Recipe per night (quantum/wheel_spec.md): the 29 Oct - 4 Nov archive is v1.1 (up to 16 steps), nights from 5 Nov are v1.2
 (at most 10 steps). A night's chip result must be a run of the night's own recipe, with exactly the steps that recipe
@@ -34,6 +36,18 @@ CATCH = arg('--catch-address', CFG.get('catchAddress'))
 CATCH = None if CATCH in (None, '', 'null') else CATCH
 assert re.fullmatch(r'https://github\.com/[\w.-]+/[\w.-]+', REPO), 'repoUrl must be a plain https://github.com/<owner>/<repo> link'
 assert CATCH is None or re.fullmatch(r'0x[0-9a-fA-F]{40}', CATCH), 'catchAddress must be an address or null'
+# QuantumCatch v2 (a net costs test SQK): the token, the daily faucet and the cost label, passed to the page only when
+# wheel/config.json has them (the page reads the real cost from the contract; these are labels and the faucet's address)
+SQK_CFG = {}
+for k, flag in (('sqkAddress', '--sqk-address'), ('faucetAddress', '--faucet-address')):   # flags: test builds (local anvil)
+    if k in CFG or flag in sys.argv:
+        v = arg(flag, CFG.get(k))
+        v = None if v in (None, '', 'null') else v
+        assert v is None or re.fullmatch(r'0x[0-9a-fA-F]{40}', v), f'{k} must be an address or null'
+        SQK_CFG[k] = v.lower() if v else None
+if 'netCost' in CFG:
+    assert re.fullmatch(r'\d+(\.\d+)?', str(CFG['netCost'])), 'netCost must be a decimal string like "0.01"'
+    SQK_CFG['netCost'] = str(CFG['netCost'])
 
 RECIPES = {'v1.1': 16, 'v1.2': 10}
 ARCHIVE_LAST = '2026-11-04'           # nights up to here are recipe v1.1; from 5 Nov on, v1.2
@@ -122,7 +136,7 @@ newest = nights[max(nights)]
 results = {'kind': 'quantum_catch_results', 'v': 1, 'recipes': RECIPES, 'archive_last': ARCHIVE_LAST,
            'nights': nights, 'chips': chips, 'reruns': reruns, 'not_shown': not_shown}
 data = {**results, 'twin': twin, 'health_min': HEALTH_MIN,
-        'config': {'repoUrl': REPO, 'catchAddress': CATCH.lower() if CATCH else None, 'chainId': '0xaa36a7'},
+        'config': {'repoUrl': REPO, 'catchAddress': CATCH.lower() if CATCH else None, 'chainId': '0xaa36a7', **SQK_CFG},
         'core': {'address': newest['core'], 'genesis': newest['genesis']}}
 art = json.load(open(os.path.join(HERE, 'art', 'art.json')))
 
@@ -132,6 +146,20 @@ rep = {'/*__ENGINE__*/': rd(os.path.join(HERE, 'engine.js')), '/*__CATCH__*/': r
 for k, v in rep.items():
     assert T.count(k) == 1, k
     T = T.replace(k, v)
+# QuantumCatch v2: this catch.js (castNetWithPermit, no spot) refuses the live v1 contract ('config', before anything is
+# signed). A page with the v2 wallet code and the v1 catchAddress must therefore not show a cast button: the page v2
+# template reads the contract's NET_COST() and shows its NOT_WIRED line instead (RULINGS 52, 58), so it is built (with a
+# note); any other page is refused, before anything is written, so the morning stops loudly. The switch is one step:
+# wheel/config.json catchAddress (and faucetAddress) to the v2 deploy (from its deploy record), or null (watch-only).
+V1_CATCH = '0xa0b3352b3a436c845e3bf2d251abeda3d474dfe0'   # QuantumCatch v1 (Sepolia, 6 Nov 2026: castNet(uint8 spot), free)
+if '266ab9cf' in rep['/*__CATCH__*/'].lower() and CATCH and CATCH.lower() == V1_CATCH:   # castNetWithPermit's selector
+    if 'const NOT_WIRED = ' not in T:
+        sys.exit(f'refused: wheel/catch.js is the v2 wallet code (castNet() with no spot, test SQK) but catchAddress {V1_CATCH} '
+                 'is the v1 contract (castNet(uint8 spot)) and this page has no not-wired guard: its NFT button could never '
+                 'cast. Set wheel/config.json catchAddress and faucetAddress to the v2 deploy (its deploy record), or '
+                 'catchAddress null (watch-only).')
+    print(f'note: catchAddress {V1_CATCH} is the v1 contract: wallet visitors see the not-wired line ("Casting opens soon") '
+          'until wheel/config.json gets the v2 catchAddress + faucetAddress', file=sys.stderr)
 assert T.startswith('<meta charset="utf-8">\n'), 'the page must start with its <meta charset> line'
 os.makedirs(os.path.dirname(os.path.abspath(OUT)), exist_ok=True)
 open(OUT, 'w', encoding='utf-8').write(T)

@@ -8,12 +8,12 @@ import {CatchArt} from "../src/CatchArt.sol";
 contract CatchTimeTest is CatchBase {
     function test_constructor_rejects_zero_hatcher() public {
         vm.expectRevert(QuantumCatch.ZeroHatcher.selector);
-        new QuantumCatch(address(0), NO_ART);
+        new QuantumCatch(address(0), NO_ART, NO_SQK, 0);
     }
 
     function test_constructor_rejects_art_without_code() public {
         vm.expectRevert(abi.encodeWithSelector(QuantumCatch.ArtHasNoCode.selector, alice));
-        new QuantumCatch(hatcher, IPaintedArt(alice));
+        new QuantumCatch(hatcher, IPaintedArt(alice), NO_SQK, 0);
     }
 
     function test_art_and_renderer_are_fixed_at_deploy() public {
@@ -21,7 +21,7 @@ contract CatchTimeTest is CatchBase {
         CatchArt r = qc.RENDERER();
         assertGt(address(r).code.length, 0, "the constructor created the renderer");
         assertEq(vm.getNonce(address(qc)), 2, "it created exactly one contract");
-        QuantumCatch other = new QuantumCatch(hatcher, IPaintedArt(address(qc)));
+        QuantumCatch other = new QuantumCatch(hatcher, IPaintedArt(address(qc)), NO_SQK, 0);
         assertEq(address(other.ART()), address(qc));
         assertTrue(address(other.RENDERER()) != address(r), "each game has its own renderer");
     }
@@ -65,27 +65,43 @@ contract CastNetTest is CatchBase {
         vm.expectEmit(true, true, true, true, address(qc));
         emit QuantumCatch.Transfer(address(0), alice, want);
         vm.expectEmit(true, true, false, true, address(qc));
-        emit QuantumCatch.NetCast(N1104, alice, 5, want);
-        uint256 id = _cast(alice, 5);
+        emit QuantumCatch.NetCast(N1104, alice, want);
+        uint256 id = _cast(alice);
         assertEq(id, want);
         assertEq(qc.netId(N1104, alice), want);
         assertEq(qc.ownerOf(id), alice);
         assertEq(qc.balanceOf(alice), 1);
-        (uint8 status, uint32 night, uint8 spot,,,,) = qc.result(id);
+        (uint8 status, uint32 night, uint8 spot,,,, uint8 looks) = qc.result(id);
         assertEq(status, 0);
         assertEq(night, N1104);
-        assertEq(spot, 5);
+        assertEq(spot, 255, "no spot before the chip result: nobody picks one");
+        assertEq(qc.spotOf(id), qc.NO_SPOT());
+        assertEq(looks, 0);
+    }
+
+    function test_the_pick_a_spot_cast_is_gone() public {
+        vm.prank(alice);
+        (bool ok,) = address(qc).call(abi.encodeWithSignature("castNet(uint8)", uint8(5)));
+        assertFalse(ok, "castNet(uint8) does not exist (no fallback either)");
+        vm.prank(alice);
+        (ok,) = address(qc).call(
+            abi.encodeWithSignature(
+                "castNetWithPermit(uint8,uint256,uint8,bytes32,bytes32)", uint8(5), block.timestamp, 27, 0, 0
+            )
+        );
+        assertFalse(ok);
+        assertEq(qc.balanceOf(alice), 0);
     }
 
     function test_lock_boundary_one_second_before_is_tonight() public {
         vm.warp(LOCK_1104 - 1);
-        uint256 id = _cast(alice, 3);
+        uint256 id = _cast(alice);
         assertEq(id >> 160, N1104);
     }
 
     function test_lock_boundary_exactly_at_lock_tonight_is_closed() public {
         vm.warp(LOCK_1104);
-        uint256 id = _cast(alice, 3);
+        uint256 id = _cast(alice);
         assertEq(id >> 160, N1104 + 1, "at 21:00:00 the net is for tomorrow's night");
         assertEq(qc.balanceOf(alice), 1);
         uint256 tonight = qc.netId(N1104, alice);
@@ -94,42 +110,33 @@ contract CastNetTest is CatchBase {
     }
 
     function test_one_net_per_wallet_per_night() public {
-        _cast(alice, 1);
+        _cast(alice);
         vm.expectRevert(abi.encodeWithSelector(QuantumCatch.AlreadyCast.selector, N1104, alice));
-        _cast(alice, 2);
+        _cast(alice);
         vm.warp(LOCK_1104); // next night: a new net is fine
-        _cast(alice, 2);
+        _cast(alice);
         assertEq(qc.balanceOf(alice), 2);
     }
 
     function test_one_net_per_night_survives_a_transfer() public {
-        uint256 id = _cast(alice, 1);
+        uint256 id = _cast(alice);
         vm.prank(alice);
         qc.transferFrom(alice, bob, id);
         vm.expectRevert(abi.encodeWithSelector(QuantumCatch.AlreadyCast.selector, N1104, alice));
-        _cast(alice, 4); // she gave her net away: still her one net for tonight
-        _cast(bob, 4); // bob holds alice's net and may still cast his own
+        _cast(alice); // she gave her net away: still her one net for tonight
+        _cast(bob); // bob holds alice's net and may still cast his own
         assertEq(qc.balanceOf(bob), 2);
-    }
-
-    function test_spot_range() public {
-        _cast(alice, 15);
-        vm.expectRevert(abi.encodeWithSelector(QuantumCatch.SpotOutOfRange.selector, uint8(16)));
-        _cast(bob, 16);
-        vm.expectRevert(abi.encodeWithSelector(QuantumCatch.SpotOutOfRange.selector, uint8(255)));
-        _cast(bob, 255);
-        _cast(bob, 0);
     }
 
     function test_hatcher_cannot_cast_a_net() public {
         vm.expectRevert(QuantumCatch.HatcherIsNotAPlayer.selector);
-        _cast(hatcher, 1);
+        _cast(hatcher);
     }
 
     function test_castNet_is_not_payable() public {
         vm.deal(alice, 1 ether);
         vm.prank(alice);
-        (bool ok,) = address(qc).call{value: 1}(abi.encodeCall(QuantumCatch.castNet, (1)));
+        (bool ok,) = address(qc).call{value: 1}(abi.encodeCall(QuantumCatch.castNet, ()));
         assertFalse(ok);
         (ok,) = address(qc).call{value: 1}("");
         assertFalse(ok, "no receive / fallback");
@@ -263,46 +270,53 @@ contract PostNightTest is CatchBase {
 
 contract ResultTest is CatchBase {
     function test_waiting_for_the_chip() public {
-        uint256 id = _cast(alice, 7);
+        uint256 id = _cast(alice);
         vm.warp(OVER_1104 + 10 days); // night long over, nothing posted yet
         (uint8 status, uint32 night, uint8 spot, uint16 hits, uint32 shots, uint8 tier, uint8 looks) = qc.result(id);
         assertEq(status, 0);
         assertEq(night, N1104);
-        assertEq(spot, 7);
+        assertEq(spot, 255, "nothing drawn yet");
         assertEq(hits, 0);
         assertEq(shots, 0);
         assertEq(tier, 0);
-        assertEq(looks, 7);
+        assertEq(looks, 0);
     }
 
     function test_real_night_caught_and_got_away() public {
-        uint256 a = _cast(alice, 15); // 808 / 4000 = 20.2 %: Common
-        uint256 b = _cast(bob, 5); // 308 / 4000 = 7.7 %: Uncommon
-        uint256 c = _cast(carol, 0); // 27 / 4000 = 0.675 %: got away
+        uint16[16] memory c4 = _counts1104();
+        uint256 a = _castOn(15, c4); // its shot on 15: 808 / 4000 = 20.2 %: Common
+        uint256 b = _castOn(5, c4); // on 5: 308 / 4000 = 7.7 %: Uncommon
+        uint256 c = _castOn(0, c4); // on 0: 27 / 4000 = 0.675 %, out of reach: got away
         _post1104();
-        (uint8 status,,, uint16 hits, uint32 shots, uint8 tier, uint8 looks) = qc.result(a);
+        (uint8 status,, uint8 spot, uint16 hits, uint32 shots, uint8 tier, uint8 looks) = qc.result(a);
         assertEq(status, 1);
+        assertEq(spot, 15);
         assertEq(hits, 808);
         assertEq(shots, 4000);
         assertEq(tier, 1);
         assertEq(looks, 15);
-        (status,,, hits,, tier,) = qc.result(b);
+        (status,, spot, hits,, tier, looks) = qc.result(b);
         assertEq(status, 1);
+        assertEq(spot, 5);
         assertEq(hits, 308);
         assertEq(tier, 2);
-        (status,,, hits,, tier,) = qc.result(c);
+        assertEq(looks, 5);
+        (status,, spot, hits,, tier, looks) = qc.result(c);
         assertEq(status, 2);
+        assertEq(spot, 0, "the shot's spot is shown when the hamster got away too");
         assertEq(hits, 27);
         assertEq(tier, 0);
+        assertEq(looks, 0, "no hamster, no looks");
     }
 
     function test_he_slept() public {
-        uint256 id = _cast(alice, 2);
+        uint256 id = _cast(alice);
         vm.warp(OVER_1104);
         uint16[16] memory zero;
         _post(N1104, zero, 0);
-        (uint8 status,,, uint16 hits, uint32 shots, uint8 tier,) = qc.result(id);
+        (uint8 status,, uint8 spot, uint16 hits, uint32 shots, uint8 tier,) = qc.result(id);
         assertEq(status, 3);
+        assertEq(spot, 255, "he slept: nothing drawn");
         assertEq(hits, 0);
         assertEq(shots, 0);
         assertEq(tier, 0);
@@ -433,26 +447,29 @@ contract ResultTest is CatchBase {
         for (uint256 i; i < turns.length; ++i) {
             if (real[i] != 1) continue; // 1 = the file's own first shot
             uint32 n = N1104 + 1 + uint32(nights++);
-            uint256[16] memory ids;
-            vm.warp(qc.nightStart(n) + 60);
-            for (uint256 s; s < 16; ++s) {
-                ids[s] = _cast(address(uint160(0x7E57000 + s)), uint8(s));
-            }
-            vm.warp(qc.nightOverAt(n));
             uint16[16] memory c;
             for (uint256 s; s < 16; ++s) {
                 c[s] = uint16(counts[16 * i + s]);
             }
+            vm.warp(qc.nightStart(n) + 60);
+            uint256[16] memory ids = _castEvery(c); // a net whose shot lands on each spot with landings
+            vm.warp(qc.nightOverAt(n));
             _postF(n, c, uint32(turns[i]), uint8(steps[i]), uint8(first[i]));
             for (uint256 s; s < 16; ++s) {
-                (uint8 status,,, uint16 hits,, uint8 t,) = qc.result(ids[s]);
-                assertEq(t, tier[16 * i + s], string.concat("real night ", vm.toString(nights), " spot ", vm.toString(s)));
-                assertEq(status, t == 0 ? 2 : 1);
-                assertEq(hits, c[s]);
-                assertTrue(t != 5, "no real night had its first shot on the Epic spot");
+                if (c[s] == 0) continue; // never drawn
+                _checkNet(ids[s], s, c[s], tier[16 * i + s], string.concat("real night ", vm.toString(nights), " spot ", vm.toString(s)));
             }
         }
         assertEq(nights, 9);
+    }
+
+    function _checkNet(uint256 id, uint256 s, uint16 count, uint256 want, string memory label) internal view {
+        (uint8 status,, uint8 spot, uint16 hits,, uint8 t,) = qc.result(id);
+        assertEq(spot, s, label);
+        assertEq(t, want, label);
+        assertEq(status, t == 0 ? 2 : 1);
+        assertEq(hits, count);
+        assertTrue(t != 5, "no real night had its first shot on the Epic spot");
     }
 
     /// one night, every tier: the 4 Nov v1.2 counts with the first shot on its Epic spot 7 (made up: the real one
@@ -462,24 +479,25 @@ contract ResultTest is CatchBase {
         uint8[6] memory want = [uint8(1), 2, 3, 5, 0, 2]; // Common, Uncommon, Rare, Legendary, got away (out of reach)
         uint256[6] memory ids;
         for (uint256 k; k < 6; ++k) {
-            ids[k] = _cast(address(uint160(0xA000 + k)), spots[k]);
+            ids[k] = _castOn(spots[k], _counts1104v12());
         }
         vm.warp(OVER_1104);
         _postF(N1104, _counts1104v12(), TURNS_1104, STEPS_1104_V12, 7);
         for (uint256 k; k < 6; ++k) {
-            (uint8 status,,,,, uint8 tier,) = qc.result(ids[k]);
+            (uint8 status,, uint8 spot,,, uint8 tier,) = qc.result(ids[k]);
+            assertEq(spot, spots[k]);
             assertEq(tier, want[k], vm.toString(spots[k]));
             assertEq(status, want[k] == 0 ? 2 : 1);
         }
         // the next night: same counts with spot 13 under 1 % (in reach, got away), the first shot on spot 3: 7 is Epic
         uint32 n = N1104 + 1;
         vm.warp(qc.nightStart(n) + 60);
-        uint256 epic = _cast(alice, 7);
-        uint256 low = _cast(bob, 13);
-        vm.warp(qc.nightOverAt(n));
         uint16[16] memory c = _counts1104v12();
         c[1] += c[13] - 39;
         c[13] = 39;
+        uint256 epic = _castOn(7, c);
+        uint256 low = _castOn(13, c);
+        vm.warp(qc.nightOverAt(n));
         _postF(n, c, TURNS_1104, STEPS_1104_V12, 3);
         (uint8 st,,,,, uint8 t,) = qc.result(epic);
         assertEq(t, 4);

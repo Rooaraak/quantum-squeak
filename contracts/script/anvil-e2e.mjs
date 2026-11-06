@@ -1,14 +1,19 @@
-// Local-anvil end-to-end with the painted art (never a public network). Anvil starts at 3 Nov 13:00 UTC; deploy the
-// whole game with script/DeployAll.s.sol (15 ArtChunk data contracts, PaintedArt, QuantumCatch(HATCHER, PaintedArt)), then:
+// Local-anvil end-to-end with the painted art (never a public network). Anvil starts at 3 Nov 13:00 UTC; deploy a mock
+// test SQK (contracts/test/mocks/MockSqk.sol: burn + permit, anyone can mint) and then the whole game with
+// script/DeployAll.s.sol (15 ArtChunk data contracts, PaintedArt, QuantumCatch(HATCHER, PaintedArt, SQK, NET_COST 0.01)):
+// every net is paid (mint 0.01 mock SQK, approve, castNet()) and burned. v2 (the owner's rule of 6 Nov): castNet() takes
+// no spot; the posted night draws each net's shot over all its landings (drawOf). Each state needs a net drawn on a given
+// spot, so its caster is found BEFORE the cast with the contract's own pure drawOf (only a test knows the sha256 and job
+// id before the chip runs; anvil impersonates any address), as script/Preview.s.sol does. Then:
 //   3 Nov (night 20760), MADE UP for the local test only, posted straight from the HATCHER account: the 1 Nov v1.2
 //     counts with spot 12 cut to 39 of 4000 (in reach, under 1 %: got away) and a made-up first shot on the Epic spot
-//     0 (Legendary: the gold skin, no items);
+//     0 (Legendary: the gold skin, no items); nets drawn on 0, 12 and 13 (out of reach);
 //   4 Nov (night 20761), the REAL chip result of recipe v1.2 (IBM job dbmbr0hkbkrc73cp7u8g), posted by
-//     quantum/post_night.mjs (GO=1 --anvil --job) with its real first shot (spot 3): nets on 15 Common, 3 Uncommon,
+//     quantum/post_night.mjs (GO=1 --anvil --job) with its real first shot (spot 3): nets drawn on 15 Common, 3 Uncommon,
 //     11 Rare, 7 Epic, and 0 / 6 out of reach (got away, chip noise);
 //   5 Nov (night 20762): he slept, posted through the poster's own sleptNight() + send() (a scratch chain-nights record);
 //   6 Nov (night 20763): never posted; past postDeadline its net reads "No chip result", and the poster refuses a late post.
-// Every state is read back through result(), reachOf() and tokenURI() and checked; tokenURI is measured with
+// Every state is read back through result(), spotOf(), reachOf(), traitsOf() and tokenURI() and checked; tokenURI is measured with
 // eth_estimateGas and run as an eth_call capped at 30,000,000 gas. Writes to outDir: token-<state>.json (metadata),
 // token-<state>.svg (the image), states.json (gas, sizes, addresses) for script/render-states.mjs (Chrome), and
 // looks/caught-<looks>-<tier>.svg (every looks x tier 1..5 through the deployed renderer) for script/fallback-check.mjs.
@@ -42,8 +47,14 @@ const START = 1793800000; // 4 Nov 13:46:40 UTC
 const OVER = start(N + 1); // 5 Nov 12:00 UTC: the 4 Nov night is over
 const SHA = '0x' + crypto.createHash('sha256').update(fs.readFileSync(FILE)).digest('hex');
 const CAP = 30_000_000;
+const NET_COST = 10n ** 16n; // 0.01 (mock) test SQK per net, burned
+const HEAD = 'Sepolia test NFT, no value. '; // CatchArt.HEAD: every description starts with it
 const ABI = [
-  'function castNet(uint8 spot) returns (uint256)', 'function netId(uint32, address) pure returns (uint256)',
+  'function castNet() returns (uint256)', 'function netId(uint32, address) pure returns (uint256)',
+  'function SQK() view returns (address)', 'function NET_COST() view returns (uint256)',
+  'function drawOf(uint32 n, bytes32 resultSha256, bytes32 jobId, uint256 tokenId, uint16[16] counts) pure returns (uint8)',
+  'function spotOf(uint256) view returns (uint8)',
+  'function traitsOf(uint256) view returns (uint32 night, bool posted, bool caught, uint8 spot, bool hat, bool glasses, bool scarf, bool grin, uint8 tier)',
   'function openNight() view returns (uint32)', 'function HATCHER() view returns (address)', 'function ART() view returns (address)',
   'function RENDERER() view returns (address)',
   'function result(uint256) view returns (uint8 status, uint32 night, uint8 spot, uint16 hits, uint32 shots, uint8 tier, uint8 looks)',
@@ -54,6 +65,9 @@ const ABI = [
   'function tiersOf(uint16[16] counts, uint32 turns, uint8 steps, uint8 firstShot) pure returns (uint8[16])',
 ];
 const ART_ABI = ['function hamster(uint8 looks, uint8 tier) view returns (string)', 'function chunks() view returns (address[])'];
+const MOCK = JSON.parse(fs.readFileSync(path.join(C, 'out/MockSqk.sol/MockSqk.json'), 'utf8'));
+const SQK_ABI = ['function mint(address to, uint256 value)', 'function approve(address spender, uint256 value) returns (bool)',
+  'function balanceOf(address) view returns (uint256)', 'function totalBurned() view returns (uint256)'];
 const meta = (uri) => JSON.parse(Buffer.from(uri.split(',')[1], 'base64').toString('utf8'));
 const svgOf = (m) => Buffer.from(m.image.split(',')[1], 'base64').toString('utf8');
 const trait = (m, k) => m.attributes.find((a) => a.trait_type === k)?.value;
@@ -77,13 +91,17 @@ try {
   const players = acc.slice(1, 9);
   const at = async (t) => { await provider.send('evm_setNextBlockTimestamp', [t]); await provider.send('evm_mine', []); };
 
-  // ---- deploy everything with the one deploy script
+  // ---- the mock test SQK first (not part of the game's deploy), then everything else with the one deploy script
+  const dsigner = await provider.getSigner(deployer);
+  const sqkC = await (await new ethers.ContractFactory(MOCK.abi, MOCK.bytecode.object, dsigner).deploy()).waitForDeployment();
+  const sqkAddr = await sqkC.getAddress();
+  const sqk = new ethers.Contract(sqkAddr, SQK_ABI, dsigner);
   const blockNumber = async () => Number(await provider.send('eth_blockNumber', [])); // uncached (ethers caches 250 ms)
   const b0 = await blockNumber();
   // --slow: one transaction at a time, each waits for its receipt (anvil fits only 4 of the ~7M-gas chunk deploys in a
   // 30M block; sent all at once, the rest would wait in its pool for a block that automine never starts)
   const dep = execFileSync(`${F}/forge`, ['script', 'script/DeployAll.s.sol', '--offline', '--rpc-url', RPC, '--broadcast', '--slow', '--unlocked', '--sender', deployer],
-    { cwd: C, env: { ...process.env, HATCHER: hatcher }, encoding: 'utf8' });
+    { cwd: C, env: { ...process.env, HATCHER: hatcher, SQK: sqkAddr, NET_COST: String(NET_COST) }, encoding: 'utf8' });
   const grab = (re) => re.exec(dep)?.[1] || assert.fail(`no ${re} in deploy output:\n${dep}`);
   const addr = grab(/QuantumCatch (0x[0-9a-fA-F]{40})/), artAddr = grab(/PaintedArt (0x[0-9a-fA-F]{40})/), renderer = grab(/RENDERER (0x[0-9a-fA-F]{40})/);
   const chunks = [...dep.matchAll(/ArtChunk (\d+) (0x[0-9a-fA-F]{40})/g)].map((m) => m[2]);
@@ -100,7 +118,7 @@ try {
   assert.equal(txs.length, 17, '17 deploy transactions: 15 chunks, PaintedArt, QuantumCatch (which creates its renderer)');
   const maxTx = Math.max(...txs.map((t) => t.gasUsed));
   assert.ok(maxTx < 16_777_216, `every deploy transaction under the EIP-7825 cap (max ${maxTx})`);
-  report.deploy = { QuantumCatch: addr, PaintedArt: artAddr, RENDERER: renderer, HATCHER: hatcher, deployer, ArtChunks: chunks, transactions: txs,
+  report.deploy = { QuantumCatch: addr, PaintedArt: artAddr, RENDERER: renderer, HATCHER: hatcher, SQK: sqkAddr, NET_COST: String(NET_COST), deployer, ArtChunks: chunks, transactions: txs,
     totalGas: txs.reduce((a, t) => a + t.gasUsed, 0), maxTxGas: maxTx,
     runtimeBytes: { QuantumCatch: (await provider.getCode(addr)).length / 2 - 1, RENDERER: (await provider.getCode(renderer)).length / 2 - 1, PaintedArt: (await provider.getCode(artAddr)).length / 2 - 1 } };
   console.log('deployed QuantumCatch', addr, '| PaintedArt', artAddr, '| renderer', renderer, '| hatcher', hatcher);
@@ -112,7 +130,32 @@ try {
   assert.equal(await qc.ART(), ethers.getAddress(artAddr));
   assert.equal(await qc.RENDERER(), ethers.getAddress(renderer));
   assert.deepEqual((await art.chunks()).map((a) => a.toLowerCase()), chunks.map((a) => a.toLowerCase()));
-  const cast = async (who, spot) => { await (await qc.connect(await provider.getSigner(who)).castNet(spot)).wait(); };
+  assert.equal(await qc.SQK(), ethers.getAddress(sqkAddr), 'DeployAll wired the (mock) test SQK');
+  assert.equal(await qc.NET_COST(), NET_COST);
+  // a paid net: 0.01 mock SQK minted to the caster, approved, castNet() (no spot); the game burns it at once
+  let paid = 0n;
+  const cast = async (who) => {
+    await (await sqk.mint(who, NET_COST)).wait();
+    const s = new ethers.JsonRpcSigner(provider, ethers.getAddress(who));
+    await (await sqk.connect(s).approve(addr, NET_COST)).wait();
+    const rc = await (await qc.connect(s).castNet()).wait();
+    assert.equal(rc.status, 1);
+    paid += NET_COST;
+  };
+  // the caster whose net for night n draws `spot` once x is posted (x: counts, the result file's sha256, the job id):
+  // the contract's own pure drawOf, asked before the cast; any address casts (impersonated, with test ETH for the fee)
+  let nextCaster = 1;
+  const castFor = async (n, x, spot) => {
+    for (let k = 0; k < 50000; k++) {
+      const a = ethers.getAddress('0x' + 'ca57' + (nextCaster++).toString(16).padStart(36, '0'));
+      if (Number(await qc.drawOf(n, x.sha, x.job, (BigInt(n) << 160n) | BigInt(a), x.counts)) !== spot) continue;
+      await provider.send('anvil_impersonateAccount', [a]);
+      await provider.send('anvil_setBalance', [a, '0x56bc75e2d63100000']);
+      await cast(a);
+      return a;
+    }
+    throw new Error(`no caster draws spot ${spot} on night ${n}`);
+  };
 
   // ---- read one net back fully: result, reach, tokenURI (gas: estimate + capped eth_call), metadata, image
   async function read(label, who, n, want) {
@@ -125,11 +168,18 @@ try {
     const uri = qc.interface.decodeFunctionResult('tokenURI', raw)[0];
     const m = meta(uri), svg = svgOf(m);
     assert.deepEqual([Number(r.status), Number(r.tier), reach, Number(r.night), Number(r.spot)], [want.status, want.tier, want.reach, n, want.spot], `${label}: result`);
+    assert.equal(Number(await qc.spotOf(id)), want.spot, `${label}: spotOf`);
     if (want.hits !== undefined) assert.equal(Number(r.hits), want.hits, `${label}: hits`);
+    const t = await qc.traitsOf(id), posted = want.status === 1 || want.status === 2 || want.status === 3, caught = want.status === 1;
+    const sp = want.spot < 16 ? want.spot : 0;
+    assert.deepEqual([Number(t.night), t.posted, t.caught, Number(t.spot), t.hat, t.glasses, t.scarf, t.grin, Number(t.tier)],
+      [n, posted, caught, posted ? want.spot : 0, caught && !!(sp & 1), caught && !!(sp & 2), caught && !!(sp & 4), caught && !!(sp & 8), caught ? want.tier : 0], `${label}: traitsOf`);
     assert.equal(await qc.ownerOf(id), ethers.getAddress(who));
     assert.equal(trait(m, 'Status'), want.statusName, `${label}: Status`);
     assert.equal(trait(m, 'Tier'), want.tierName, `${label}: Tier`);
-    assert.ok(m.description.startsWith('Free Sepolia test NFT, no value. '), label);
+    assert.ok(m.description.startsWith(HEAD), label);
+    assert.equal(m.name, `Quantum Catch: night of ${new Date(n * DAY * 1000).toISOString().slice(0, 10)}${want.spot < 16 ? `, spot ${want.spot}` : ''}`, `${label}: name`);
+    assert.equal(trait(m, 'Spot') === undefined ? undefined : Number(trait(m, 'Spot')), want.spot < 16 ? want.spot : undefined, `${label}: the Spot attribute only once drawn`);
     assert.equal(svg.includes('id="painted"'), want.status === 1, `${label}: painted only when caught`);
     if (want.status === 1) {
       const frag = await art.hamster(want.spot, want.tier);
@@ -144,7 +194,7 @@ try {
     fs.writeFileSync(path.join(OUT, `token-${label}.svg`), svg);
     report.states[label] = { night: n, spot: want.spot, status: trait(m, 'Status'), tier: trait(m, 'Tier'), reach: trait(m, 'Reach'),
       landings: trait(m, 'Landings'), firstShot: trait(m, 'First shot'), tokenURIGas: gas, tokenURIBytes: uri.length, svgBytes: svg.length,
-      note: m.description.slice(33, 140) };
+      note: m.description.slice(HEAD.length, 140) };
     console.log(`${label.padEnd(24)} ${m.name} | ${trait(m, 'Status')} ${trait(m, 'Tier')} | gas ${gas} | tokenURI ${uri.length} B | svg ${svg.length} B`);
     return { m, svg };
   }
@@ -152,21 +202,27 @@ try {
   const want = (st, spot, tier, reach, hits) => ({ status: ST[st][0], statusName: ST[st][1], spot, tier, reach, hits,
     tierName: ['None', 'Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'][tier] });
 
-  // ---- 3 Nov: three nets (the made-up night)
-  assert.equal(Number(await qc.openNight()), N3);
-  const [a3, b3, c3] = players;
-  await cast(a3, 0); await cast(b3, 12); await cast(c3, 13);
+  // the two ran nights' numbers as they will be posted (the counts per SPOT, the result file's sha256, the job id)
+  const c3n = [244, 30, 496, 52, 491, 53, 593 + 450, 48, 286, 16, 539, 52, 39, 47, 514, 50]; // made up from the 1 Nov v1.2 rerun
+  assert.equal(c3n.reduce((x, y) => x + y, 0), 4000);
+  const x3 = { counts: c3n, sha: ethers.ZeroHash, job: ethers.encodeBytes32String('made-up-local-test') };
+  const counts4 = [40, 679, 55, 493, 46, 504, 29, 254, 44, 380, 34, 260, 33, 578, 46, 525];
+  const x4 = { counts: counts4, sha: SHA, job: ethers.encodeBytes32String(JOB) };
 
-  // ---- 4 Nov: six nets before the 21:00 lock; one read while waiting
+  // ---- 3 Nov: three nets (the made-up night), drawn on 0 (Legendary), 12 (in reach, under 1 %) and 13 (out of reach)
+  assert.equal(Number(await qc.openNight()), N3);
+  const a3 = await castFor(N3, x3, 0), b3 = await castFor(N3, x3, 12), c3 = await castFor(N3, x3, 13);
+
+  // ---- 4 Nov: six nets before the 21:00 lock, drawn on 15, 3, 11, 7, 0, 6; one read while waiting (no spot yet)
   await at(START);
   assert.equal(Number(await qc.openNight()), N);
-  const nets = [[players[0], 15], [players[1], 3], [players[2], 11], [players[3], 7], [players[4], 0], [players[5], 6]];
-  for (const [who, spot] of nets) await cast(who, spot);
-  await read('waiting', players[0], N, want('waiting', 15, 0, 0));
+  const nets = [];
+  for (const spot of [15, 3, 11, 7, 0, 6]) nets.push([await castFor(N, x4, spot), spot]);
+  await read('waiting', nets[0][0], N, want('waiting', 255, 0, 0));
   // after the lock: nets go to 5 Nov (he will sleep)
   await at(start(N) + 32400 + 60);
   assert.equal(Number(await qc.openNight()), N5);
-  await cast(players[6], 9); await cast(players[7], 2);
+  await cast(players[6]); await cast(players[7]);
 
   // ---- 5 Nov noon: post 4 Nov (real, through the poster) and 3 Nov (made up, straight from the hatcher)
   await at(OVER);
@@ -184,16 +240,15 @@ try {
   assert.equal(Number(rec.firstShot), 3, 'the real first shot, turned onto the ring');
   assert.equal(rec.resultSha256, SHA, 'the posted hash is the file\'s sha256');
 
-  const c3n = [244, 30, 496, 52, 491, 53, 593 + 450, 48, 286, 16, 539, 52, 39, 47, 514, 50]; // made up from the 1 Nov v1.2 rerun
-  assert.equal(c3n.reduce((x, y) => x + y, 0), 4000);
+  assert.deepEqual(rec.counts.map(Number), counts4, 'the poster posted the counts the casters were drawn on');
+  assert.equal(rec.jobId, x4.job, 'and the job id');
   const local = tiersOf(c3n, 8984, 10, 0).tiers;
   assert.deepEqual((await qc.tiersOf(c3n, 8984, 10, 0)).map(Number), local, 'the contract ranks the made-up night as the poster does');
   const hq = qc.connect(await provider.getSigner(hatcher));
-  await (await hq.postNight(N3, c3n, 8984, 10, ethers.encodeBytes32String('made-up-local-test'), ethers.ZeroHash, 0)).wait();
+  await (await hq.postNight(N3, c3n, 8984, 10, x3.job, x3.sha, 0)).wait();
 
   // ---- every state of the two ran nights
   const tiers4 = [0, 1, 0, 2, 0, 1, 0, 4, 0, 2, 0, 3, 0, 1, 0, 1]; // 4 Nov v1.2 with its real first shot (spot 3)
-  const counts4 = [40, 679, 55, 493, 46, 504, 29, 254, 44, 380, 34, 260, 33, 578, 46, 525];
   const labels = { 15: 'caught-common', 3: 'caught-uncommon', 11: 'caught-rare', 7: 'caught-epic', 0: 'away-out-of-reach', 6: 'away-out-of-reach-6' };
   for (const [who, spot] of nets) {
     const caught = tiers4[spot] > 0;
@@ -223,14 +278,18 @@ try {
     assert.equal(out.status, 1);
     console.log(`he slept on 5 Nov: posted by the poster, tx ${out.hash}`);
   } finally { fs.rmSync(scratch, { recursive: true, force: true }); }
-  const s = await read('slept', players[6], N5, want('slept', 9, 0, 0));
+  const s = await read('slept', players[6], N5, want('slept', 255, 0, 0));
   assert.ok(s.svg.includes('HE SLEPT') && s.svg.includes('<g id="hamster">'), 'the drawn hamster, asleep');
 
   // ---- 6 Nov: a net that is never posted; past its 14-day window: No chip result; the poster refuses a late post
-  await cast(players[0], 4);
-  await read('waiting-6-nov', players[0], N6, want('waiting', 4, 0, 0));
+  await cast(players[0]);
+  await read('waiting-6-nov', players[0], N6, want('waiting', 255, 0, 0));
   await at(Number(await qc.postDeadline(N6)));
-  await read('no-chip-result', players[0], N6, want('none', 4, 0, 0));
+  await read('no-chip-result', players[0], N6, want('none', 255, 0, 0));
+  // every net was paid and burned: the game holds no SQK
+  assert.equal(await sqk.totalBurned(), paid, `every net burned exactly 0.01 mock SQK (${ethers.formatEther(paid)} in all)`);
+  assert.equal(await sqk.balanceOf(addr), 0n, 'the game never holds SQK');
+  report.burned = ethers.formatEther(paid);
   assert.throws(() => post({ GO: '1' }, LATE, 'dbmbr2m74qds73ds11j0'), /post window closed/, 'a late post is refused before sending');
 
   // ---- every looks x tier 1..5 through the deployed renderer (what tokenURI does for a caught net), for

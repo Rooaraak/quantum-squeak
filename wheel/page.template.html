@@ -5,11 +5,13 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap">
 <style>
-/* Quantum Catch: his real night (from the chain) programs a quantum walk on a ring of 16 spots; after his night IBM's chip
-   runs it and looks 4,000 times. Put your net on a spot: if that spot is in reach that night and the chip finds him there in
-   1 % of its looks or more, you catch that spot's hamster. Rarity is the spot's rank among the night's catches (the fewest
-   looks: Epic; Legendary if the chip's very first look landed there). Look: cobalt, ink, cherry and cyan, Anton + Space Mono:
-   the quantum computer hangs over a stage like a claw, the 16 hamsters wait in a roster. Colours are tokens (light + dark). */
+/* Quantum Catch: cast a net before he runs (no picking). His real night (from the chain) programs a quantum walk on a ring
+   of 16 spots; after his night IBM's chip runs it 4,000 times (4,000 drops). One of those drops is yours, drawn at random
+   on-chain once the result is posted: the hamster it lands on is your catch, if the chip lands there in 1 % of its drops or
+   more and he could reach it that night; else it is chip noise and he got away. Rarity is the spot's rank among the night's
+   catches (the fewest drops: Epic; Legendary if the chip's very first drop landed there). Look: cobalt, ink, cherry and cyan,
+   Anton + Space Mono: the quantum computer hangs over a stage like a claw machine, the 16 hamsters wait in a roster.
+   Colours are tokens (light + dark). */
 :root {
   color-scheme: dark;
   --bg: #1e3cc8; --bg2: #142b94; --card: #0b1238; --card2: #050a22; --ink: #fff4dc; --muted: #c9d3ff; --line: #2d4ddb; --line2: #3b5be0;
@@ -78,7 +80,7 @@ a:hover { color: var(--ink) }
 /* ---------- the first screen: stage (the machine), headline, roster, control deck ---------- */
 .card { background: var(--card); color: var(--ink); border: 3px solid var(--cream); border-radius: 18px; padding: 16px; box-shadow: 0 6px 0 var(--edge); min-width: 0 }
 .card.play { background: none; border: 0; border-radius: 0; padding: 0; box-shadow: none; position: relative; display: grid; grid-template-columns: minmax(0, 42fr) minmax(0, 58fr);
-  grid-template-rows: auto auto auto auto auto; column-gap: 10px; margin-top: 4px }
+  grid-template-rows: auto auto auto auto auto auto; column-gap: 10px; margin-top: 4px }
 .stage { grid-column: 1 / -1; grid-row: 1 / 4; position: relative; overflow: hidden; container-type: inline-size; min-height: 280px; margin-inline: -8px;
   background: var(--stage-a); color: var(--stage-ink); border: 4px solid var(--cream); border-top: 0; border-radius: 0 0 20px 20px; box-shadow: 0 6px 0 var(--edge) }
 .stage > * { position: absolute; pointer-events: none }
@@ -101,7 +103,7 @@ a:hover { color: var(--ink) }
 .stage .ham { left: 6.5cqw; bottom: 18px; width: 34cqw; height: auto; aspect-ratio: 448 / 612; z-index: 3; transition: filter .4s }
 .stage .ham.away { filter: grayscale(.85) brightness(.5) }
 .stage .stamp { left: 24cqw; bottom: 30%; translate: -50% 0; rotate: -8deg; z-index: 4; font: 700 11px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--cyan);
-  border: 2px solid var(--cyan); padding: 6px 9px; border-radius: 6px; background: rgba(5, 10, 34, .85); opacity: 0; transition: opacity .3s; white-space: nowrap }
+  border: 2px solid var(--cyan); padding: 6px 9px; border-radius: 6px; background: rgba(5, 10, 34, .85); opacity: 0; transition: opacity .3s; max-width: 40cqw; width: max-content; text-align: center; line-height: 1.2 }
 .stage .stamp.on { opacity: 1 }
 #play.playing .ham { animation: hop .45s ease-in-out infinite }
 @keyframes hop { 50% { transform: translateY(-3%) } }
@@ -118,7 +120,7 @@ a:hover { color: var(--ink) }
 .headline em { font-style: normal; color: var(--cyan) }
 .hl .lede { margin: 6px 0 0; font: 400 10px/1.35 var(--mono); color: var(--muted) }
 
-/* the name plate: YOUR PICK, No. N, what it wears, last night's result */
+/* the name plate: YOUR CATCH, No. N (a '?' until the chip's drop decides), what it wears or when it is decided, the band */
 .plate { grid-column: 2; grid-row: 3; z-index: 2; align-self: end; justify-self: start; width: min(100%, 196px); margin: 4px 8px 8px 0 }
 .plate .pk { display: inline-block; margin-left: 10px; padding: 3px 8px; background: var(--accent); transform: skewX(-10deg) }
 .plate .pk span { display: block; transform: skewX(10deg); font: 700 9.5px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--cream) }
@@ -131,8 +133,15 @@ a:hover { color: var(--ink) }
 .plate .pb { background: var(--navy); padding: 4px 12px }
 .plate .pb p { margin: 0; transform: skewX(10deg); font: 700 9.5px/1.3 var(--mono); color: var(--cyan); text-transform: uppercase }
 
-/* the roster: 16 hamsters (the ring of 16 spots, laid out as a grid) */
+/* the roster: the 16 hamsters you could catch (the ring of 16 spots, laid out as a grid; nobody picks one). Each tile: its
+   number, the painted hamster, and a strip at the bottom: what it was on the night shown (a word from DATA) and that
+   night's drops on it as a bar; during the replay the strip counts the drops up */
 .pick { grid-column: 1 / -1; grid-row: 4; margin-top: 12px; min-width: 0; position: relative }
+/* tonight (no net yet, or the net cast and waiting) and a night that is not in the page yet: nothing is known about the
+   16 hamsters, so no roster (owner, 6 Nov): the deck and the prizes move up into its place. The tiles stay in the DOM for
+   the replay and come back on a night with data (practice, past nights, a result) */
+#play.flat .pick { display: none }
+#play.flat .prizes { margin-top: 10px }
 .pickhead { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px }
 .pickhead h2 { margin: 0; font: 400 17px/1.05 var(--display); letter-spacing: .03em; text-transform: uppercase }
 .src { font: 700 9.5px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; padding: 3px 6px; border: 1.5px solid currentColor; border-radius: 4px; color: var(--muted); white-space: nowrap }
@@ -153,44 +162,39 @@ a:hover { color: var(--ink) }
 .spot .tag { position: absolute; z-index: 3; right: 4px; top: 3px; font: 400 17px/1 var(--display); color: var(--ink); white-space: nowrap; pointer-events: none; border-radius: 3px }
 .spot .tag i { font-style: normal }
 .spot.d1 .tag i::before { content: "0" }
-.spot .tag .w { font: 700 9px/1 var(--mono); letter-spacing: 0; vertical-align: 2px }
-.spot .lnd { position: absolute; z-index: 2; right: 4px; bottom: 3px; width: 36%; text-align: right; pointer-events: none }
-.spot .lnd b { display: block; font: 700 10px/1 var(--mono); color: var(--cyan) }
-.spot .lnd.out b { color: var(--outw) }
-.spot .lnd .bar { display: block; height: 3px; margin-top: 3px; background: var(--bar) }
+/* the strip: a word (Common .. Legendary, got away) or a count, and a bar */
+.spot .lnd { position: absolute; z-index: 2; left: 0; right: 0; bottom: 0; height: 14px; padding: 0 4px; display: flex; align-items: center; gap: 4px; background: rgba(5, 10, 34, .86); pointer-events: none }
+.spot .lnd b { flex: none; font: 700 9.5px/1 var(--mono); color: var(--cyan); white-space: nowrap }
+.spot .lnd.w b { font: 400 10.5px/1 var(--display); letter-spacing: .04em; text-transform: uppercase }
+.spot .lnd .bar { display: block; flex: 1; min-width: 6px; height: 3px; background: var(--bar) }
 .spot .lnd .bar i { display: block; height: 100%; width: var(--w, 0%); background: var(--cyan) }
 .spot .lnd:empty { display: none }
-.spot:hover { border-color: var(--cream) }
-.ring:not(.pickable) .spot:hover { border-color: var(--tile-line) }
+.lnd[data-t="-1"] b { color: var(--outw); font-size: 10px }
+.lnd[data-t="0"] b { color: var(--r0) }
+.lnd[data-t="1"] b { color: var(--r1) }
+.lnd[data-t="2"] b { color: var(--r2) }
+.lnd[data-t="3"] b { color: var(--r3) }
+.lnd[data-t="4"] b { background: var(--r4); color: #2a1a00; padding: 1px 3px; border-radius: 2px }
+.lnd[data-t="-1"] .bar i { background: var(--outw) }
+@media (hover: hover) { .spot:hover { border-color: var(--cream) } }
 .ndot { position: absolute; z-index: 2; left: 29%; top: 46%; width: 9px; height: 9px; translate: -50% -50%; border-radius: 50%; background: var(--plain); box-shadow: 0 0 8px var(--plain);
   --g: 0; opacity: calc(var(--g) * 1.1); transform: scale(calc(.3 + var(--g) * .9)); transition: opacity .42s, transform .42s; pointer-events: none }
 .ring:not(.playing) .ndot { opacity: 0 }
 .ring[data-kind="chip"] .spot { --gc: var(--chipc) }
-/* out of reach on a known night: dimmed, and a practice net cannot go there */
+/* out of reach on a known night (never tonight: nobody knows tonight's reach before his run): dimmed */
 .ring:not(.revealed) .spot.out canvas { filter: grayscale(1) brightness(.45) }
 .ring:not(.revealed) .spot.out .tag { color: var(--outw) }
-.ring.pickable .spot.out { cursor: not-allowed }
-.ring.pickable .spot.out:hover { border-color: var(--tile-line) }
 /* his start that night: a dashed frame */
 .spot.start::before { content: ""; position: absolute; z-index: 2; inset: 2px; border: 2px dashed rgba(255, 236, 190, .85); border-radius: 4px; pointer-events: none }
 .spot.focus { border-color: var(--cream); box-shadow: 0 0 0 2px var(--cream) }
-/* the pick and the net: cream tile, cherry frame, YOU / NET in the corner */
-.spot.sel, .spot.net { background: var(--cream); color: var(--navy); border: 3px solid var(--accent); box-shadow: 0 0 0 2px var(--cream); z-index: 2 }
-.spot.sel .tag, .spot.net .tag { color: var(--navy) }
-.spot.sel .lnd b, .spot.net .lnd b { color: var(--navy) }
-.spot.sel .lnd .bar, .spot.net .lnd .bar { background: #e5d9bc }
-.spot.sel .lnd .bar i, .spot.net .lnd .bar i { background: var(--navy) }
-.spot.sel::after, .spot.net::after { content: "YOU"; position: absolute; z-index: 5; left: 0; bottom: 0; padding: 2px 4px; background: var(--accent); color: var(--cream); font: 700 9.5px/1 var(--mono); letter-spacing: .06em }
-.spot.net::after { content: "NET" }
-/* after the reveal each catch shows its tier on the roster; the Legendary tag is gold. On a narrow roster an out-of-reach spot
-   keeps only its number (it is dimmed already), so the tier names have room */
-.ring.revealed .spot.net .tag, .ring.revealed .spot.sel .tag { background: var(--navy); color: var(--ink); padding: 1px 3px }
-.ring.revealed .spot[data-tier="0"] .tag { color: var(--r0) }
-.ring.revealed .spot[data-tier="1"] .tag { color: var(--r1) }
-.ring.revealed .spot[data-tier="2"] .tag { color: var(--r2) }
-.ring.revealed .spot[data-tier="3"] .tag { color: var(--r3) }
-.ring.revealed .spot[data-tier="4"] .tag { background: var(--r4); color: #2a1a00; padding: 1px 3px }
-.ring.revealed .spot[data-tier="4"] .tag i { color: #2a1a00 }
+/* your catch (the tile your drop landed on, shown after the replay) and an old picked net: cream tile, cherry frame, a corner */
+.spot.net { background: var(--cream); color: var(--navy); border: 3px solid var(--accent); box-shadow: 0 0 0 2px var(--cream); z-index: 2 }
+.spot.net .tag { color: var(--navy) }
+.spot.net::after { content: "NET"; position: absolute; z-index: 5; left: 0; top: 0; padding: 2px 4px; background: var(--accent); color: var(--cream); font: 700 9px/1 var(--mono); letter-spacing: .06em }
+.spot.net.drop::after { content: "YOURS" }
+.spot.yours { animation: yours 1s ease-out }
+@keyframes yours { 0% { box-shadow: 0 0 0 0 var(--cream) } 40% { box-shadow: 0 0 0 7px var(--accent) } 100% { box-shadow: 0 0 0 2px var(--cream) } }
+/* after the reveal each catch shows its tier in the frame colour too; the strip says the word */
 .ring.revealed .spot[data-tier="0"] { border-color: color-mix(in srgb, var(--r0) 55%, var(--tile)) }
 .ring.revealed .spot[data-tier="1"] { border-color: var(--r1) }
 .ring.revealed .spot[data-tier="2"] { border-color: var(--r2) }
@@ -198,25 +202,28 @@ a:hover { color: var(--ink) }
 .ring.revealed .spot[data-tier="4"] { border-color: var(--r4); box-shadow: 0 0 14px var(--r4) }
 .ring.revealed .spot.out[data-tier="-1"] { border-style: dashed; border-color: rgba(160, 175, 220, .4) }
 .ring.revealed .spot.out .tag { color: var(--outw) }
-.ring.revealed .spot.net, .ring.revealed .spot.sel { border-color: var(--accent) }
-.ring.revealed .spot.net[data-tier="4"] .tag { background: var(--r4) }
-/* a phone tile after the reveal: the hamster on the left half, the number over the tier word on the right half (the word
-   wraps under the number: a soft wrap, the tag's text stays "7 Epic"); the strip already says "out", so the tag shows the number */
-@media (max-width: 639px) {
-  .ring.revealed .spot .pic { width: 50% }
-  .ring.revealed .spot .tag, .ring.revealed .spot[data-tier="4"] .tag, .ring.revealed .spot.net .tag, .ring.revealed .spot.sel .tag { left: 49%; right: 3px; top: 1px; padding: 0 2px; text-align: right; white-space: normal; font-size: 13px; line-height: .95 }
-  .ring.revealed .spot .lnd b { font-size: 9px }
-  .ring.revealed .spot .tag .w { font-size: 7.5px; letter-spacing: -.3px; line-height: 1.1; vertical-align: 0 }
-  .ring.revealed .spot.sel::after, .ring.revealed .spot.net::after { padding: 1px 3px; font-size: 8px }
-}
-@container (max-width: 380px) { .ring.revealed .spot.out .tag .w { display: none } }
-@container (min-width: 381px) { .ring.revealed .spot .lnd.out b { visibility: hidden } }
+.ring.revealed .spot.out:not(.net) .lnd b { opacity: .55; font-size: 9px; letter-spacing: .04em }
+.ring.revealed .spot.net { border-color: var(--accent) }
 .spot.pop { animation: pop .55s cubic-bezier(.3, 1.6, .5, 1) }
 @keyframes pop { 0% { transform: scale(.82) } 100% { transform: scale(1) } }
 .fx { position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 8; pointer-events: none }
 .caption { min-height: 1.4em; margin: 8px 0 0; font: 400 12.5px/1.45 var(--mono); color: var(--ink) }
 .caption:empty { min-height: 0; margin: 0 }
 .caption b { color: var(--cyan) }
+
+/* the prizes: the five skins a catch can wear, with last night's chance of each */
+.prizes { grid-column: 1 / -1; grid-row: 6; margin: 22px 0 0; min-width: 0 }
+.prizes .prh { margin: 0; font: 400 17px/1.05 var(--display); letter-spacing: .03em; text-transform: uppercase }
+.prow { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin-top: 6px }
+.prz { display: grid; justify-items: center; gap: 1px; padding: 4px 2px 5px; border: 2px solid var(--tile-line); border-radius: 10px; background: var(--tile); text-align: center; min-width: 0 }
+.prz canvas { width: 100%; max-width: 46px; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle at 50% 30%, #3b5be0, var(--navy)) }
+.prz b { font: 400 13px/1.1 var(--display); letter-spacing: .03em; text-transform: uppercase }
+.prz span { font: 400 9.5px/1.25 var(--mono); color: var(--muted) }
+.prz .po { font-weight: 700; color: var(--ink); white-space: nowrap }
+.prz[data-t="0"] b { color: var(--t0) } .prz[data-t="1"] b { color: var(--t1) } .prz[data-t="2"] b { color: var(--t2) } .prz[data-t="3"] b { color: var(--t3) } .prz[data-t="4"] b { color: var(--t4) }
+.podds { margin: 6px 0 0; font: 400 10.5px/1.4 var(--mono); color: var(--muted) }
+.podds:empty { display: none }
+@media (max-width: 420px) { .prz b { font-size: 11px; letter-spacing: .01em } .prz .po.w { font-size: 8.5px; letter-spacing: -.03em } .nfthint { font-size: 10.5px } }
 
 /* the control deck: LCD, the ONE action (casting = minting the free test NFT, R6'), the night's clock. On a phone the LCD is
    a one-line strip over a full-width button; from 640 px they sit side by side. The action slot always has content: the
@@ -238,6 +245,7 @@ a:hover { color: var(--ink) }
 #act:active { transform: translateY(4px); box-shadow: inset 0 -3px 0 var(--accent-d), 0 1px 0 var(--accent-dd) }
 #act::after { content: attr(data-sub); font: 700 9.5px/1.2 var(--mono); letter-spacing: .08em }
 #act:not([data-sub])::after { display: none }
+.btn .nw { white-space: nowrap }
 #act:disabled { background: #6b2a4a; color: #f3dfe6; box-shadow: inset 0 -5px 0 #4d1d35, 0 5px 0 #2d0f1f; transform: none }
 .btn.ghost { min-height: 44px; background: transparent; color: var(--ink); border: 2px solid var(--muted); box-shadow: none; font-size: 16px; padding: 6px 14px }
 .btn.ghost:hover { border-color: var(--ink) }
@@ -269,6 +277,7 @@ a:hover { color: var(--ink) }
 @keyframes rise { from { opacity: 0; transform: translateY(10px) } }
 .nftbox { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 10px; align-items: center; margin: 0; padding: 7px 10px; border-radius: 12px; background: var(--cream); color: var(--navy); border: 0; font: 400 11px/1.4 var(--mono) }
 .nftbox img { width: 56px; height: 56px; border-radius: 8px; background: #0a0f24; display: block }
+.nftbox img[hidden] + div { grid-column: 1 / -1 }
 .nftbox b { color: var(--navy) }
 .nftmsg { font: 400 11.5px/1.4 var(--mono); color: var(--stage-muted); margin: 0 }
 .nftmsg.err { color: #ffb3a6 }
@@ -334,9 +343,9 @@ details.more > .in { padding: 0 16px 18px }
 details.more > .in > p, details.more > .in > ol, details.more > .in > .small { max-width: 92ch }
 details.sub { border-top: 2px solid var(--line); padding-top: 8px; margin-top: 12px }
 details.sub > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-weight: 700; color: var(--cyan) }
-ol.steps5 { margin: 6px 0; padding-left: 22px; font-size: 13px }
-ol.steps5 li { margin: 7px 0 }
-ol.steps5 b { color: var(--cyan) }
+ol.steps4 { margin: 6px 0; padding-left: 22px; font-size: 13px }
+ol.steps4 li { margin: 7px 0 }
+ol.steps4 b { color: var(--cyan) }
 .bars { position: relative; height: 110px; margin: 12px 0 4px; border-bottom: 2px solid var(--line2) }
 .bars svg { position: absolute; inset: 0; width: 100%; height: 100% }
 .bars rect { fill: var(--cyan); transition: fill .2s }
@@ -415,24 +424,17 @@ footer a { color: var(--ink) }
   .spot { height: 96px; border-radius: 8px }
   .spot .pic { left: 50%; top: 2px; width: min(100%, 76px); translate: -50% 0 }
   .spot .tag { left: 0; top: 0; right: auto; padding: 3px 6px; background: var(--navy); border-radius: 0 0 6px 0; font-size: 15px }
-  .spot .tag .w { font-size: 10px }
-  .spot .lnd { left: 0; right: 0; bottom: 0; width: auto; height: 28px; padding: 5px 6px 0; background: var(--navy); text-align: left }
+  .spot .lnd { height: 28px; padding: 5px 6px 0; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 5px; background: var(--navy) }
   .spot .lnd b { font-size: 11px }
-  .spot .lnd .bar { height: 4px; margin-top: 5px }
+  .spot .lnd.w b { font-size: 11.5px; letter-spacing: .01em; align-self: flex-start; max-width: 100% }
+  .lnd[data-t="-1"] b { font-size: 11px }
+  .lnd[data-t="4"] b { padding: 1px 2px }
+  .spot .lnd .bar { flex: none; height: 4px }
   .ndot { left: 50%; top: 40% }
-  .spot.sel, .spot.net { transform: translateY(-6px); box-shadow: 0 6px 0 var(--navy) }
-  .spot.sel .tag, .spot.net .tag { background: var(--accent); color: var(--cream) }
-  .ring.revealed .spot.net .tag, .ring.revealed .spot.sel .tag { background: var(--navy); padding: 3px 6px }
-  .spot.sel .lnd, .spot.net .lnd { background: var(--navy) }
-  .spot.sel .lnd b, .spot.net .lnd b { color: var(--cyan) }
-  .spot.sel .lnd .bar, .spot.net .lnd .bar { background: var(--bar) }
-  .spot.sel .lnd .bar i, .spot.net .lnd .bar i { background: var(--cyan) }
-  .spot.sel::after, .spot.net::after { left: auto; right: 0; top: 0; bottom: auto; padding: 4px 5px; background: var(--navy); font-size: 10px }
-  /* after the reveal the tag carries the tier word: it spans the tile (no zero pad), the word a little smaller */
-  .ring.revealed .spot .tag, .ring.revealed .spot[data-tier="4"] .tag, .ring.revealed .spot.net .tag, .ring.revealed .spot.sel .tag { right: 0; padding: 2px 3px; border-radius: 0; font-size: 13px }
-  .ring.revealed .spot .tag .w { font-size: 8.5px; letter-spacing: -.4px }
-  .ring.revealed .spot.d1 .tag i::before { content: none }
-  .ring.revealed .spot.net::after, .ring.revealed .spot.sel::after { top: auto; bottom: 0; background: var(--accent) }
+  .spot.net { transform: translateY(-6px); box-shadow: 0 6px 0 var(--navy) }
+  .spot.net .tag { background: var(--accent); color: var(--cream) }
+  .spot.net::after { left: auto; right: 0; top: 0; padding: 4px 5px; background: var(--navy); font-size: 10px }
+  .spot.net.drop::after { background: var(--accent) }
   .legend { flex-basis: auto; margin-left: auto }
   .deck { margin-top: 12px; padding-top: 8px }
   .deckrow { flex-direction: row; align-items: flex-start; gap: 10px }
@@ -473,7 +475,7 @@ footer a { color: var(--ink) }
 @supports (grid-template-rows: subgrid) {
 @media (min-width: 1100px) {
   .page { padding-left: max(24px, env(safe-area-inset-left, 0px)); padding-right: max(24px, env(safe-area-inset-right, 0px)) }
-  .first { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto auto auto auto; column-gap: 32px }
+  .first { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto auto auto auto 1fr; column-gap: 32px }
   .hero { grid-column: 2; grid-row: 1; padding-top: 10px }
   .hero h1 { font-size: 28px }
   .brand { margin: -10px 0 -12px; font-size: 11.5px }
@@ -520,7 +522,25 @@ footer a { color: var(--ink) }
   .legend::before { width: 22px; height: 4px }
   .ring { margin-top: 16px }
   .caption { font-size: 13px }
-  .deck { grid-column: 2; grid-row: 4; align-self: start; margin: 18px 0 30px; padding: 16px 18px 8px; border-width: 4px; border-radius: 22px; box-shadow: 0 8px 0 var(--edge) }
+  .deck { grid-column: 2; grid-row: 4; align-self: start; margin: 18px 0 0; padding: 16px 18px 8px; border-width: 4px; border-radius: 22px; box-shadow: 0 8px 0 var(--edge) }
+  .prizes { grid-column: 2; grid-row: 5; align-self: start; margin: 16px 0 30px; display: grid; grid-template-columns: 58px minmax(0, 1fr); align-items: center; gap: 6px 10px }
+  .prizes .prh { font-size: 19px; line-height: 1.05 }
+  .prow { margin: 0; gap: 6px }
+  .prz { grid-template-columns: 30px minmax(0, 1fr); justify-items: start; align-items: center; gap: 0 5px; padding: 4px 5px; text-align: left; border-radius: 8px }
+  .prz canvas { grid-row: span 2; max-width: 30px }
+  .prz b { font-size: 12px; letter-spacing: .01em }
+  .prz span { font-size: 10px }
+  .prz .ps { display: none }
+  .podds { grid-column: 1 / -1; margin: 0; font-size: 11px }
+  /* the flat views (no tiles on the right): the prizes take the roster's room as the phone's cards, bigger */
+  #play.flat .prizes { display: block; margin-top: 24px }
+  #play.flat .prizes .prh { font-size: 22px }
+  #play.flat .prow { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-top: 10px }
+  #play.flat .prz { grid-template-columns: minmax(0, 1fr); justify-items: center; align-items: start; text-align: center; gap: 2px; padding: 10px 6px 9px; border-radius: 10px }
+  #play.flat .prz canvas { grid-row: auto; max-width: 72px }
+  #play.flat .prz .ps { display: block }
+  #play.flat .prz b { font-size: 15px; letter-spacing: .03em }
+  #play.flat .podds { margin-top: 8px; font-size: 11.5px }
   .deckrow { gap: 16px }
   .lcd { width: clamp(184px, 18vw, 232px); min-height: 84px; padding: 10px 14px; gap: 7px }
   .lcd .l1 { font-size: 12px; gap: 0 10px }
@@ -604,18 +624,17 @@ footer a { color: var(--ink) }
       </div>
       <p class="chiptag"><b>IBM quantum computer</b><span id="chipline"></span></p>
       <div class="hl">
-        <p class="headline">A real <em>quantum computer</em> decides who gets caught.<br>Pick your hamster.</p>
+        <p class="headline">A real <em>quantum computer</em> decides which hamster you catch.</p>
         <p class="lede">Squeektoshi's run programs a real quantum computer. Catch the hamster it lands on.</p>
       </div>
       <div class="plate" id="plate">
-        <span class="pk"><span id="platek">Your pick</span></span>
+        <span class="pk"><span id="platek">Your catch</span></span>
         <div class="pc"><div class="pci"><p class="pn"><span>No.</span><b id="platen">?</b></p><ul class="pw" id="platew" aria-label="Look"></ul></div><div class="pb"><p id="plateb"></p></div></div>
       </div>
       <div class="pick">
         <div class="pickhead"><h2 id="stageh">Tonight's net</h2><span class="src" id="srcbadge"></span><p class="legend" id="legend"></p></div>
-        <div class="ring" id="ring" data-kind="ghost" role="group" aria-label="16 hamsters, spots 0 to 15"></div>
+        <div class="ring" id="ring" data-kind="ghost" role="group" aria-label="The 16 hamsters, No. 0 to 15"></div>
         <p class="caption" id="caption" aria-live="polite"></p>
-        <p class="sr" id="srpick" aria-live="polite"></p>
       </div>
       <div class="deck" id="deck">
         <div class="reveal" id="reveal" hidden aria-live="polite">
@@ -623,11 +642,12 @@ footer a { color: var(--ink) }
           <div><p class="rt" id="revt"></p><p class="rs" id="revs"></p><p class="qline" id="revq" hidden></p></div>
         </div>
         <div class="deckrow" id="deckrow">
-          <div class="lcd" id="lcd"><p class="l1"><span id="lcdk">Your pick</span><b id="lcdn">#--</b></p><p class="l2" id="lcd2"></p></div>
+          <div class="lcd" id="lcd"><p class="l1"><b id="lcdn">4,000</b><span id="lcdk">drops</span></p><p class="l2" id="lcd2"></p></div>
           <div class="actions" id="actions">
             <button class="btn" id="act" type="button" hidden></button>
             <p class="nftmsg" id="nftmsg" hidden aria-live="polite"></p>
-            <div class="watch" id="watch" hidden><p>To catch, open this page in a browser with a crypto wallet (e.g. MetaMask) on the free Sepolia test network. <a id="faucet" href="https://cloud.google.com/application/web3/faucet/ethereum/sepolia" target="_blank" rel="noopener">Get free test ETH</a></p></div>
+            <div class="watch" id="watch" hidden><p>To catch, open this page in a browser with a crypto wallet (e.g. MetaMask) on the free Sepolia test network. <a id="faucet" href="https://cloud.google.com/application/web3/faucet/ethereum/sepolia" target="_blank" rel="noopener">Get free test ETH</a>.<span id="watchsqk" hidden></span></p></div>
+            <div class="watch" id="sqkout" hidden><p id="sqkoutt"></p></div>
             <div class="nftbox" id="nftbox" hidden><img id="nftimg" alt="Your net NFT"><div id="nfttext"></div></div>
             <button class="btn ghost" id="alt" type="button" hidden></button>
             <button class="btn ghost" id="skip" type="button" hidden>Skip to the landing &raquo;</button>
@@ -636,6 +656,7 @@ footer a { color: var(--ink) }
         <p class="nfthint" id="nfthint" hidden>Free on the Sepolia test network · you only pay test gas, worth nothing. One net per wallet per night.</p>
         <div class="status"><svg class="clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:var(--cyan)"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><p class="prompt" id="prompt" aria-live="polite"></p></div>
       </div>
+      <div class="prizes" id="prizes"><h2 class="prh" id="prizesh">The prizes</h2><div class="prow" id="prow" role="list" aria-labelledby="prizesh"></div><p class="podds" id="podds"></p></div>
       <canvas class="fx" id="fx" aria-hidden="true"></canvas>
     </section>
   </div>
@@ -654,7 +675,7 @@ footer a { color: var(--ink) }
         <h3 class="when" id="tnh"></h3>
         <p class="small" id="tnclose"></p>
         <p id="tnstate"></p>
-        <button class="cardbtn" id="tngo" type="button" hidden>Choose tonight's spot</button>
+        <button class="cardbtn" id="tngo" type="button" hidden>Show tonight's net</button>
         <ul class="wlist" id="waiting" hidden></ul>
       </section>
 
@@ -662,22 +683,24 @@ footer a { color: var(--ink) }
         <h3 id="myh">My catches</h3>
         <div class="mine16" id="mygrid"></div>
         <p class="small" id="mystats"></p>
-        <p class="empty" id="myempty">No catches yet. One net per night: put it on a hamster before he runs.</p>
+        <p class="empty" id="myempty">No catches yet. Cast a net before he runs: one of the chip's 4,000 drops is yours.</p>
         <div id="nftnets" hidden><h4>My net NFTs on Sepolia</h4><div class="mine16" id="nftgrid"></div><p class="small" id="nftnote"></p></div>
       </section>
 
       <details class="card more" id="how">
         <summary>How it works</summary>
         <div class="in">
-          <ol class="steps5">
-            <li><b>He runs.</b> Squeektoshi is a real hamster. Squeekchain measures his wheel every 10 minutes and settles it on-chain (Sepolia).</li>
-            <li><b>His run becomes a program.</b> Each round tilts a quantum coin: a lazy round barely moves it, a sprint flips it.</li>
-            <li><b>The ghost.</b> While he runs, the quantum hamster is a ghost spread over the ring of 16 spots: he goes left and right at once, and where his paths meet they add up or cancel out.</li>
-            <li><b>The chip looks.</b> After his night a real IBM quantum computer runs his program and looks 4,000 times. Each look finds him on one spot: the ghost lands.</li>
-            <li><b>Your net.</b> If the chip finds him on your spot in at least 1% of its looks, you catch that spot's hamster. Under 1%: he got away. A spot out of reach that night never catches: he could not land there, so any landings there are only the chip's noise.</li>
+          <ol class="steps4" id="howsteps">
+            <li><b>Cast a net.</b> Before nets close at 21:00 UTC (<span class="tclose">22:00</span> your time). <span id="howcost">A net is a test NFT on Sepolia</span> One net per wallet per night. Nobody picks a hamster.</li>
+            <li><b>He runs.</b> Squeektoshi is a real hamster. Squeekchain measures his wheel every 10 minutes and settles it on-chain (Sepolia). His run sets up the quantum program: each round tilts a quantum coin, a lazy round barely, a sprint all the way.</li>
+            <li><b>The chip drops 4,000 times.</b> After his night ends (12:00 UTC, <span class="tend">13:00</span> your time) a real IBM quantum computer runs his program 4,000 times. Each run is one drop: it lands on one of the 16 hamsters.</li>
+            <li><b>One drop is yours.</b> Your net gets one of those 4,000 drops, drawn at random on-chain once the night's result is posted, so nobody can choose it or know it before. The hamster it landed on is your catch. The fewer drops a hamster gets, the rarer it is. If your drop is chip noise (a spot he could not reach that night, or one with under 1% of the drops), your hamster got away.</li>
           </ol>
           <div class="tiers" aria-label="Rarity: the spots caught that night, ranked by the chip's looks"><div><b>Common</b>the rest</div><div><b>Uncommon</b>3rd + 4th fewest</div><div><b>Rare</b>2nd fewest</div><div><b>Epic</b>the fewest</div><div><b>Legendary</b>Epic + first look</div></div>
           <p class="small" id="rarityline">The least-visited spot he could reach is Epic; if the chip's very first look landed there, it is Legendary.</p>
+          <h4 id="oddsh">Last night's odds</h4>
+          <p class="small" id="oddssub"></p>
+          <div class="tablewrap"><table><thead><tr><th>Your catch</th><th>Hamsters</th><th>Drops</th><th>Chance</th></tr></thead><tbody id="oddsrows"></tbody></table></div>
           <p class="small" id="howrules"></p>
 
           <h4 id="nighth">His night</h4>
@@ -700,7 +723,7 @@ footer a { color: var(--ink) }
           <p class="small" id="qnote"></p>
 
           <h4>The ring</h4>
-          <p class="small">Each of the 16 spots has its own hamster: the spot's 4 bits pick a party hat, glasses, a scarf and a grin. The ring turns with his night: he starts at his own spot, his total turns counted round the ring of 16 (the dashed ring on the wheel). Each step moves him one spot, so he can only land on every other spot, and on a short night only near his start: the rest of the ring is out of reach that night (greyed), and a net there gets away. Where he starts depends on his total turns, so nobody knows it before he runs.</p>
+          <p class="small">Each of the 16 spots has its own hamster: the spot's 4 bits pick a party hat, glasses, a scarf and a grin. The ring turns with his night: he starts at his own spot, his total turns counted round the ring of 16 (the dashed ring on the wheel). Each step moves him one spot, so he can only land on every other spot, and on a short night only near his start: the rest of the ring is out of reach that night (greyed). Drops that land there are the chip's noise: a net whose drop lands there gets away. Where he starts depends on his total turns, so nobody knows it before he runs.</p>
           <p class="small">A normal computer can simulate this small walk. What is real: his run is real, and the chip is a real IBM quantum computer with real noise.</p>
         </div>
       </details>
@@ -711,13 +734,14 @@ footer a { color: var(--ink) }
           <p><a class="gh" id="ghlink" href="#" target="_blank" rel="noopener"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 3.5 1.5 8l4 4.5M10.5 3.5l4 4.5-4 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Code on GitHub</a></p>
           <p class="small">Every number here is public. The night shown on the wheel:</p>
           <dl class="kv" id="checkkv"></dl>
-          <p class="small"><b>The recipe in 5 lines</b></p>
+          <p class="small"><b>The recipe in 6 lines</b></p>
           <ol class="recipe">
             <li>Read his turns per active 10-minute round from SqueekCore <span class="mono">roundPage</span> on Sepolia (12:00 to 12:00 UTC).</li>
             <li>One step per round. Too many rounds: even groups, mean turns rounded half up (at most 16 steps up to 4 Nov, recipe v1.1; at most 10 from 5 Nov, recipe v1.2, which also runs with noise protection).</li>
             <li>Coin tilt = &pi; &times; min(turns, 700) / 700 (an RY turn of the coin qubit).</li>
             <li>Start at his own spot: total turns mod 16. Coin (|0&rang; + i|1&rang;)/&radic;2. Each step: tilt the coin, then coin 1 steps +1, coin 0 steps &minus;1, on a ring of 16.</li>
             <li>IBM runs it 4,000 times. A spot is in reach that night if (spot + total turns + steps) is even and it is at most as many spots from his start as he took steps; out of reach: he got away. A spot in reach with at least 1% of the landings is caught; rank those by landings: the fewest is Epic (Legendary if the chip's very first shot landed there), the next Rare, the two after that Uncommon, the rest Common. The spot's 4 bits pick the looks.</li>
+            <li>Each net gets one of the night's landings: keccak256 of (the night, the posted result's hash and job id, the net's token id) modulo the number of landings, counted off spot by spot from spot 0. If that spot is caught, the net catches its hamster with its rank; if not (out of reach, or under 1%), the drop was chip noise and the net got away.</li>
           </ol>
           <details class="sub">
             <summary id="roundsum">All rounds of this night</summary>
@@ -754,7 +778,7 @@ footer a { color: var(--ink) }
 
   <footer>
     <p class="sub">Squeektoshi is a real hamster. Probably the first hamster to program a quantum computer.</p>
-    <p>Squeektoshi's wheel runs are measured by <a href="https://squeekchain.com" target="_blank" rel="noopener">Squeekchain</a> and settled on Sepolia in 10-minute rounds. His night becomes a quantum walk on a ring of 16 spots, and IBM's chip looks where he lands. A free game: no money, no value.</p>
+    <p>Squeektoshi's wheel runs are measured by <a href="https://squeekchain.com" target="_blank" rel="noopener">Squeekchain</a> and settled on Sepolia in 10-minute rounds. His night becomes a quantum walk on a ring of 16 spots, and IBM's chip looks where he lands. Test tokens only (Sepolia test ETH, Squeekchain test SQK): nothing here has money value.</p>
     <p>A normal computer can simulate this small walk. What is real is that every chip result shown here ran on real IBM hardware, with real noise, on his real run. Chip runs whose twin test scores under <span class="hmin">79%</span> are thrown out and redone, and each one is listed on its night. A demonstration on one chip, not a lab-grade test.</p>
     <p>A community project. Not made by the Squeekchain team. <a class="ghf" id="ghfoot" href="#" target="_blank" rel="noopener">Code on GitHub</a></p>
     <p class="fc" id="footc" hidden></p>
@@ -803,17 +827,27 @@ footer a { color: var(--ink) }
   // what a spot's hamster wears (its 4 bits), for the name plate
   const WEARS = (s) => { const L = QW.looks(s), w = []; if (L.hat) w.push('party hat'); if (L.glasses) w.push('round glasses'); if (L.neckwear) w.push('striped scarf'); if (L.face) w.push('grin'); return w.length ? w : ['plain look']; };
 
-  // ---------- per-viewer memory (works without it): one practice catch, one net per night ----------
+  // ---------- per-viewer memory (works without it): one practice net, one net per night ----------
+  // A net is a "drop" net (no picking: drop: true, spot = the hamster the chip's drop landed on, null until it is known) or an
+  // old net from before (a picked spot: rendered as before, labelled "old net (picked)"). The practice net is a drop too
+  // (drawn here, from the night's real drops), or an old picked practice.
   const KEY = 'quantum-catch-v1';
   let store = { practice: null, nets: {}, sound: false };
   const load = (j) => {
     if (!isObj(j)) return;
     const p = j.practice;
-    store = { practice: isObj(p) && isSpot(p.spot) && typeof p.day === 'string' ? { day: p.day, spot: p.spot, at: p.at || 0, seen: !!p.seen } : null, nets: {}, sound: !!j.sound };
-    if (isObj(j.nets)) for (const [d, x] of Object.entries(j.nets)) if (/^\d{4}-\d{2}-\d{2}$/.test(d) && isObj(x) && isSpot(x.spot)) store.nets[d] = { spot: x.spot, at: x.at || 0, seen: !!x.seen, ...(isObj(x.nft) ? { nft: x.nft } : {}) };
+    store = { practice: isObj(p) && isSpot(p.spot) && typeof p.day === 'string' ? { day: p.day, spot: p.spot, at: p.at || 0, seen: !!p.seen, ...(p.drop === true ? { drop: true } : {}) } : null, nets: {}, sound: !!j.sound };
+    if (isObj(j.nets)) for (const [d, x] of Object.entries(j.nets)) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || !isObj(x)) continue;
+      if (x.drop === true && isObj(x.nft) && (x.spot == null || isSpot(x.spot))) store.nets[d] = { drop: true, spot: isSpot(x.spot) ? x.spot : null, at: x.at || 0, seen: !!x.seen, nft: x.nft };
+      else if (x.drop !== true && isSpot(x.spot)) store.nets[d] = { spot: x.spot, at: x.at || 0, seen: !!x.seen, ...(isObj(x.nft) ? { nft: x.nft } : {}) };
+    }
   };
   try { load(JSON.parse(localStorage.getItem(KEY) || 'null')); } catch (e) { /* private window: memory only */ }
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) { /* fine */ } };
+  const isDrop = (m) => !!(m && m.drop);
+  const drawn = (m) => !!m && isSpot(m.spot);                 // the net's hamster is known (a picked spot, or the drop is read)
+  const OLD = 'old net (picked)';
 
   // ---------- a night on the ring. v1.1 turns the ring by his night (spot = (position + total turns) mod 16): the walks and
   // the chip's counts are in positions (steps from his start); everything on the ring is in spots. A chip night carries its
@@ -836,17 +870,18 @@ footer a { color: var(--ink) }
     return { name: tier >= 0 ? QW.TIER_NAMES[tier] : null, tier, share: shots ? hits / shots : 0, reach: r, noise: !r && hits > 0, first: !!c && v.first === s,
       chip: !!c, hits, shots, q: v.perfect[s], cl: v.normal[s] };
   }
-  // the ring tag after the reveal: the tier of a catch, the share of a spot he got away from, 'out' out of reach
-  const tagWord = (h) => (!h.reach ? 'out' : h.tier >= 0 ? h.name : pct(h.share));
+  // the word on a tile's strip: what that spot's hamster was that night (a catch's tier, or got away: chip noise)
+  const wordOf = (h) => (h.tier >= 0 ? h.name : 'got away');
   // why a catch has its tier (the reveal card and the tap caption): only the rare end of the ranking needs words
-  const rankWords = (h, here) => (h.tier === 4 ? ` The rarest catch of the night, and the chip's very first look landed ${here}.`
+  const rankWords = (h, here) => (h.tier === 4 ? ` The rarest catch of the night, and the chip's very first drop landed ${here}.`
     : h.tier === 3 ? ` The rarest catch of the night.` : h.tier === 2 ? ' The second rarest catch of the night.' : '');
-  // a net on night d: waiting (no chip result yet), caught, away, slept, noresult (none came within 14 days: final);
-  // QC.outcome = the contract's result() rules
+  // a net on night d: waiting (no chip result yet), drawing (the chip has looked, the net's drop is not read yet), caught,
+  // away, slept, noresult (none came within 14 days: final); QC.outcome = the contract's result() rules for the spot
   function netResult(d, spot) {
     const n = N(d), c = chipOf(d);
     if (n && n.slept) return { status: 'slept' };
     if (!c) return { status: QC.noResult(QC.nightOfDay(d), Math.floor(now() / 1000)) ? 'noresult' : 'waiting' };
+    if (!isSpot(spot)) return { status: 'drawing' };
     const v = view(d), h = spotResult(d, spot), o = QC.outcome({ counts: v.counts, shots: c.wheel_shots, turns: v.total, steps: v.k, firstShot: v.first }, spot);
     return { status: o.status === 1 ? 'caught' : 'away', h, o };
   }
@@ -861,10 +896,11 @@ footer a { color: var(--ink) }
     : N(d).recipe === 'v1.1' ? 'That night noise washed out most of the quantum pattern. Newer nights run a shorter program to keep it.'
     : 'That night noise washed out most of the quantum pattern, even with the shorter program.');
   // nets on nights that are locked (past 21:00 UTC) with no chip result yet, and not given up (14 days): his run is on or done
+  // (and a drop net whose night the chip has looked at while its drop is not read yet)
   const pendingDays = () => { const w = win(), t = Math.floor(now() / 1000);
-    return Object.keys(store.nets).filter((d) => d < w.day && !chipOf(d) && !(N(d) && N(d).slept) && !QC.noResult(QC.nightOfDay(d), t)).sort(); };
+    return Object.keys(store.nets).filter((d) => d < w.day && !(N(d) && N(d).slept) && (chipOf(d) ? !drawn(store.nets[d]) : !QC.noResult(QC.nightOfDay(d), t))).sort(); };
   const canView = (v) => v === 'tonight' || !!N(v) || (!!store.nets[v] && v < win().day);
-  const readyNow = (v) => v !== 'tonight' && !!store.nets[v] && !!chipOf(v) && !store.nets[v].seen;      // a real net's result to see
+  const readyNow = (v) => v !== 'tonight' && !!store.nets[v] && !!chipOf(v) && !store.nets[v].seen && drawn(store.nets[v]);      // a real net's result to see
   // the chip has not looked at a night for a while (the newest chip night ended more than 36 h ago): say so, promise nothing
   function staleWords() {
     const c = chipDays(), last = c[c.length - 1]; if (!last) return '';
@@ -935,14 +971,25 @@ footer a { color: var(--ink) }
   }
   const look = (h) => (h.tier >= 0 ? { tier: h.tier, dark: false } : { tier: -1, dark: true });
 
-  // ---------- state: the wheel shows TONIGHT (the open net) or one built-in night ----------
-  const S = { view: 'tonight', sel: null, playing: false, watched: {}, focus: null, nftBusy: false };
+  // ---------- state: the stage shows TONIGHT (the open net) or one built-in night ----------
+  const S = { view: 'tonight', sel: null, playing: false, watched: {}, focus: null, nftBusy: false, sqk: {} };
   const win = () => QC.netWindow(now());
-  // casting a net = minting its free test NFT (R6'): it needs the contract in this build and a browser wallet; without
-  // either the page is watch-only (the roster, the stage, past nights and How it works all still work)
+  // casting a net = minting its test NFT (R6'): it needs the contract in this build and a browser wallet; without either the
+  // page is watch-only (the roster, the stage, past nights, the practice net and How it works all still work)
   const nftOn = () => !!(CFG.catchAddress && window.ethereum && typeof window.ethereum.request === 'function');
+  // the test SQK a net costs (QuantumCatch v2: burned when you cast). The build's config says a net costs test SQK (the token
+  // and the cost label: that is all watch mode knows); with a wallet the real cost is read from the contract (QC.sqkInfo)
+  const PAID = /^0x[0-9a-fA-F]{40}$/.test(CFG.sqkAddress || '') && Number(CFG.netCost) > 0;
+  const faucetAddr = () => (/^0x[0-9a-fA-F]{40}$/.test(CFG.faucetAddress || '') ? CFG.faucetAddress : null);
+  const sqkUnits = (x) => { const v = BigInt(x), i = v / 10n ** 18n, f = (v % 10n ** 18n).toString().padStart(18, '0').replace(/0+$/, ''); return f ? `${i}.${f}` : String(i); };
+  const costNow = () => (typeof S.sqk.cost === 'bigint' ? S.sqk.cost : PAID ? null : 0n);         // null = not read yet
+  const paidNow = () => { const c = costNow(); return c == null ? PAID : c > 0n; };
+  const costLabel = () => (typeof S.sqk.cost === 'bigint' && S.sqk.cost > 0n ? sqkUnits(S.sqk.cost) : CFG.netCost || '0.01');
+  const dripLabel = () => (typeof S.sqk.drip === 'bigint' && S.sqk.drip > 0n ? sqkUnits(S.sqk.drip) : costLabel());
+  // the faucet gives one net's worth per wallet per day (once per net night): claimed = already today
+  const claimedToday = () => S.sqk.claimed === true;
 
-  // ---------- the roster: the ring of 16 spots as 16 tiles (number tag, painted hamster, a night's landings) ----------
+  // ---------- the roster: the 16 hamsters as 16 tiles (number tag, painted hamster, what it was on the night shown) ----------
   const ring = $('ring'), spots = [], dots = [], strips = [];
   for (let s = 0; s < 16; s++) {
     const b = document.createElement('button'); b.type = 'button'; b.className = 'spot' + (s < 10 ? ' d1' : ''); b.dataset.spot = s;
@@ -953,15 +1000,17 @@ footer a { color: var(--ink) }
   $('wimg').src = 'data:image/webp;base64,' + ART.scene.wheel;
   $('core').src = 'data:image/webp;base64,' + ART.scene.core;
   const glowOf = (p) => Math.min(1, Math.sqrt(Math.max(0, p)) * 1.55);
-  const setTag = (s, v) => { spots[s].querySelector('.tag').innerHTML = `<i>${s}</i>${v ? `<span class="w"> ${v}</span>` : ''}`; };
-  // the bottom strip of a tile: a night's landings on that spot (a number and a bar), 'out' where he could not land
-  function setStrip(s, v, max) {
+  const setTag = (s) => { spots[s].querySelector('.tag').innerHTML = `<i>${s}</i>`; };
+  // the bottom strip of a tile: a word (what the hamster was that night; t = its tier, -1 got away) or a count of drops,
+  // and a bar (that night's drops on it, of the most on any tile)
+  function setStrip(s, v, frac, t) {
     const el = strips[s];
-    if (v == null) { el.className = 'lnd'; el.innerHTML = ''; return; }
-    el.className = 'lnd' + (v === 'out' ? ' out' : '');
-    el.innerHTML = v === 'out' ? '<b>out</b><span class="bar"></span>' : `<b>${fmtInt(v)}</b><span class="bar"><i style="--w:${max ? Math.min(100, 100 * v / max).toFixed(1) : 0}%"></i></span>`;
+    if (v == null) { el.className = 'lnd'; el.innerHTML = ''; delete el.dataset.t; return; }
+    el.className = 'lnd' + (typeof v === 'string' ? ' w' : '');
+    if (t == null) delete el.dataset.t; else el.dataset.t = t;
+    el.innerHTML = `<b>${typeof v === 'number' ? fmtInt(v) : esc(v)}</b><span class="bar"><i style="--w:${(100 * Math.min(1, Math.max(0, frac || 0))).toFixed(1)}%"></i></span>`;
   }
-  // whose landings the strips show: on tonight's net the newest night IBM's chip has looked at (never a result of the viewer's
+  // which night the strips show: on tonight's net the newest night IBM's chip has looked at (never a result of the viewer's
   // that is not seen yet); on a night, that night's once it is revealed
   function stripDay() {
     if (S.view !== 'tonight') return !S.playing && N(S.view) && revealedNow(S.view) ? S.view : null;
@@ -972,60 +1021,63 @@ footer a { color: var(--ink) }
   function setDots(P) { dots.forEach((el, s) => el.style.setProperty('--g', glowOf(P[s]).toFixed(3))); }
   const ZERO = new Array(16).fill(0);
   const revealedNow = (d) => { const m = mine(d); return !S.playing && !!chipOf(d) && ((m && m.seen) || !!S.watched[d]); };
+  // the tile of the viewer's net on the view: an old picked net always; a drop only once the replay has shown it
+  const ownSpot = (d, m) => (!m || !drawn(m) ? null : !isDrop(m) ? m.spot : d && revealedNow(d) && m.seen ? m.spot : null);
+  const lastWord = (L) => (L === prevDay(win().day) ? `last night (${dShort(L)})` : dayLabel(L));
 
   function paintRing() {
     // flat: tonight's net, or a net whose night is not in the page yet (his run is on): nothing known about that night
     const t = S.view === 'tonight', d = t ? null : S.view, flat = t || !N(d), m = t ? store.nets[win().day] : mine(d), rev = !flat && revealedNow(d);
-    // the viewer's own real net not seen yet: no out-of-reach marks (and no ghost) until the replay shows where he landed.
-    // (The practice net was picked on the greyed ring, so it keeps it.)
-    const hide = !flat && !!m && !m.seen && !m.practice;
-    const canPick = !S.playing && !S.nftBusy && (t ? !m : !flat && !m && practiceOpen(d));
-    ring.classList.toggle('revealed', rev); ring.classList.toggle('pickable', canPick);
+    // the viewer's own net not seen yet: no out-of-reach marks (and no ghost) until the replay shows where he landed.
+    // (An old practice net was picked on the greyed ring, so it keeps it.)
+    const hide = !flat && !!m && !m.seen && !(m.practice && !isDrop(m));
+    const own = t ? (m && !isDrop(m) ? m.spot : null) : ownSpot(d, m);
+    ring.classList.toggle('revealed', rev);
+    $('play').classList.toggle('flat', flat);
     spots.forEach((el, s) => {
       const cv = el.querySelector('canvas'), out = !flat && !N(d).slept && !hide && !reach(d, s);
       el.classList.toggle('out', out);
-      if (rev) { const h = spotResult(d, s), L = look(h); el.dataset.tier = h.tier; paintInto(cv, s, L.tier, L.dark, out); setTag(s, tagWord(h)); }
-      else { el.dataset.tier = 'x'; paintInto(cv, s, -1, false); setTag(s, out ? 'out' : ''); }
-      el.classList.toggle('net', !!(m && m.spot === s));
-      el.classList.toggle('sel', !m && S.sel === s);
-      el.classList.toggle('focus', rev && S.focus === s && !(m && m.spot === s));
-      el.setAttribute('aria-disabled', String(canPick && out));
-      el.setAttribute('aria-pressed', String(!!(m && m.spot === s) || (!m && S.sel === s)));
-      el.setAttribute('aria-label', spotLabel(flat ? null : d, s, rev, out, m));
+      if (rev) { const h = spotResult(d, s), L = look(h); el.dataset.tier = h.tier; paintInto(cv, s, L.tier, L.dark, out); }
+      else { el.dataset.tier = 'x'; paintInto(cv, s, -1, false); }
+      setTag(s);
+      el.classList.toggle('net', own === s); el.classList.toggle('drop', own === s && isDrop(m));
+      el.classList.toggle('focus', rev && S.focus === s && own !== s);
+      el.setAttribute('aria-label', spotLabel(flat ? null : d, s, rev, out, own === s ? m : null));
     });
     if (rev) setGlow(view(d).counts.map((x) => x / chipOf(d).wheel_shots), 'chip');
     else if (!flat && !hide && !S.playing && !chipOf(d) && !N(d).slept) setGlow(view(d).perfect.map((x) => x * 0.8), 'ghost');   // his run is in, the chip has not looked
     else setGlow(flat || N(d).slept ? ZERO : view(d).start.map((x) => x * 0.35), 'ghost');
     spots.forEach((el, s) => el.classList.toggle('start', !flat && !N(d).slept && s === view(d).T));
-    // the strips: a night's landings per spot (tonight: the newest night the chip has looked at, which the legend names)
-    const sd = S.playing ? null : stripDay(), sc = sd ? view(sd).counts : null, mx = sc ? Math.max(1, ...sc.filter((x, s) => reach(sd, s))) : 0;
-    spots.forEach((el, s) => setStrip(s, !sd ? null : !reach(sd, s) ? 'out' : sc[s], mx));
-    $('legend').textContent = sd ? `${t && sd === prevDay(win().day) ? `Landings last night (${dShort(sd)})` : `Landings on ${dayLabel(sd)}`}, of ${fmtInt(chipOf(sd).wheel_shots)}` : '';
-    const st = $('stamp'), waiting = !t && !S.playing && !chipOf(d) && !(N(d) && N(d).slept);
-    st.textContent = waiting ? 'Not looked at yet' : ''; st.classList.toggle('on', waiting);
+    // the strips: what each hamster was on the night shown (tonight: the newest night the chip has looked at, named in the
+    // legend) and its drops as a bar. Tonight's tiles are never greyed: nobody knows tonight's reach before his run
+    const sd = S.playing ? null : stripDay(), sc = sd ? view(sd).counts : null, mx = sc ? Math.max(1, ...sc) : 1;
+    spots.forEach((el, s) => { if (!sd) return setStrip(s, null); const h = spotResult(sd, s); setStrip(s, wordOf(h), sc[s] / mx, h.tier); });
+    $('legend').textContent = !sd ? '' : t ? `What each was ${lastWord(sd)} · bars: its drops of ${fmtInt(chipOf(sd).wheel_shots)}` : `Bars: its drops of ${fmtInt(chipOf(sd).wheel_shots)}`;
     paintStage();
   }
-  function spotLabel(d, s, rev, out, m) {
-    const own = m && m.spot === s ? ', your net' : '';
+  function spotLabel(d, s, rev, out, own) {
+    const mineW = own ? (isDrop(own) ? ', your catch' : `, your ${OLD}`) : '';
     if (!d) { const L = S.view === 'tonight' ? stripDay() : null, h = L ? spotResult(L, s) : null;
-      return `Spot ${s}, ${LOOKW(s)}${h ? `. ${dayLabel(L)}: ${h.reach ? `${fmtInt(h.hits)} landings` : 'out of reach'}` : ''}${own}`; }
-    if (!rev) return `Spot ${s}, ${LOOKW(s)}${out ? ': out of reach that night' : ''}${own}`;
+      return `No. ${s}, ${LOOKW(s)}${h ? `. ${lastWord(L)}: ${wordOf(h)}, ${fmtInt(h.hits)} drops` : ''}${mineW}`; }
+    if (!rev) return `No. ${s}, ${LOOKW(s)}${out ? ': out of reach that night' : ''}${mineW}`;
     const h = spotResult(d, s);
-    return `Spot ${s}, ${LOOKW(s)}: ${h.tier >= 0 ? h.name : h.reach ? 'got away' : 'out of reach, got away'}, ${pct(h.share)} of the chip's looks${own}`;
+    return `No. ${s}, ${LOOKW(s)}: ${h.tier >= 0 ? h.name : h.reach ? 'got away (under 1%)' : 'got away (out of reach: chip noise)'}, ${pct(h.share)} of the chip's drops${mineW}`;
   }
 
-  // ---------- the stage: the picked hamster on the podium (the computer's beam on it), its name plate, the chip, the LCD ----------
+  // ---------- the stage: the hamster on the podium (a '?' until the chip's drop decides), its name plate, the chip, the LCD ----------
   const ham = $('ham');
   let hamWant = '';
-  // who stands on the podium: tonight your pick (or your net); on a night your net, the practice pick, the tapped spot, or the
-  // night's rarest catch; nobody picked yet: a '?'
+  // who stands on the podium: tonight the mystery hamster (or an old picked net's spot); on a night your catch once the
+  // replay has shown it, the old picked net, the tapped spot, or the night's rarest catch; else the '?'
   function stageSpot() {
     const w = win();
-    if (S.view === 'tonight') { const net = store.nets[w.day]; return net ? { s: net.spot, key: 'Your net' } : { s: S.sel, key: 'Your pick' }; }
+    if (S.view === 'tonight') { const net = store.nets[w.day]; return net && !isDrop(net) ? { s: net.spot, key: 'Old net (picked)' } : { s: null, key: 'Your catch' }; }
     const d = S.view, m = mine(d);
-    if (m) return { s: m.spot, key: m.practice ? 'Practice' : 'Your net' };
+    if (m) {
+      const s = isDrop(m) ? ownSpot(d, m) : m.spot, away = s != null && isDrop(m) && spotResult(d, s).tier < 0;
+      return { s, key: m.practice ? (isDrop(m) ? 'Practice' : 'Practice (picked)') : !isDrop(m) ? 'Old net (picked)' : away ? 'Your drop' : 'Your catch' };
+    }
     if (!N(d) || N(d).slept) return { s: null, key: 'Night' };
-    if (practiceOpen(d)) return { s: S.sel, key: 'Practice' };
     if (revealedNow(d)) {
       if (S.focus != null) return { s: S.focus, key: 'Spot' };
       const T = view(d).tiers, top = Math.max(...T);
@@ -1033,25 +1085,34 @@ footer a { color: var(--ink) }
     }
     return { s: null, key: 'Night' };
   }
-  const resultWords = (h) => (h.tier >= 0 ? `${h.name} · ${fmtInt(h.hits)} landings` : h.reach ? `got away · ${fmtInt(h.hits)} landings` : 'out of reach');
+  const resultWords = (h) => (h.tier >= 0 ? `${h.name} · ${fmtInt(h.hits)} drops` : h.reach ? `got away · ${fmtInt(h.hits)} drops` : 'got away · chip noise');
+  const when13 = (w) => `${relDay(w.endMs)} ${tLocal(w.endMs)}`;              // "tomorrow 13:00" (his night ends; then the chip)
   function plateBand(t, d, w, s, h) {
     if (t) {
-      const L = stripDay();
-      if (s == null) return `Nets close ${tLocal(w.closeMs)}<br>One net per night`;
-      if (!L) return `Night of ${dShort(w.day)}<br>Not run yet`;
-      return `${L === prevDay(w.day) ? `Last night, ${dShort(L)}` : dayLabel(L)}<br>${resultWords(spotResult(L, s))}`;
+      const net = store.nets[w.day];
+      if (net && isDrop(net)) return `Your net is in<br>Decided ${when13(w)}`;
+      if (net) return `${OLD}<br>Nets close ${tLocal(w.closeMs)}`;
+      return `Nets close ${tLocal(w.closeMs)} ${relDay(w.closeMs)}<br>One net per wallet`;
     }
     const nn = `Night of ${dShort(d)}`;
     if (!N(d)) return `${nn}<br>${now() >= (QC.nightStart(QC.nightOfDay(d)) + QC.DAY) * 1000 ? 'Waiting for the chip' : 'His night is on'}`;
     if (N(d).slept) return `${nn}<br>He slept`;
     if (h) return `${nn}<br>${resultWords(h)}`;
     const m = mine(d);
-    return `${nn}<br>${!chipOf(d) ? 'Waiting for the chip' : m ? 'Result ready' : !practiceOpen(d) ? (S.watched[d] ? 'No net that night' : 'Watch his night') : s == null ? 'Tap a hamster' : 'Practice catch'}`;
+    return `${nn}<br>${!chipOf(d) ? 'Waiting for the chip' : m ? (drawn(m) ? 'Result ready' : 'Reading your drop') : practiceOpen(d) ? 'Free practice' : S.watched[d] ? 'No net that night' : 'Watch his night'}`;
+  }
+  function plateWears(t, d, w, s, m) {
+    if (s != null) return WEARS(s);
+    if (t) return ['decided', when13(w)];
+    if (N(d) && N(d).slept) return ['no catch'];
+    if (m && !chipOf(d)) return ['decided by', 'the chip'];
+    if (m) return drawn(m) ? ['tap to see'] : ['your drop', 'is posted soon'];
+    return [practiceOpen(d) ? 'one free try' : 'tap a hamster'];
   }
   function paintStage() {
-    const t = S.view === 'tonight', d = t ? null : S.view, w = win(), P = stageSpot(), s = P.s;
+    const t = S.view === 'tonight', d = t ? null : S.view, w = win(), P = stageSpot(), s = P.s, m = t ? store.nets[w.day] : mine(d);
     const h = !t && s != null && N(d) && revealedNow(d) ? spotResult(d, s) : null;
-    // the hamster: the pick in its plain look; after the reveal in its tier's skin (got away: a shadow); nobody yet: a '?'
+    // the hamster: a '?' until the drop decides; then in its tier's skin (got away: a shadow); an old picked net: its spot
     const mode = s == null ? 'q' : h && h.tier < 0 ? 'away' : 'ok', tier = h && h.tier >= 0 ? h.tier : 0, want = `${s}:${tier}:${mode}`;
     ham.classList.toggle('away', mode === 'away');
     if (want !== hamWant) {
@@ -1063,16 +1124,24 @@ footer a { color: var(--ink) }
           g.fillStyle = 'rgba(201,211,255,.85)'; g.font = '400 170px Anton, "Liberation Sans Narrow", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('?', W / 2, H * 0.5); }
       });
     }
-    $('platek').textContent = P.key; $('platen').textContent = s == null ? '?' : String(s);
-    $('platew').innerHTML = s == null ? `<li>${t ? 'Tap a hamster' : 'No pick'}</li>` : WEARS(s).map((x) => `<li>${x}</li>`).join('');
+    ham.dataset.spot = s == null ? '' : String(s); ham.dataset.tier = h ? String(h.tier) : '';
+    $('platek').textContent = P.key; $('platen').textContent = s == null ? '?' : String(s); $('platen').previousElementSibling.hidden = s == null;
+    $('platew').innerHTML = plateWears(t, d, w, s, m).map((x) => `<li>${esc(x)}</li>`).join('');
     $('plateb').innerHTML = plateBand(t, d, w, s, h);
     const L = t ? stripDay() : null;
     $('chipline').textContent = t ? (L ? `${L === prevDay(w.day) ? "Last night's chip" : `Chip on ${dShort(L)}`}: ${chipOf(L).backend}` : 'Not run yet')
       : !N(d) ? 'Not run yet' : N(d).slept ? 'He slept that night' : chipOf(d) ? `Chip that night: ${chipOf(d).backend}` : 'Not run yet';
-    // the LCD: the pick, the chip's drops, when
+    // the stamp over the podium: your net is in / not looked at yet / he slept
+    const st = $('stamp'), stamp = S.playing ? '' : t ? (m && isDrop(m) ? 'Your net is in' : '') : !N(d) ? (m && isDrop(m) ? 'Your net is in' : '')
+      : N(d).slept ? 'He slept' : !chipOf(d) ? 'Not looked at yet' : m && isDrop(m) && !drawn(m) ? 'Drop posted soon' : '';
+    st.textContent = stamp; st.classList.toggle('on', !!stamp);
+    // the LCD: tonight the chip's drops and when (one of them is yours); on a night the catch and that night's drops
     const c = d && chipOf(d), shots = (chipOf(practiceDay()) || {}).wheel_shots || 4000;
-    $('lcdk').textContent = P.key; $('lcdn').textContent = s == null ? '#--' : '#' + pad2(s);
-    $('lcd2').textContent = t ? `${fmtInt(shots)} drops · ${relDay(w.endMs)} ${tLocal(w.endMs)}` : !N(d) ? `Night of ${dShort(d)}` : c ? `${fmtInt(c.wheel_shots)} drops · ${dayLabel(d)}` : N(d).slept ? 'He slept' : 'Waiting for the chip';
+    if (t) { $('lcdn').textContent = fmtInt(shots); $('lcdk').textContent = 'drops'; $('lcd2').textContent = `${when13(w)} · 1 is yours`; }
+    else {
+      $('lcdn').textContent = s == null ? '#??' : '#' + pad2(s); $('lcdk').textContent = P.key;
+      $('lcd2').textContent = !N(d) ? `Night of ${dShort(d)}` : c ? `${fmtInt(c.wheel_shots)} drops · ${dayLabel(d)}` : N(d).slept ? 'He slept' : 'Waiting for the chip';
+    }
   }
 
   // ---------- wheel spin (speed follows his turns during the replay) ----------
@@ -1086,25 +1155,52 @@ footer a { color: var(--ink) }
 
   // ---------- the stage: title, prompt, ONE action, the result ----------
   const stageNight = () => (S.view === 'tonight' ? null : S.view);
+  const Cap = (x) => x.charAt(0).toUpperCase() + x.slice(1);
+  const an = (w) => (/^[UEAIO]/.test(w) ? 'an' : 'a');
+  // tonight's ONE action with a wallet: cast a net (paying its test SQK), or first today's free test SQK from the faucet, or a
+  // plain line when there is nothing to press. NOT_WIRED: the build says a net costs test SQK but its contract takes none
+  // (the old pick-a-spot v1 contract until the switch: wheel/build.py checks this guard is here, RULINGS 52/58)
+  const NOT_WIRED = () => `A net costs ${costLabel()} test SQK (burned). Casting opens soon; until then try a free practice net under Past nights.`;
+  function castState() {
+    if (S.nftBusy) return { act: { text: S.nftBusy === 'faucet' ? 'Getting test SQK…' : 'Casting your net…', off: true, sub: 'Answer in your wallet' } };
+    const cost = costNow(), q = S.sqk, paid = paidNow();
+    // the build says a net costs test SQK but the contract in it takes none (the old pick-a-spot contract, before the switch):
+    // a cast would only fail, so a plain line instead of the button
+    if ((PAID && cost === 0n) || S.notWired) return { line: NOT_WIRED() };
+    if (paid && cost != null && typeof q.balance === 'bigint' && q.balance < cost) {
+      const f = faucetAddr(), has = q.balance > 0n ? 'too little' : 'none';
+      if (!f) return { line: `A net costs ${costLabel()} test SQK and this wallet has ${has}.` };
+      if (claimedToday()) return { line: `A net costs ${costLabel()} test SQK and this wallet has ${has}. Today's free ${dripLabel()} is already claimed: come back tomorrow.` };
+      if (typeof q.faucetLeft === 'bigint' && typeof q.drip === 'bigint' && q.faucetLeft < q.drip) return { line: `A net costs ${costLabel()} test SQK. The free test SQK faucet is empty right now: please look again later.` };
+      return { act: { text: `Get today's free ${dripLabel()} test SQK`, go: getSqk, sub: 'one transaction · Sepolia test network' } };
+    }
+    return { act: paid ? { text: `Cast a net · ${costLabel()} test SQK`, go: castNft, sub: 'burned · Sepolia test network' } : { text: 'Cast a net · free', go: castNft, sub: NFT_SUB } };
+  }
+  function nftHint(k) {
+    if (!k || !k.act) return '';
+    if (k.act.go === getSqk) return `Free test SQK from this page: ${dripLabel()} per wallet per day, enough for one net. You also need a little Sepolia test ETH for the fee.`;
+    return paidNow() ? 'Plus a little Sepolia test ETH for the fee. Test tokens: no value. One net per wallet per night.'
+      : 'Free on the Sepolia test network · you only pay test gas, worth nothing. One net per wallet per night.';
+  }
   function renderStage() {
     const t = S.view === 'tonight', d = stageNight(), w = win(), b = $('srcbadge');
-    let head, badge = '', bcls = '', prompt = '', sub = '', act = null, alt = null, watch = false;
+    let head, badge = '', bcls = '', prompt = '', sub = '', act = null, alt = null, watch = false, line = '', k = null;
     if (t) {
       const net = store.nets[w.day];
-      head = `${w.when === 'tonight' ? "Tonight's net" : "Tomorrow's net"} · ${dayLabel(w.day)}`;
-      badge = 'not run yet'; bcls = 'wait';
+      head = `${Cap(w.when)}'s net`;
       const closes = `Nets close at <b>${tLocal(w.closeMs)}</b> your time (in <b class="cdn">${QC.countdown(w.leftMs)}</b>)`;
       if (!net) {
         // the deck's clock: when nets close, when the result can come (his night ends, then the chip looks), his usual start
         prompt = `Nets close ${tLocal(w.closeMs)} ${relDay(w.closeMs)} · result ${relDay(w.endMs)} after ${tLocal(w.endMs)}`;
         sub = `He usually starts ${tLocal(w.startFromMs)}–${tLocal(w.startToMs)} · closes in <b class="cdn">${QC.countdown(w.leftMs)}</b>`;
-        // casting = minting the net's free test NFT (one click, one transaction); no wallet or no contract: watch mode
+        // casting = minting the net's test NFT (one click, one transaction); no wallet or no contract: watch mode
         if (!nftOn()) watch = true;
-        else act = S.nftBusy ? { text: `Catching #${S.sel}…`, off: true, sub: 'Answer in your wallet' }
-          : S.sel == null ? { text: 'Pick a hamster first', off: true, sub: NFT_SUB }
-          : { text: `Catch #${S.sel} · free NFT`, go: () => castNft(S.sel), sub: NFT_SUB };
+        else { k = castState(); act = k.act || null; line = k.line || ''; }
+      } else if (isDrop(net)) {
+        prompt = `${Cap(when13(w))} the quantum computer decides.`;
+        sub = `${closes}. He usually starts between ${tLocal(w.startFromMs)} and ${tLocal(w.startToMs)}. His night ends ${tDay(w.endMs)} your time, then IBM's chip drops ${fmtInt(4000)} times: one drop is yours.`;
       } else {
-        prompt = `Your net is on spot ${net.spot}.`;
+        prompt = `Your ${OLD} is on No. ${net.spot}.`;
         sub = `${closes}. He usually starts between ${tLocal(w.startFromMs)} and ${tLocal(w.startToMs)}. His night ends ${tDay(w.endMs)} your time, then IBM's chip looks: come back after that to see if you caught him.`;
       }
     } else if (!N(d)) {
@@ -1112,32 +1208,37 @@ footer a { color: var(--ink) }
       // waiting for IBM's chip. Tomorrow's net is one tap away (secondary button).
       const m = store.nets[d], nn = QC.nightOfDay(d), endMs = (QC.nightStart(nn) + QC.DAY) * 1000, over = now() >= endMs, so = sofar && sofar.day === d ? sofar : null, sw = QC.startWindow(nn);
       head = `Your net · night of ${dayLabel(d)}`; badge = over ? 'waiting for the chip' : 'his night is on'; bcls = 'wait';
-      prompt = `Your net is on spot ${m.spot}.`;
+      prompt = isDrop(m) ? 'Your net is in.' : `Your ${OLD} is on No. ${m.spot}.`;
+      const then = isDrop(m) ? "then IBM's chip drops 4,000 times: one drop is yours." : "then IBM's chip looks.";
       if (!over) sub = (so && so.rounds ? `Tonight so far: <b>${so.rounds}</b> round${so.rounds === 1 ? '' : 's'}, <b>${fmtInt(so.turns)}</b> turns (settled on-chain up to ${tLocal(so.upToMs)} your time).`
-        : now() < sw[1] ? `Nets are closed. He usually starts between ${tLocal(sw[0])} and ${tLocal(sw[1])} your time.` : 'His night is on.') + ` It ends ${tDay(endMs)} your time, then IBM's chip looks.`;
-      else sub = `His night is over. ${staleWords() || "IBM's chip has not looked yet: come back later to see if you caught him."}`;
+        : now() < sw[1] ? `Nets are closed. He usually starts between ${tLocal(sw[0])} and ${tLocal(sw[1])} your time.` : 'His night is on.') + ` It ends ${tDay(endMs)} your time, ${then}`;
+      else sub = `His night is over. ${staleWords() || `IBM's chip has not looked yet: come back later to see ${isDrop(m) ? 'what you caught' : 'if you caught him'}.`}`;
       const wn = w.when === 'tonight' ? "tonight's" : "tomorrow's";
       alt = { text: store.nets[w.day] ? `Show ${wn} net` : nftOn() ? `Cast ${wn} net` : `See ${wn} net`, go: () => selectView('tonight') };
     } else {
-      const n = N(d), c = chipOf(d), m = mine(d), pr = practiceOpen(d);
-      head = pr || (m && m.practice) ? `Practice catch · night of ${dayLabel(d)}` : m ? `Your net · night of ${dayLabel(d)}` : `Night of ${dayLabel(d)}`;
+      const n = N(d), c = chipOf(d), m = mine(d), pr = practiceOpen(d), drop = isDrop(m);
+      head = pr || (m && m.practice) ? `Practice · night of ${dayLabel(d)}` : m ? `Your net · night of ${dayLabel(d)}` : `Night of ${dayLabel(d)}`;
       badge = c ? 'IBM chip' : n.slept ? 'he slept' : 'waiting for the chip'; bcls = pr || (m && m.practice) ? 'practice' : c ? 'chip' : 'wait';
       if (pr || (m && m.practice)) badge = 'practice';
-      if (S.playing) { prompt = m ? `Spot ${m.spot}: here comes his night…` : 'Here comes his night…'; sub = c ? "Then IBM's chip looks 4,000 times." : ''; }
-      else if (n.slept) { prompt = 'He slept that night.'; sub = 'No run, nothing to catch.'; }
-      else if (pr && S.sel == null) { prompt = 'Put your net on a hamster.'; sub = 'Practice on a night IBM\'s chip has already looked at: one free try. Grey hamsters were out of reach that night.'; act = { text: 'Pick a hamster first', off: true, sub: 'Practice: one free try' }; }
-      else if (pr) { prompt = `Net on spot ${S.sel}?`; sub = `${esc(LOOKW(S.sel))}. Cast it and watch his night: did the chip find him there?`; act = { text: `Cast practice net on #${S.sel}`, go: () => castPractice(S.sel), sub: 'Practice: one free try' }; }
-      else if (m && !c) { prompt = `Your net is on spot ${m.spot}.`; sub = netResult(d, m.spot).status === 'noresult' ? 'No chip result came for this night, so this net stays as it is.' : `His run is in. ${staleWords() || "IBM's chip has not looked yet: come back later to see if you caught him."}`; alt = { text: '▶ Watch his run', go: () => play() }; }
-      else if (m && !m.seen) { prompt = `Your net is on spot ${m.spot}. Did the chip find him there?`; sub = "IBM's chip has looked. Watch his night to find out."; act = { text: 'See if you caught him', go: () => play() }; }
+      if (S.playing) { prompt = m && !drop ? `No. ${m.spot}: here comes his night…` : 'Here comes his night…'; sub = c ? `Then IBM's chip drops ${fmtInt(c.wheel_shots)} times${m && drop ? ': one drop is yours' : ''}.` : ''; }
+      else if (n.slept) { prompt = m ? 'He slept: no catch that night.' : 'He slept that night.'; sub = 'No run, nothing to catch.'; }
+      else if (pr) {
+        prompt = 'Try a free practice net on this night.';
+        sub = `IBM's chip already dropped ${fmtInt(c.wheel_shots)} times here. Your practice net gets one of those drops at random, like a real net: one free try.`;
+        act = { text: 'Cast a practice net · free', go: castPractice, sub: 'Practice: one free try' };
+      }
+      else if (m && !c) { prompt = drop ? 'Your net is in.' : `Your ${OLD} is on No. ${m.spot}.`; sub = netResult(d, m.spot).status === 'noresult' ? 'No chip result came for this night, so this net stays as it is.' : `His run is in. ${staleWords() || `IBM's chip has not looked yet: come back later to see ${drop ? 'what you caught' : 'if you caught him'}.`}`; alt = { text: '▶ Watch his run', go: () => play() }; }
+      else if (m && !drawn(m)) { prompt = "The chip has dropped. Your drop is posted soon."; sub = "Your net gets one of its 4,000 drops when the night's result is posted on Sepolia: come back a little later."; alt = { text: '▶ Watch his night', go: () => play() }; }
+      else if (m && !m.seen) { prompt = drop ? 'Your net is in. Which hamster did your drop land on?' : `Your ${OLD} is on No. ${m.spot}. Did the chip find him there?`; sub = drop ? `IBM's chip dropped ${fmtInt(c.wheel_shots)} times: one drop is yours. Watch his night to find out.` : "IBM's chip has looked. Watch his night to find out."; act = { text: drop ? 'See what you caught' : 'See if you caught him', go: () => play() }; }
       else if (m) {
         const r = netResult(d, m.spot);
-        prompt = r.status === 'caught' ? `You caught ${/^[UEAIO]/.test(r.h.name) ? 'an' : 'a'} ${r.h.name} hamster!` : 'He got away.';
-        sub = m.practice ? 'That was your practice catch. Real nets are cast before he runs, when nobody knows which spots will be out of reach: one per night.' : `Your net on spot ${m.spot}, night of ${dayLabel(d)}.`;
+        prompt = r.status === 'caught' ? (drop ? `You caught ${an(r.h.name)} ${r.h.name}!` : `You caught ${an(r.h.name)} ${r.h.name} hamster!`) : drop ? 'Your hamster got away (chip noise).' : 'He got away.';
+        sub = m.practice ? 'That was your practice net. Real nets are cast before he runs, when nobody knows where the chip will drop: one per wallet per night.' : drop ? `Your net, night of ${dayLabel(d)}.` : `Your ${OLD} on No. ${m.spot}, night of ${dayLabel(d)}.`;
         alt = { text: '▶ Replay', go: () => play() };
-      } else if (c && !S.watched[d]) { prompt = 'You had no net on this night.'; sub = "Nets are cast before he runs: one per night. Watch what IBM's chip found."; alt = { text: '▶ Watch his night', go: () => play() }; }
-      else if (c) { prompt = `Where the chip found him · ${dayLabel(d)}`; sub = 'Tap a hamster for its numbers.'; alt = { text: '▶ Replay', go: () => play() }; }
+      } else if (c && !S.watched[d]) { prompt = 'You had no net on this night.'; sub = "Nets are cast before he runs: one per night. Watch where IBM's chip dropped."; alt = { text: '▶ Watch his night', go: () => play() }; }
+      else if (c) { prompt = `Where the chip dropped · ${dayLabel(d)}`; sub = 'Tap a hamster for its numbers.'; alt = { text: '▶ Replay', go: () => play() }; }
       else { prompt = 'His run is in.'; sub = "IBM's chip has not looked yet. You had no net on this night."; alt = { text: '▶ Watch his run', go: () => play() }; }
-      if (!S.playing && !act && m && (m.seen || !c)) { const nx = nextStep(); if (nx) act = nx; }
+      if (!S.playing && !act && m && (m.seen || !c || !drawn(m))) { const nx = nextStep(); if (nx) act = nx; }
       if (!S.playing && !act && !m && !pr && chipOf(d) && S.watched[d]) { const nx = nextStep(); if (nx) act = nx; }
     }
     $('stageh').textContent = head; b.className = 'src ' + bcls; b.textContent = badge;
@@ -1145,39 +1246,42 @@ footer a { color: var(--ink) }
     const A = $('act'), B = $('alt');
     A.hidden = S.playing || !act; B.hidden = S.playing || !alt;
     if (act) {
-      A.textContent = act.text; A.onclick = act.go || null; A.className = 'btn'; A.disabled = !!act.off;
+      A.innerHTML = `<span>${esc(act.text).replace(/ · (.+)$/, ' · <span class="nw">$1</span>')}</span>`; A.onclick = act.go || null; A.className = 'btn'; A.disabled = !!act.off;
       if (act.sub) A.dataset.sub = act.sub; else delete A.dataset.sub;
     }
     if (alt) { B.textContent = alt.text; B.onclick = alt.go; }
     $('skip').hidden = !S.playing;
     $('watch').hidden = S.playing || !watch;
+    $('watchsqk').hidden = !PAID; $('watchsqk').textContent = !PAID ? '' : faucetAddr() ? ` You also need ${costLabel()} test SQK (free daily from this page).` : ` You also need ${costLabel()} test SQK.`;
+    $('sqkout').hidden = S.playing || !line; $('sqkoutt').textContent = line;
     $('deck').classList.toggle('tonight', t && !store.nets[w.day]);
-    // the long honest line about the NFT, under the deck while the cast button is there
-    $('nfthint').hidden = S.playing || !(t && !store.nets[w.day] && act);
+    // the long honest line about the net, under the deck while the cast (or faucet) button is there
+    const hint = !S.playing && t && !store.nets[w.day] && act ? nftHint(k) : '';
+    $('nfthint').hidden = !hint; $('nfthint').textContent = hint;
     if (!S.playing) $('caption').innerHTML = captionText();
     renderReveal(); renderNftBox(); deckSolo();
   }
   // the action slot always holds something; when it would be empty the LCD takes the whole row
-  const deckSolo = () => { $('deckrow').classList.toggle('solo', ['act', 'nftmsg', 'watch', 'nftbox', 'alt', 'skip'].every((k) => $(k).hidden)); };
+  const deckSolo = () => { $('deckrow').classList.toggle('solo', ['act', 'nftmsg', 'watch', 'sqkout', 'nftbox', 'alt', 'skip'].every((k) => $(k).hidden)); };
   // after a result: the next thing to do is tonight's net (if not cast yet)
   function nextStep() {
     const w = win(), wn = w.when === 'tonight' ? "tonight's" : "tomorrow's";
     if (store.nets[w.day] || N(w.day)) return null;
-    return { text: nftOn() ? `Now cast ${wn} net` : `See ${wn} net`, go: () => { selectView('tonight'); scrollStage(); } };
+    return { text: nftOn() ? `Now cast ${wn} net` : `See ${wn} net`, go: () => { selectView('tonight'); toStage(); } };
   }
   function captionText() {
     const d = stageNight();
     if (!d || !N(d)) return '';
     if (N(d).slept) return '';
     if (revealedNow(d)) return S.focus != null ? spotInfo(d, S.focus) : '';
-    if (!chipOf(d)) return 'The ghost is spread over the 16 spots. When the chip looks, he lands.';
+    if (!chipOf(d)) return 'The ghost is spread over the 16 spots. When the chip drops, he lands.';
     return '';
   }
   function spotInfo(d, s) {
     const h = spotResult(d, s);
-    const head = `Spot <b>${s}</b>: ${h.tier >= 0 ? `<b>${h.name}</b>` : 'got away'}, the chip found him here in ${pct(h.share)} of its looks.` +
-      rankWords(h, 'here') + (h.first && h.tier !== 4 ? " The chip's very first look landed here." : '');
-    if (!h.reach) return `Spot <b>${s}</b>: out of reach that night, he could not land here.${h.hits ? ` The chip's ${fmtInt(h.hits)} landings here (${pct(h.share)}) are its noise.` : ''}`;
+    if (!h.reach) return `No. <b>${s}</b>: out of reach that night, he could not land here.${h.hits ? ` The chip's ${fmtInt(h.hits)} drops here (${pct(h.share)}) are its noise: a net whose drop lands here gets away.` : ''}`;
+    const head = `No. <b>${s}</b>: ${h.tier >= 0 ? `<b>${h.name}</b>` : 'got away'}, ${pct(h.share)} of the chip's drops landed here.` +
+      rankWords(h, 'here') + (h.first && h.tier !== 4 ? " The chip's very first drop landed here." : '') + (h.tier < 0 ? ' Under 1%: chip noise.' : '');
     let why = ` Quantum ghost ${pct(h.q)}, normal hamster ${pct(h.cl)}.`;
     if (h.cl >= 0.01 && h.q * 2 <= h.cl) why += " The ghost's paths cancel out here.";
     else if (h.q >= 0.01 && h.q >= 2 * h.cl) why += " The ghost's paths add up here.";
@@ -1189,20 +1293,23 @@ footer a { color: var(--ink) }
     if (!show) { el.hidden = true; return; }
     const v = view(d), c = chipOf(d), q = v.q, qe = $('revq');
     qe.hidden = !q; if (q) { qe.textContent = qWords(q, d); qe.classList.toggle('noise', !q.kept); }
-    if (m) {
-      const r = netResult(d, m.spot), h = r.h, L = look(h);
+    if (m && m.seen && drawn(m)) {
+      const r = netResult(d, m.spot), h = r.h, L = look(h), drop = isDrop(m);
       el.classList.remove('plain'); paintInto($('revcv'), m.spot, L.tier, L.dark, !h.reach);
-      const an = h.tier >= 0 && /^[UEAIO]/.test(h.name) ? 'an' : 'a';
-      $('revt').textContent = h.tier >= 0 ? `${an[0].toUpperCase() + an.slice(1)} ${h.name} ${SKIN[h.tier]} hamster!` : 'He got away.';
+      $('revt').textContent = h.tier >= 0 ? `${Cap(an(h.name))} ${h.name} ${SKIN[h.tier]} hamster!` : drop ? 'Your hamster got away (chip noise).' : 'He got away.';
       $('revt').style.color = h.tier >= 0 ? `var(--r${h.tier})` : 'var(--stage-muted)';
-      $('revs').innerHTML = (m.practice ? '<span class="tag2">practice</span>' : '') + (h.tier >= 0
-        ? `Spot ${m.spot} (${esc(LOOKW(m.spot))}): the chip found him there in <b>${pct(h.share)}</b> of its ${fmtInt(c.wheel_shots)} looks.${rankWords(h, 'there')}`
-        : h.reach ? `The chip found him on spot ${m.spot} in only <b>${pct(h.share)}</b> of its ${fmtInt(c.wheel_shots)} looks (a catch needs 1%).`
-        : `Spot ${m.spot} was out of reach that night: he could not land there.${h.hits ? ` The chip's ${fmtInt(h.hits)} landings there are its noise.` : ''}`);
+      const tag = m.practice ? '<span class="tag2">practice</span>' : drop ? '' : `<span class="tag2">${OLD}</span>`;
+      $('revs').innerHTML = tag + (drop
+        ? (h.tier >= 0 ? `Your drop landed on No. ${m.spot} (${esc(LOOKW(m.spot))}), one of the chip's <b>${fmtInt(h.hits)}</b> drops there (${pct(h.share)} of ${fmtInt(c.wheel_shots)}).${rankWords(h, 'there')}`
+          : h.reach ? `Your drop landed on No. ${m.spot}: only <b>${pct(h.share)}</b> of the ${fmtInt(c.wheel_shots)} drops landed there (a catch needs 1%), so it counts as chip noise.`
+          : `Your drop landed on No. ${m.spot}, a spot he could not reach that night: only the chip's noise lands there (${fmtInt(h.hits)} of ${fmtInt(c.wheel_shots)} drops).`)
+        : (h.tier >= 0 ? `Spot ${m.spot} (${esc(LOOKW(m.spot))}): the chip found him there in <b>${pct(h.share)}</b> of its ${fmtInt(c.wheel_shots)} looks.${rankWords(h, 'there')}`
+          : h.reach ? `The chip found him on spot ${m.spot} in only <b>${pct(h.share)}</b> of its ${fmtInt(c.wheel_shots)} looks (a catch needs 1%).`
+          : `Spot ${m.spot} was out of reach that night: he could not land there.${h.hits ? ` The chip's ${fmtInt(h.hits)} landings there are its noise.` : ''}`));
     } else {
       el.classList.add('plain');
       $('revt').textContent = `The ghost landed · ${dayLabel(d)}`; $('revt').style.color = 'var(--accent2)';
-      $('revs').innerHTML = `IBM's chip looked ${fmtInt(c.wheel_shots)} times. Bright spots: where it found him most.`;
+      $('revs').innerHTML = `IBM's chip dropped ${fmtInt(c.wheel_shots)} times. Bright spots: where it landed most.${m && !drawn(m) ? ' Your own drop is shown once the result is posted on Sepolia.' : ''}`;
     }
     el.hidden = false;
   }
@@ -1212,33 +1319,28 @@ footer a { color: var(--ink) }
     const on = !S.playing && !!(net && net.nft) && !chipOf(d) && !(N(d) && N(d).slept);
     box.hidden = !on;
     if (on) {
-      $('nfttext').innerHTML = `<b>Your net is an NFT</b> on Sepolia (free test, no value): night of ${esc(dayLabel(net.nft.day || d))}, spot ${net.spot}. It turns into your catch (or "got away") when the chip's result is posted.`;
+      const nd = esc(dayLabel(net.nft.day || d));
+      $('nfttext').innerHTML = isDrop(net)
+        ? `<b>Your net is in:</b> a test NFT on Sepolia (no money value), night of ${nd}. It shows your catch (or "got away") once the chip's result is posted.`
+        : `<b>Your net is an NFT</b> on Sepolia (free test, no value): night of ${nd}, ${OLD} on No. ${net.spot}. It turns into your catch (or "got away") when the chip's result is posted.`;
       const im = $('nftimg'); if (net.nft.image && /^data:image\/svg\+xml;base64,/.test(net.nft.image)) { im.src = net.nft.image; im.hidden = false; } else im.hidden = true;
     }
   }
 
-  // ---------- picking + casting ----------
+  // ---------- tapping a hamster (no picking: information only) + the practice net ----------
   function onSpot(s) {
-    if (S.playing || S.nftBusy) return;
-    const t = S.view === 'tonight', d = stageNight(), w = win();
-    if (t) {
-      if (store.nets[w.day]) { $('caption').innerHTML = `Your net is already on spot <b>${store.nets[w.day].spot}</b> for this night: nets can't be moved.`; return; }
-      S.sel = S.sel === s ? null : s; nftMsg(''); renderStage(); paintRing(); if (S.sel != null) showAct();
-      $('srpick').textContent = S.sel != null ? `Your pick: spot ${s}, ${LOOKW(s)}` : 'No pick'; return;
-    }
-    const m = mine(d), pr = practiceOpen(d);
-    if (!N(d)) { $('caption').innerHTML = `Your net is on spot <b>${m.spot}</b> for this night: nets can't be moved.`; return; }
+    if (S.playing) return;
+    const d = stageNight();
+    if (!d || !N(d)) return;                         // tonight / a night not in the page yet: the roster is hidden
+    const m = mine(d);
     if (revealedNow(d)) { S.focus = s; paintRing(); $('caption').innerHTML = spotInfo(d, s); return; }
-    if (!pr || m) {
-      if (m && !chipOf(d)) $('caption').innerHTML = `Your net is on spot <b>${m.spot}</b>. The chip has not looked yet.`;
-      else if (m) $('caption').innerHTML = `Your net is on spot <b>${m.spot}</b>. Tap <b>See if you caught him</b>.`;
-      else $('caption').innerHTML = 'You had no net on this night.';
-      return;
-    }
-    if (!reach(d, s)) { S.sel = null; renderStage(); paintRing(); $('caption').innerHTML = `Spot <b>${s}</b> was out of reach that night: he could not land there. Pick one of the lit hamsters.`; return; }
-    S.sel = S.sel === s ? null : s; renderStage(); paintRing(); if (S.sel != null) showAct();
+    if (m && !chipOf(d)) $('caption').innerHTML = 'The chip has not dropped yet.';
+    else if (m && drawn(m)) $('caption').innerHTML = `Tap <b>${isDrop(m) ? 'See what you caught' : 'See if you caught him'}</b>.`;
+    else if (m) $('caption').innerHTML = 'Your drop is posted soon.';
+    else if (practiceOpen(d)) $('caption').innerHTML = 'Nobody picks: tap <b>Cast a practice net</b> and one of the chip\'s drops is yours.';
+    else $('caption').innerHTML = 'You had no net on this night.';
   }
-  // the ONE action (or the watch line) must be on screen after a pick (short phones: it sits under the ring): scroll just enough
+  // the ONE action (or the watch line) must be on screen when it matters (short phones: it sits under the roster)
   function showAct(instant) {
     try {
       const a = !$('act').hidden ? $('act') : !$('watch').hidden ? $('watch') : null; if (!a) return;
@@ -1246,10 +1348,14 @@ footer a { color: var(--ink) }
       if (by > 0) window.scrollBy({ top: by, behavior: instant || fast() ? 'auto' : 'smooth' });
     } catch (e) { /* fine */ }
   }
-  function castPractice(s) {
+  // the free practice net: one of that night's real drops, drawn here at random (every drop equally likely, so a hamster's
+  // chance is its share of the drops, as for a real net)
+  function castPractice() {
     const d = stageNight();
-    if (!practiceOpen(d) || !isSpot(s) || !reach(d, s)) return;
-    store.practice = { day: d, spot: s, at: now(), seen: false }; save(); S.sel = null;
+    if (!practiceOpen(d) || !chipOf(d)) return;
+    const sh = view(d).shots, s = sh[Math.min(sh.length - 1, Math.floor(Math.random() * sh.length))];
+    if (!isSpot(s)) return;
+    store.practice = { day: d, spot: s, at: now(), seen: false, drop: true }; save();
     play();
   }
   const bumpMine = () => { $('mycount').classList.remove('bump'); void $('mycount').offsetWidth; $('mycount').classList.add('bump'); };
@@ -1283,32 +1389,36 @@ footer a { color: var(--ink) }
     }
     if (!live()) return;
     highlight(-1); wSpeed = 5;
+    const m0 = mine(d), yours = m0 && isDrop(m0) && drawn(m0) ? m0.spot : null;
     if (c) {
-      $('caption').innerHTML = `Then IBM's chip looks <b>${fmtInt(c.wheel_shots)} times</b>.`;
-      setDots(ZERO); await landings(v.shots, my, d); if (!live()) return;
+      $('caption').innerHTML = `Then IBM's chip drops <b>${fmtInt(c.wheel_shots)} times</b>.`;
+      setDots(ZERO); await landings(v.shots, my); if (!live()) return;
       setGlow(v.counts.map((x) => x / c.wheel_shots), 'chip');
+      // one of those drops is yours: it falls last, onto the hamster it landed on
+      if (yours != null) { $('caption').innerHTML = `One of those ${fmtInt(c.wheel_shots)} drops is <b>yours</b>…`; await yourDrop(yours, my); if (!live()) return; }
     } else {
       setDots(ZERO); setGlow(v.perfect, 'ghost');
-      $('caption').innerHTML = 'The ghost is spread over the 16 spots. The chip has not looked yet.';
+      $('caption').innerHTML = 'The ghost is spread over the 16 spots. The chip has not dropped yet.';
       await wait(1100); if (!live()) return;
     }
     S.playing = false; playing(false);
-    const m = mine(d);
+    const m = mine(d), known = !!m && drawn(m);
     if (c) {
-      if (m) { if (m.practice) store.practice.seen = true; else store.nets[d].seen = true; save(); } else S.watched[d] = true;
+      // seen: the viewer's net (its hamster known) or the practice; a drop not read yet: only watched (its result comes later)
+      if (known) { if (m.practice) store.practice.seen = true; else store.nets[d].seen = true; save(); } else S.watched[d] = true;
       ring.classList.add('revealed');
-      const order = [...Array(16).keys()].sort((a, b) => spotResult(d, b).share - spotResult(d, a).share);
+      const order = [...Array(16).keys()].sort((a, b) => spotResult(d, b).share - spotResult(d, a).share), mx = Math.max(1, ...v.counts);
       for (const s of order) {
         if (!live()) return;
         const h = spotResult(d, s), el = spots[s], L = look(h); el.dataset.tier = h.tier; paintInto(el.querySelector('canvas'), s, L.tier, L.dark, !h.reach);
         if (!h.reach) el.classList.add('out');
-        setTag(s, tagWord(h));
+        setTag(s); setStrip(s, wordOf(h), v.counts[s] / mx, h.tier);
         el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
         await wait(55);
       }
     }
     renderAll();
-    if (c && m) {
+    if (c && known) {
       try { const a = $('act').hidden ? $('reveal') : $('act'), r = a.getBoundingClientRect(), by = r.bottom + 12 - innerHeight; if (by > 0) window.scrollBy({ top: by, behavior: fast() ? 'auto' : 'smooth' }); } catch (e) { /* fine */ }
       SFX.reveal(spotResult(d, m.spot).tier); bumpMine();
     }
@@ -1316,10 +1426,36 @@ footer a { color: var(--ink) }
   // the chip's real landings: drops fall from the quantum computer onto their spot's tile, in the order the chip produced
   // them, and each tile's strip counts up
   const fx = $('fx');
+  // the drop's start (under the computer) and a tile's landing point, in #play's box
+  const fxGeom = () => { const P = $('play'), pr = P.getBoundingClientRect(), cr = $('core').getBoundingClientRect();
+    return { P, pr, W: P.clientWidth, H: P.clientHeight, O: [cr.left - pr.left + cr.width / 2, cr.top - pr.top + cr.height * 0.92],
+      at: (el) => { const r = el.getBoundingClientRect(); return [r.left - pr.left + r.width / 2, r.top - pr.top + r.height * 0.42]; } }; };
+  // YOUR drop: one big cherry drop falls last onto the tile it landed on, and that tile lights up as yours
+  function yourDrop(s, my) {
+    return new Promise((resolve) => {
+      const G = fxGeom(), dpr = Math.min(2, window.devicePixelRatio || 1), el = spots[s];
+      fx.width = Math.round(G.W * dpr); fx.height = Math.round(G.H * dpr); fx.style.width = G.W + 'px'; fx.style.height = G.H + 'px';
+      const g = fx.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const hb = document.querySelector('.hl').getBoundingClientRect();     // never across the headline (as the landings)
+      g.beginPath(); g.rect(0, 0, G.W, G.H); g.rect(hb.left - G.pr.left, hb.top - G.pr.top, hb.width, hb.height); g.clip('evenodd');
+      const [x1, y1] = G.at(el), O = G.O, dx = x1 - O[0], dy = y1 - O[1], L = Math.hypot(dx, dy) || 1, DUR = fast() ? 40 : 1100, t0 = performance.now();
+      const done = () => { clearFx(); el.classList.add('net', 'drop'); el.classList.remove('yours'); void el.offsetWidth; el.classList.add('yours'); SFX.land(); setTimeout(resolve, fast() ? 10 : 650); };
+      function frame(nowT) {
+        if (my !== run) { clearFx(); return resolve(); }
+        const u = skipping ? 1 : Math.min(1, (nowT - t0) / DUR); g.clearRect(0, 0, G.W, G.H);
+        if (u >= 1) return done();
+        const e = u * u * (3 - 2 * u), bend = Math.sin(u * Math.PI) * L * 0.12, x = O[0] + dx * e - dy / L * bend, y = O[1] + dy * e + dx / L * bend;
+        g.fillStyle = 'rgba(216,30,58,.35)'; g.beginPath(); g.arc(x, y, 15, 0, Math.PI * 2); g.fill();
+        g.fillStyle = '#fff4dc'; g.beginPath(); g.arc(x, y, 8, 0, Math.PI * 2); g.fill();
+        g.fillStyle = '#d81e3a'; g.beginPath(); g.arc(x, y, 5.5, 0, Math.PI * 2); g.fill();
+        requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+    });
+  }
   // (an idle overlay has no size: a canvas sized for a wider window would scroll the page sideways after a resize)
   function clearFx() { fx.width = 0; fx.height = 0; fx.style.width = '0px'; fx.style.height = '0px'; }
-  function landings(shotSpots, my, d) {
-    const inR = [...Array(16).keys()].map((s) => reach(d, s));
+  function landings(shotSpots, my) {
     return new Promise((resolve) => {
       const P = $('play'), pr = P.getBoundingClientRect(), W = P.clientWidth, H = P.clientHeight, dpr = Math.min(2, window.devicePixelRatio || 1);
       fx.width = Math.round(W * dpr); fx.height = Math.round(H * dpr); fx.style.width = W + 'px'; fx.style.height = H + 'px';
@@ -1346,7 +1482,7 @@ footer a { color: var(--ink) }
         }
         if (nowT - lastPaint > 90 || landed === M) {
           lastPaint = nowT; setGlow(acc.map((x) => x / shots.length), 'chip');
-          const mx = Math.max(1, ...acc.filter((x, s) => inR[s])); acc.forEach((x, s) => setStrip(s, inR[s] ? Math.round(x) : 'out', mx));
+          const mx = Math.max(1, ...acc); acc.forEach((x, s) => setStrip(s, Math.round(x), x / mx));
         }
         if (landed >= M) { clearFx(); return resolve(); }
         requestAnimationFrame(frame);
@@ -1374,10 +1510,17 @@ footer a { color: var(--ink) }
     tb.onclick = () => { selectView('tonight'); toStage(); }; box.appendChild(tb);
     for (const b of box.children) b.setAttribute('aria-pressed', String(b.dataset.day === S.view));
     const pd = practiceDay();
-    $('pastsub').textContent = "Tap a night to see where IBM's chip found him." + (practiceOpen(pd) ? ` One free practice catch on ${dayLabel(pd)}.` : '');
+    $('pastsub').textContent = "Tap a night to see where IBM's chip dropped." + (practiceOpen(pd) ? ` One free practice net on ${dayLabel(pd)}.` : '');
   }
-  // the strip sits below the first screen: after a tap, bring the stage back into view
-  const toStage = () => { try { if ($('play').getBoundingClientRect().top < 0) scrollStage(); } catch (e) { /* fine */ } };
+  // the strip sits below the first screen: after a tap, bring the stage back into view, and with it the ONE action (a short
+  // phone: the action wins, the top of the stage may stay above)
+  const toStage = () => {
+    try {
+      const P = $('play').getBoundingClientRect(), a = !$('act').hidden ? $('act') : !$('watch').hidden ? $('watch') : null;
+      const by = Math.max(Math.min(P.top, 0), a ? a.getBoundingClientRect().bottom + 12 - innerHeight : -Infinity);
+      if (by) window.scrollBy({ top: by, behavior: fast() ? 'auto' : 'smooth' });
+    } catch (e) { /* fine */ }
+  };
   function selectView(v) {
     if (S.playing) cancelPlay();
     S.view = canView(v) ? v : 'tonight'; S.sel = null; S.focus = null;
@@ -1391,17 +1534,19 @@ footer a { color: var(--ink) }
     $('tnk').textContent = w.when === 'tonight' ? "Tonight's net" : "Tomorrow's net";
     $('tnh').textContent = `Night of ${dayLabel(w.day, { weekday: 'long', month: 'long' })}`;
     $('tnclose').innerHTML = `Nets close at <b>${tLocal(w.closeMs)}</b> your time · in <span class="cd">${QC.countdown(w.leftMs)}</span>. He usually starts between ${tLocal(w.startFromMs)} and ${tLocal(w.startToMs)}.`;
-    $('tnstate').innerHTML = net ? `Your net: <b>spot ${net.spot}</b> (${esc(LOOKW(net.spot))}).${net.nft ? ' A free test NFT on Sepolia.' : ''}` : 'No net yet for this night.';
-    $('tngo').hidden = S.view === 'tonight'; $('tngo').textContent = net ? 'Show my net' : `Choose ${w.when === 'tonight' ? "tonight's" : "tomorrow's"} spot`;
+    $('tnstate').innerHTML = !net ? 'No net yet for this night.' : isDrop(net) ? `Your net is in: ${when13(w)} the quantum computer decides which hamster it catches. A test NFT on Sepolia.`
+      : `Your ${OLD}: <b>No. ${net.spot}</b> (${esc(LOOKW(net.spot))}).${net.nft ? ' A free test NFT on Sepolia.' : ''}`;
+    $('tngo').hidden = S.view === 'tonight'; $('tngo').textContent = net ? 'Show my net' : `${nftOn() ? 'Cast' : 'See'} ${w.when === 'tonight' ? "tonight's" : "tomorrow's"} net`;
     // his running night (live, settled rounds only) at the top of the card: after the 21:00 UTC lock it is not the open night
     const sf = $('sofar'), sn = sofar && store.nets[sofar.day];
-    if (sofar && !N(sofar.day)) { sf.hidden = false; sf.innerHTML = `Tonight so far: <b>${sofar.rounds}</b> round${sofar.rounds === 1 ? '' : 's'}, <b>${fmtInt(sofar.turns)}</b> turns <span class="small">(his night of ${dayLabel(sofar.day)}, settled on-chain up to ${tLocal(sofar.upToMs)} your time)</span>${sn && sofar.day !== w.day ? ` · your net there: <b>spot ${sn.spot}</b>` : ''}`; }
+    if (sofar && !N(sofar.day)) { sf.hidden = false; sf.innerHTML = `Tonight so far: <b>${sofar.rounds}</b> round${sofar.rounds === 1 ? '' : 's'}, <b>${fmtInt(sofar.turns)}</b> turns <span class="small">(his night of ${dayLabel(sofar.day)}, settled on-chain up to ${tLocal(sofar.upToMs)} your time)</span>${sn && sofar.day !== w.day ? (isDrop(sn) ? ' · your net is in' : ` · your ${OLD} there: <b>No. ${sn.spot}</b>`) : ''}`; }
     else sf.hidden = true;
-    const wait = Object.keys(store.nets).filter((d) => d !== w.day && !chipOf(d) && !(N(d) && N(d).slept)).sort(), stale = wait.length ? staleWords() : '';
-    $('waiting').innerHTML = wait.map((d) => `<li><b>${dayLabel(d)}</b>: your net on spot ${store.nets[d].spot}, ${netResult(d, store.nets[d].spot).status === 'noresult' ? 'no chip result came for this night' : 'waiting for the chip'}.</li>`).join('') + (stale ? `<li>${stale}</li>` : '');
+    const wait = Object.keys(store.nets).filter((d) => d !== w.day && !(N(d) && N(d).slept) && (!chipOf(d) || !drawn(store.nets[d]))).sort(), stale = wait.some((d) => !chipOf(d)) ? staleWords() : '';
+    const wword = (st) => (st === 'noresult' ? 'no chip result came for this night' : st === 'drawing' ? 'the chip has dropped, your drop is posted soon' : 'waiting for the chip');
+    $('waiting').innerHTML = wait.map((d) => { const x = store.nets[d]; return `<li><b>${dayLabel(d)}</b>: ${isDrop(x) ? 'your net' : `your ${OLD} on No. ${x.spot}`}, ${wword(netResult(d, x.spot).status)}.</li>`; }).join('') + (stale ? `<li>${stale}</li>` : '');
     $('waiting').hidden = !wait.length;
   }
-  $('tngo').onclick = () => { selectView('tonight'); scrollStage(); };
+  $('tngo').onclick = () => { selectView('tonight'); toStage(); };
   // the countdown ticks; at the lock (21:00 UTC) the open night rolls over and everything redraws
   let lastOpen = win().day;
   setInterval(() => {
@@ -1415,7 +1560,7 @@ footer a { color: var(--ink) }
   function myList() {
     const L = [];
     if (store.practice && N(store.practice.day) && chipOf(store.practice.day)) L.push([store.practice.day, Object.assign({ practice: true }, store.practice)]);
-    for (const [d, x] of Object.entries(store.nets)) if (N(d) && (chipOf(d) || N(d).slept)) L.push([d, Object.assign({ practice: false }, x)]);
+    for (const [d, x] of Object.entries(store.nets)) if (N(d) && (chipOf(d) || N(d).slept)) L.push([d, Object.assign({ practice: false }, x)]);       // (a drop not read yet: a "posted soon" card)
     return L.sort(([a], [b]) => (a < b ? 1 : -1));
   }
   function renderMine() {
@@ -1424,13 +1569,15 @@ footer a { color: var(--ink) }
     for (const [d, m] of L) {
       const r = netResult(d, m.spot), el = document.createElement('button'); el.type = 'button'; el.className = 'mycard'; el.dataset.night = d;
       el.onclick = () => { selectView(d); scrollStage(); };
-      if (r.status === 'slept') { el.dataset.tier = -1; el.innerHTML = `<span class="tn">He slept</span><span class="tp">${dayLabel(d, { weekday: undefined })} · #${m.spot}</span>`; box.appendChild(el); continue; }
-      if (!m.seen) { el.classList.add('todo'); el.dataset.tier = 'x'; const cv = mk(112, 112); el.appendChild(cv); paintInto(cv, m.spot, -1, false); el.insertAdjacentHTML('beforeend', `<span class="tn">Ready!</span><span class="tp">${dayLabel(d, { weekday: undefined })} · #${m.spot}</span><span class="tp">tap to see</span>`); box.appendChild(el); continue; }
+      const dd = dayLabel(d, { weekday: undefined }), no = drawn(m) ? `#${m.spot}` : '#?', kind = m.practice ? 'practice' : isDrop(m) ? '' : OLD;
+      if (r.status === 'slept') { el.dataset.tier = -1; el.innerHTML = `<span class="tn">He slept</span><span class="tp">${dd}${isDrop(m) ? '' : ' · ' + no}</span><span class="tp">no catch</span>`; box.appendChild(el); continue; }
+      if (r.status === 'drawing') { el.classList.add('todo'); el.dataset.tier = 'x'; el.innerHTML = `<span class="tn">Soon</span><span class="tp">${dd} · #?</span><span class="tp">your drop is posted soon</span>`; box.appendChild(el); continue; }
+      if (!m.seen) { el.classList.add('todo'); el.dataset.tier = 'x'; const cv = mk(112, 112); el.appendChild(cv); paintInto(cv, isDrop(m) ? 0 : m.spot, -1, isDrop(m)); el.insertAdjacentHTML('beforeend', `<span class="tn">Ready!</span><span class="tp">${dd}${isDrop(m) ? '' : ' · ' + no}</span><span class="tp">tap to see</span>`); box.appendChild(el); continue; }
       const h = r.h; el.dataset.tier = h.tier;
       if (h.tier >= 0) { caught++; looksGot.add(m.spot); best = Math.max(best, h.tier); }
       const cv = mk(112, 112); el.appendChild(cv); const lk = look(h); paintInto(cv, m.spot, lk.tier, lk.dark, !h.reach);
-      el.insertAdjacentHTML('beforeend', `<span class="tn">${h.tier >= 0 ? h.name : 'Got away'}</span><span class="tp">${dayLabel(d, { weekday: undefined })} · #${m.spot}</span><span class="tp">${m.practice ? 'practice' : h.reach ? 'IBM chip' : 'out of reach'}</span>`);
-      el.title = `${dayLabel(d)} · spot ${m.spot} (${LOOKW(m.spot)}) · ${h.tier >= 0 ? h.name + ' ' + SKIN[h.tier] + ' hamster' : 'got away'} · ${pct(h.share)} of the chip's looks${m.practice ? ' · practice' : ''}`;
+      el.insertAdjacentHTML('beforeend', `<span class="tn">${h.tier >= 0 ? h.name : 'Got away'}</span><span class="tp">${dd} · ${no}</span><span class="tp">${kind || (h.tier >= 0 ? 'IBM chip' : 'chip noise')}</span>`);
+      el.title = `${dayLabel(d)} · No. ${m.spot} (${LOOKW(m.spot)}) · ${h.tier >= 0 ? h.name + ' ' + SKIN[h.tier] + ' hamster' : 'got away'} · ${pct(h.share)} of the chip's drops${kind ? ' · ' + kind : ''}`;
       box.appendChild(el);
     }
     $('myempty').hidden = L.length > 0;
@@ -1450,7 +1597,15 @@ footer a { color: var(--ink) }
   }
   function renderHow() {
     const d = howDay(), n = N(d), R = n.rounds, w = win();
-    $('howrules').innerHTML = `One net per wallet per night, cast before he runs: nets close at 21:00 UTC (${tLocal(w.closeMs)} your time); he usually starts between 21:10 and 21:40 UTC. Each net is a free NFT on the Sepolia test network (you pay only test gas, worth nothing), cast from a browser wallet; without one the page is for watching. Under Past nights there is also one free practice catch, on the newest night the chip has looked at.`;
+    const paid = paidNow();
+    $('howrules').innerHTML = `One net per wallet per night, cast before he runs: nets close at 21:00 UTC (${tLocal(w.closeMs)} your time); he usually starts between 21:10 and 21:40 UTC. ` +
+      (paid ? `Each net costs ${costLabel()} Squeekchain test SQK, burned when you cast${faucetAddr() ? ` (this page's faucet gives ${dripLabel()} per wallet per day)` : ''}, and is an NFT on the Sepolia test network; you also pay a little test gas. Test tokens: nothing here has money value. `
+        : 'Each net is a free NFT on the Sepolia test network (you pay only test gas, worth nothing). ') +
+      "Nets are cast from a browser wallet; without one the page is for watching. Under Past nights there is also one free practice net, on the newest night the chip has looked at.";
+    $('howcost').textContent = paid ? `A net costs ${costLabel()} Squeekchain test SQK, which gets burned${faucetAddr() ? ' (free from this page, once a day)' : ''}, and is a test NFT on Sepolia.` : 'A net is a free test NFT on Sepolia (only test gas).';
+    document.querySelectorAll('.tclose').forEach((e) => { e.textContent = tLocal(w.closeMs); });
+    document.querySelectorAll('.tend').forEach((e) => { e.textContent = tLocal(w.endMs); });
+    renderOdds();
     if (!R.length) { $('nighth').textContent = `His night of ${dayLabel(d)}: he slept`; ['nightsub', 'nightsrc', 'bars', 'ticks', 'nightstats', 'dials', 'progsub'].forEach((k) => { $(k).innerHTML = ''; }); renderCompare(d); return; }
     const ids = R.map((r) => r[0]), lo = ids[0] - 1, hi = ids[ids.length - 1] + 1, span = hi - lo + 1;
     const H = 100, MAXT = 800, G = QW.groups(R.map((r) => r[1]), capOf(d)), stepOf = {};
@@ -1470,6 +1625,35 @@ footer a { color: var(--ink) }
     $('dials').innerHTML = n.steps.map((t, k) => { const g = G[k], ids2 = g.map((i) => R[i][0]), rr = ids2.length > 1 ? `rounds ${ids2[0]}-${ids2[ids2.length - 1]}, mean` : `round ${ids2[0]},`; return `<div class="dial" data-k="${k}" title="Step ${k + 1}: ${rr} ${fmtInt(t)} turns, coin tilted ${Math.round(angles[k] * 180 / Math.PI)} degrees">${dialSvg(angles[k])}<span>${t}</span></div>`; }).join('');
     $('progsub').textContent = `${R.length} active rounds${n.steps.length < R.length ? `, grouped into ${n.steps.length} steps (mean turns)` : ', one step each'}: recipe ${n.recipe}, at most ${capOf(d)} steps. A lazy round barely tilts the coin; a sprint turns him round.`;
     renderCompare(d);
+  }
+  // last night's odds: one drop of the newest night the chip has looked at, by what it caught (the v2 draw: every drop
+  // equally likely, so a tier's chance is its hamsters' share of the drops; chip noise = got away)
+  function oddsOf(d) {
+    const v = view(d), c = chipOf(d), by = [-1, 0, 1, 2, 3, 4].map((t) => ({ t, spots: [], hits: 0 }));
+    v.tiers.forEach((t, s) => { by[t + 1].spots.push(s); by[t + 1].hits += v.counts[s]; });
+    return { d, shots: c.wheel_shots, by, first: v.first };
+  }
+  function renderOdds() {
+    const d = practiceDay();
+    if (!d) { $('oddsrows').innerHTML = ''; $('oddssub').textContent = ''; $('prow').innerHTML = ''; $('podds').textContent = ''; return; }
+    const O = oddsOf(d), when = d === prevDay(win().day) ? `last night (${dShort(d)})` : dayLabel(d);
+    $('oddssub').textContent = `An example: ${when}. IBM's chip dropped ${fmtInt(O.shots)} times; a net that night would have caught whatever its one drop landed on.`;
+    $('oddsrows').innerHTML = [5, 4, 3, 2, 1, 0].map((i) => { const x = O.by[i], name = i ? TIER[i - 1] : 'Got away (chip noise)';
+      return `<tr><td>${name}</td><td>${x.spots.length ? x.spots.map((s) => 'No. ' + s).join(', ') : i === 5 ? 'none: the first drop was not on the Epic' : 'none'}</td><td>${fmtInt(x.hits)}</td><td>${pct(x.hits / O.shots)}</td></tr>`; }).join('');
+    // the prizes row on the first screen: the five skins, each with that night's chance
+    const box = $('prow');
+    if (box.children.length !== 5) {
+      box.innerHTML = TIER.map((n, t) => `<div class="prz" role="listitem" data-t="${t}"><canvas width="112" height="112" aria-hidden="true"></canvas><b>${n}</b><span class="ps">${SKIN[t]}</span><span class="po"></span></div>`).join('');
+      [...box.children].forEach((el, t) => paintInto(el.querySelector('canvas'), 8, t, false));
+    }
+    // 0 drops: Legendary (the chip's first drop was not on the Epic hamster) says about how rare it is per net (the Epic
+    // hamster's share squared: its first drop AND your drop both on it); Epic on a Legendary night points to Legendary
+    const e = (O.by[4].hits + O.by[5].hits) / O.shots, inN = e > 0 ? 1 / (e * e) : Infinity;
+    const zero = (t) => (t === 4 ? (inN < 1000 ? `~1 in ${fmtInt(Number(inN.toPrecision(2)))}` : 'rare') : t === 3 && O.by[5].hits ? '→ Legendary' : pct(0));
+    [...box.children].forEach((el, t) => { const x = O.by[t + 1], p = x.hits ? pct(x.hits / O.shots) : zero(t), po = el.querySelector('.po'); po.textContent = p; po.classList.toggle('w', p.length > 9);
+      el.setAttribute('aria-label', `${TIER[t]}, ${SKIN[t]} skin: ${x.hits ? `${p} of the drops ${when}` : t === 4 ? `none ${when}; ${p === 'rare' ? 'rare' : `about ${p.replace('~', '')}`} per net` : t === 3 && O.by[5].hits ? `none ${when}: the first drop made the Epic hamster Legendary` : `none ${when}`}`); });
+    $('podds').textContent = `Chance = share of the drops ${when}. Legendary = the Epic hamster when the chip's very first drop lands on it too. Got away (chip noise): ${pct(O.by[0].hits / O.shots)}`;
+    box.children[4].title = "Legendary: the Epic hamster, when the chip's very first drop of the night lands on it";
   }
   function highlight(k, g) {
     [...$('dials').children].forEach((el, i) => el.classList.toggle('on', i === k));
@@ -1575,35 +1759,104 @@ footer a { color: var(--ink) }
     $('tplay').disabled = false; $('tplay').textContent = 'Try another plan';
   };
 
-  // ---------- casting a net = minting its free test NFT: one transaction (castNet) on Sepolia (R6') ----------
+  // ---------- casting a net = minting its test NFT: one transaction on Sepolia (R6'). No picking: the chip's drop decides ----------
   const NFT_SUB = 'Sepolia test network · worth nothing';
   const NFT_STEP = { connect: 'Open your wallet to connect…', network: 'Switching your wallet to Sepolia (test network)…', check: 'Checking this night…',
-    send: 'Confirm the one transaction in your wallet: a free net, only the Sepolia test fee.', wait: 'Waiting for Sepolia…', done: 'Done!' };
-  const nftMsg = (t, err) => { const e = $('nftmsg'); e.hidden = !t; e.textContent = t || ''; e.classList.toggle('err', !!err); deckSolo(); };
-  // the pick stays (and the button comes back) if anything goes wrong; the net is recorded only once the chain has it, under
-  // the night the CHAIN cast it for
-  async function castNft(s) {
+    'sqk-check': 'Checking your test SQK…', 'sqk-sign': 'Sign in your wallet: let your net burn exactly the test SQK it costs (a signature, no fee)…',
+    'sqk-approve': 'Your wallet cannot sign that: approve exactly the test SQK a net costs (one extra transaction)…',
+    faucet: "Confirm the one transaction in your wallet: today's free test SQK, only the Sepolia test fee.", wait: 'Waiting for Sepolia…', done: 'Done!' };
+  const stepText = (k) => (k === 'send' ? (paidNow() ? `Confirm the one transaction in your wallet: your net (${costLabel()} test SQK, burned), plus the Sepolia test fee.`
+    : 'Confirm the one transaction in your wallet: a free net, only the Sepolia test fee.') : NFT_STEP[k] || '');
+  const nftMsg = (t, err, k) => { const e = $('nftmsg'); e.hidden = !t; e.textContent = t || ''; e.classList.toggle('err', !!err); e.dataset.k = (t && k) || ''; deckSolo(); };
+  // no test SQK yet (catch.js NO_SQK: nothing signed or sent): an expected first step, said plainly under the button that
+  // now takes its place (the faucet), or above the line that says why there is none today
+  const noSqkWords = () => {
+    const k = castState();
+    return k.act && k.act.go === getSqk ? `This wallet has no test SQK yet. Tap the button to get today's free ${dripLabel()} (one transaction), then cast. Nothing was sent.`
+      : 'This wallet does not have the test SQK a net costs. Nothing was sent.';
+  };
+  const pubFetch = (u, i) => fetch(u, Object.assign({ signal: (window.AbortSignal && AbortSignal.timeout) ? AbortSignal.timeout(8000) : undefined }, i));
+  const balanceCheck = () => (/^https?:$/.test(location.protocol) ? QC.rpcBalance(pubFetch, RPC) : null);
+  // the net is recorded only once the chain has it, under the night the CHAIN cast it for; anything wrong: the button comes back
+  async function castNft() {
     const w = win();
-    if (S.nftBusy || !isSpot(s)) return;
+    if (S.nftBusy) return;
     if (!nftOn()) { renderAll(); return; }
-    if (store.nets[w.day] || N(w.day)) { S.sel = null; renderAll(); $('caption').innerHTML = store.nets[w.day] ? 'You already have a net for this night.' : 'Nets for this night are closed.'; return; }
-    S.nftBusy = true; nftMsg(''); renderStage(); paintRing();
+    if (store.nets[w.day] || N(w.day)) { renderAll(); nftMsg(store.nets[w.day] ? 'You already have a net for this night.' : 'Nets for this night are closed.'); return; }
+    S.nftBusy = 'cast'; nftMsg(''); renderStage(); paintRing();
     try {
-      const balance = /^https?:$/.test(location.protocol) ? QC.rpcBalance((u, i) => fetch(u, Object.assign({ signal: (window.AbortSignal && AbortSignal.timeout) ? AbortSignal.timeout(8000) : undefined }, i)), RPC) : null;
-      const r = await QC.castNetNft(window.ethereum, CFG.catchAddress, s, { balance, onStep: (k) => nftMsg(NFT_STEP[k] || '') });
+      const opts = { balance: balanceCheck(), onStep: (k) => nftMsg(stepText(k)) };
+      if (/^0x[0-9a-fA-F]{40}$/.test(CFG.sqkAddress || '')) opts.sqk = CFG.sqkAddress;
+      const r = await QC.castNetNft(window.ethereum, CFG.catchAddress, opts);          // no spot: the night's chip result draws it
       let meta = null;
       try { meta = QC.tokenMeta(QC.dec.string(await QC.walletCall(window.ethereum)(CFG.catchAddress, QC.enc.tokenURI(r.tokenId)))); } catch (e) { /* the picture can come later */ }
-      store.nets[r.day] = { spot: r.spot, at: now(), seen: false, nft: { tokenId: r.tokenId, tx: r.txHash, day: r.day, image: meta && meta.image ? meta.image : null } }; save();
-      S.sel = null; S.nftBusy = false; renderAll(); SFX.reveal(0); bumpMine();
+      store.nets[r.day] = { drop: true, spot: null, at: now(), seen: false, nft: { tokenId: r.tokenId, tx: r.txHash, day: r.day, image: meta && meta.image ? meta.image : null } }; save();
+      S.nftBusy = false; renderAll(); SFX.reveal(0); bumpMine();
       nftMsg(r.day !== w.day ? `Sepolia's clock had already passed 21:00 UTC: your net is for the night of ${dayLabel(r.day)}.` : '');
-      $('caption').innerHTML = `Net cast on spot <b>${r.spot}</b>. Good luck!`;
-      walletNets(false);
+      walletNets(false); readSqk();
     } catch (e) {
-      S.nftBusy = false; renderAll(); nftMsg(QC.plainError(e), true);
+      S.nftBusy = false;
+      // too little test SQK: the faucet button takes the cast button's place (the wallet is connected now, so read it again)
+      if (e && e.code === 'NO_SQK') {
+        S.sqk = Object.assign({}, S.sqk, typeof e.cost === 'bigint' ? { cost: e.cost } : {}, { balance: typeof e.balance === 'bigint' ? e.balance : 0n });
+        renderAll(); nftMsg(noSqkWords(), false, 'nosqk');
+        await readSqk(); if (!S.nftBusy && $('nftmsg').dataset.k === 'nosqk') nftMsg(noSqkWords(), false, 'nosqk');     // the claim may be known now
+        return;
+      }
+      // the contract is not the v2 game this page expects (the old v1 contract before the switch: no NET_COST()): not wired
+      if (e && e.code === 'config' && PAID) { S.notWired = true; renderAll(); return; }
+      renderAll(); nftMsg(QC.plainError(e), true);
       // the chain may know more than this browser: a net cast elsewhere ('already'), or a slow Sepolia ('timeout')
       if (e && e.code === 'already') walletNets(false);
       if (e && e.code === 'timeout') setTimeout(() => walletNets(false), 60000);
     }
+  }
+  // today's free test SQK (one net's worth, once per wallet per day): ONE transaction, claim() on the faucet
+  async function getSqk() {
+    const f = faucetAddr();
+    if (S.nftBusy || !nftOn() || !f) return;
+    S.nftBusy = 'faucet'; nftMsg(''); renderStage();
+    try {
+      const r = await QC.claimFaucet(window.ethereum, f, { balance: balanceCheck(), onStep: (k) => nftMsg(stepText(k)) });
+      S.nftBusy = false;
+      S.sqk = Object.assign({}, S.sqk, { balance: (typeof S.sqk.balance === 'bigint' ? S.sqk.balance : 0n) + BigInt(r.amount), claimed: true });
+      renderStage(); nftMsg(`${sqkUnits(r.amount)} test SQK is in your wallet. Now cast your net.`);
+      readSqk();
+    } catch (e) {
+      S.nftBusy = false;
+      if (e && e.code === 'claimed') S.sqk = Object.assign({}, S.sqk, { claimed: true });
+      renderStage(); nftMsg(QC.plainError(e), true); readSqk();
+    }
+  }
+  // what a net costs and what this wallet holds (read-only; never asks the wallet for anything): the wallet's own chain if
+  // it is on Sepolia, else the public Sepolia RPC. The contract is the truth: its NET_COST() (0 = free nets; the old v1
+  // contract has none, so 0 too), its SQK, this wallet's balance and today's faucet claim
+  let sqkRead = 0;
+  async function readSqk() {
+    if (!nftOn()) return;
+    const my = ++sqkRead, eth = window.ethereum;
+    let who = null, info = null;
+    try { const a = await eth.request({ method: 'eth_accounts' }); who = a && a[0] ? a[0] : null; } catch (e) { /* not connected */ }
+    try { info = await QC.sqkInfo(eth, CFG.catchAddress, faucetAddr(), who); }
+    catch (e) { if (/^https?:$/.test(location.protocol)) { try { info = await QC.sqkInfo(QC.rpcCall(pubFetch, RPC), CFG.catchAddress, faucetAddr(), who); } catch (e2) { info = null; } } }
+    if (!info || my !== sqkRead) return;
+    S.sqk = Object.assign({}, info, { who });
+    if (!S.playing) { renderStage(); renderHow(); }
+  }
+  // a drop net's hamster: read from the contract once the night's result is posted (result() gives the drawn spot). The
+  // wallet when it is on Sepolia (no prompt), else the public Sepolia RPC (the standalone site); blocked: it waits
+  async function readDrops() {
+    const want = Object.entries(store.nets).filter(([d, x]) => isDrop(x) && !drawn(x) && x.nft && x.nft.tokenId && chipOf(d) && !(N(d) && N(d).slept));
+    if (!want.length || !CFG.catchAddress) return;
+    let call = null;
+    try { if (window.ethereum && typeof window.ethereum.request === 'function' && String(await window.ethereum.request({ method: 'eth_chainId' })).toLowerCase() === QC.SEPOLIA.chainId) call = QC.walletCall(window.ethereum); } catch (e) { call = null; }
+    if (!call && /^https?:$/.test(location.protocol)) call = QC.rpcCall(pubFetch, RPC);
+    if (!call) return;
+    let got = false;
+    for (const [, x] of want) {
+      try { const r = await QC.readNet(call, CFG.catchAddress, x.nft.tokenId); if (r && r.status !== 0 && isSpot(r.spot)) { x.spot = r.spot; got = true; } } catch (e) { /* later */ }
+    }
+    if (got) { save(); if (!S.playing && !S.nftBusy) { if (S.view === 'tonight' || pendingDays().includes(S.view) || !N(S.view)) S.view = startView(true); renderAll(); if (readyNow(S.view)) requestAnimationFrame(() => showAct(true)); } }
   }
   // a connected wallet's nets of recent nights (read-only eth_call; never asks the wallet for anything on load). The chain is
   // the record: a net of this wallet that this browser does not know (cast in another browser, cleared storage, a slow
@@ -1617,18 +1870,23 @@ footer a { color: var(--ink) }
       const nets = await QC.myNets(QC.walletCall(eth), CFG.catchAddress, acc[0], nights);
       let added = false;
       for (const x of nets) {
-        const loc = store.nets[x.day];
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(x.day) || !isSpot(x.spot)) continue;
-        if (loc && loc.nft) { if (loc.nft.tokenId === x.tokenId && !loc.nft.image && x.image) { loc.nft.image = x.image; added = true; } continue; }   // known (or another wallet's)
-        store.nets[x.day] = { spot: x.spot, at: loc ? loc.at : now(), seen: !!(loc && loc.spot === x.spot && loc.seen), nft: { tokenId: x.tokenId, day: x.day, image: x.image || null } };
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(x.day)) continue;
+        const loc = store.nets[x.day], posted = x.status !== 0 && isSpot(x.spot);
+        if (loc && loc.nft) {                                          // known here (or another wallet's net in this browser)
+          if (loc.nft.tokenId !== x.tokenId) continue;
+          if (!loc.nft.image && x.image) { loc.nft.image = x.image; added = true; }
+          if (isDrop(loc) && !drawn(loc) && posted) { loc.spot = x.spot; added = true; }
+          continue;
+        }
+        store.nets[x.day] = { drop: true, spot: posted ? x.spot : null, at: loc ? loc.at : now(), seen: false, nft: { tokenId: x.tokenId, day: x.day, image: x.image || null } };
         added = true;
       }
-      if (added) { save(); if (!S.playing && !S.nftBusy) { if (S.view === 'tonight' && store.nets[win().day]) S.sel = null; renderAll(); } }
+      if (added) { save(); if (!S.playing && !S.nftBusy) { if (S.view === 'tonight' || pendingDays().includes(S.view)) S.view = startView(true); renderAll(); } }
       const box = $('nftgrid'); $('nftnets').hidden = !nets.length; box.innerHTML = '';
       const ST = ['waiting for the chip', 'caught', 'got away', 'he slept', 'no chip result'];
       for (const x of nets) {
         const el = document.createElement('div'); el.className = 'mycard'; el.dataset.tier = x.tier ? x.tier - 1 : -1;
-        el.innerHTML = (x.image ? `<img alt="Net NFT, night of ${esc(dayLabel(x.day))}">` : '') + `<span class="tn">${x.status === 1 ? TIER[x.tier - 1] : esc(ST[x.status] || '')}</span><span class="tp">${dayLabel(x.day, { weekday: undefined })} · #${x.spot}</span>`;
+        el.innerHTML = (x.image ? `<img alt="Net NFT, night of ${esc(dayLabel(x.day))}">` : '') + `<span class="tn">${x.status === 1 && x.tier ? TIER[x.tier - 1] : esc(ST[x.status] || '')}</span><span class="tp">${dayLabel(x.day, { weekday: undefined })} · ${x.status !== 0 && isSpot(x.spot) ? '#' + x.spot : '#?'}</span>`;
         if (x.image) el.querySelector('img').src = x.image;
         box.appendChild(el);
       }
@@ -1668,6 +1926,7 @@ footer a { color: var(--ink) }
       for (const [d, n] of Object.entries(isObj(j.nights) ? j.nights : {})) if (!NIGHTS[d] && validNight(d, n)) { NIGHTS[d] = n; added++; }
       for (const [d, c] of Object.entries(isObj(j.chips) ? j.chips : {})) if (NIGHTS[d] && !CHIPS[d] && validChip(d, c)) { CHIPS[d] = c; added++; }
       if (added && !S.playing) { DAYS = Object.keys(NIGHTS).sort(); VIEW = {}; if (!canView(S.view)) S.view = 'tonight'; S.view = startView(true); renderAll(); if (readyNow(S.view)) requestAnimationFrame(() => showAct(true)); }
+      if (added) readDrops();
     } catch (e) { /* the claude.ai preview and file:// block it: the built-in nights still work */ }
   }
 
@@ -1705,13 +1964,13 @@ footer a { color: var(--ink) }
     if (!document.hidden) liveTimer = setTimeout(livePoll, liveFails ? 15000 * liveFails : 30000);
   }
   // back on the tab (e.g. the next morning): look for new results too, so a net left open overnight resolves without a reload
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) { if (liveFails < 3) livePoll(); readSoFar(); fetchResults(); } else { clearTimeout(liveTimer); clearTimeout(soTimer); } });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { if (liveFails < 3) livePoll(); readSoFar(); fetchResults(); readDrops(); readSqk(); } else { clearTimeout(liveTimer); clearTimeout(soTimer); } });
 
   // ---------- go ----------
-  // first screen: a result waiting to be seen, else the viewer's net whose night is on or waiting for the chip, else the
-  // free practice, else tonight's net
+  // first screen: a result waiting to be seen, else the viewer's net whose night is on or waiting for the chip (or for its
+  // drop to be posted), else an unseen practice, else tonight's net
   function startView(keep) {
-    const ready = DAYS.filter((d) => store.nets[d] && chipOf(d) && !store.nets[d].seen);
+    const ready = DAYS.filter((d) => store.nets[d] && chipOf(d) && !store.nets[d].seen && drawn(store.nets[d]));
     if (ready.length) return ready[ready.length - 1];
     if (keep && S.view && canView(S.view)) return S.view;
     const pend = pendingDays();
@@ -1722,16 +1981,17 @@ footer a { color: var(--ink) }
   function renderAll() { renderNights(); renderStage(); paintRing(); renderTonight(); renderMine(); renderHow(); renderCheck(); }
   document.querySelectorAll('.hmin').forEach((e) => { e.textContent = HMIN; });
   for (const a of [$('ghlink'), $('ghfoot')]) a.href = CFG.repoUrl;
-  if (CFG.catchAddress) { const k = $('contract'); k.hidden = false; k.innerHTML = `Each net is a free test NFT: QuantumCatch contract <a class="addr" href="https://sepolia.etherscan.io/address/${CFG.catchAddress}" target="_blank" rel="noopener">${CFG.catchAddress}</a> on Sepolia (no money value; one net per wallet per night).`;
+  if (CFG.catchAddress) { const k = $('contract'); k.hidden = false; k.innerHTML = `Each net is a test NFT: QuantumCatch contract <a class="addr" href="https://sepolia.etherscan.io/address/${CFG.catchAddress}" target="_blank" rel="noopener">${CFG.catchAddress}</a> on Sepolia (no money value; one net per wallet per night; its catch is drawn on-chain from the night's drops).`;
     const f = $('footc'), a = CFG.catchAddress; f.hidden = false; f.innerHTML = `Contract <a href="https://sepolia.etherscan.io/address/${a}" target="_blank" rel="noopener">QuantumCatch ${a.slice(0, 6)}…${a.slice(-4)}</a> on Sepolia`; }
   S.view = startView(false);
-  renderAll(); livePoll(); fetchResults(); readSoFar(); walletNets(false);
-  // a wallet that injects itself after the page loaded: casting becomes possible, and its nets are read
-  window.addEventListener('ethereum#initialized', () => { renderAll(); walletNets(false); }, { once: true });
+  renderAll(); livePoll(); fetchResults(); readSoFar(); walletNets(false); readSqk(); readDrops();
+  // a wallet that injects itself after the page loaded: casting becomes possible, and its nets and test SQK are read
+  window.addEventListener('ethereum#initialized', () => { renderAll(); walletNets(false); readSqk(); readDrops(); }, { once: true });
   // the '?' on the stage and on dark portraits is drawn in Anton: draw it again once the web font is in
   try { document.fonts.load('170px Anton').then(() => { hamWant = ''; if (!S.playing) renderAll(); }).catch(() => {}); } catch (e) { /* no font loading API */ }
   if (readyNow(S.view)) requestAnimationFrame(() => showAct(true));   // a result waiting: its button on screen
   window.QCP = { get stage() { return S.view; }, get playing() { return S.playing; }, get sel() { return S.sel; }, store: () => JSON.parse(JSON.stringify(store)),
-    data: DATA, spotResult, netResult, viewOf: view, select: selectView, practiceDay, win, get sofar() { return sofar; } };
+    data: DATA, spotResult, netResult, viewOf: view, select: selectView, practiceDay, win, get sofar() { return sofar; },
+    get sqk() { return Object.fromEntries(Object.entries(S.sqk).map(([k, v]) => [k, typeof v === 'bigint' ? v.toString() : v])); }, paid: PAID };
 })();
 </script>

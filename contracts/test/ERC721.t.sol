@@ -43,7 +43,7 @@ contract ERC721Test is CatchBase {
 
     function setUp() public override {
         super.setUp();
-        id = _cast(alice, 6);
+        id = _cast(alice);
     }
 
     function test_supportsInterface() public view {
@@ -203,7 +203,7 @@ contract ERC721Test is CatchBase {
         assertEq(r.lastFrom(), alice);
         assertEq(r.lastId(), id);
         assertEq(r.lastData(), hex"c0ffee");
-        uint256 id2 = _cast(bob, 1);
+        uint256 id2 = _cast(bob);
         vm.prank(bob);
         qc.safeTransferFrom(bob, address(r), id2);
         assertEq(r.lastData(), "");

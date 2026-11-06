@@ -4,11 +4,11 @@ pragma solidity 0.8.26;
 import {Test} from "forge-std/Test.sol";
 import {HonestyBase} from "./Honesty.t.sol";
 import {T} from "./URI.t.sol";
-import {QuantumCatch, IPaintedArt} from "../src/QuantumCatch.sol";
+import {QuantumCatch, IPaintedArt, ISqk} from "../src/QuantumCatch.sol";
 
 /// the contract's own reach rule, for k = 0 too (a ran night cannot be posted with 0 steps: 0 steps means he slept)
 contract ReachProbe is QuantumCatch {
-    constructor() QuantumCatch(address(1), IPaintedArt(address(0))) {}
+    constructor() QuantumCatch(address(1), IPaintedArt(address(0)), ISqk(address(0)), 0) {}
 
     function inReach(uint256 spot, uint256 turns, uint256 steps) external pure returns (bool) {
         return _inReach(spot, turns, steps);
@@ -49,41 +49,56 @@ contract ReachVectorsTest is HonestyBase {
         return address(uint160(0x5EED0000 + s));
     }
 
-    /// cast one net on each of the 16 spots for night n, post (turns, steps) with 250 landings on every spot
-    /// (6.25 %: catchable wherever it is in reach; all equal, so they rank by spot number) and the first shot on spot 0,
-    /// and return the nets
+    function _flat() internal pure returns (uint16[16] memory c) {
+        for (uint256 s; s < 16; ++s) {
+            c[s] = 250;
+        }
+    }
+
+    /// 16 nets (16 fixed players) for night n, then post (turns, steps) with 250 landings on every spot (6.25 %:
+    /// catchable wherever it is in reach; all equal, so they rank by spot number) and the first shot on spot 0; returns
+    /// the nets. Each net's shot is drawn at random (no picking), so over the vectors every spot is met many times.
     function _night(uint32 n, uint256 turns, uint256 steps) internal returns (uint256[16] memory ids) {
         vm.warp(qc.nightStart(n) + 60);
         for (uint256 s; s < 16; ++s) {
             vm.prank(_player(s));
-            ids[s] = qc.castNet(uint8(s));
+            ids[s] = qc.castNet();
         }
         vm.warp(qc.nightOverAt(n));
-        uint16[16] memory c;
-        for (uint256 s; s < 16; ++s) {
-            c[s] = 250;
-        }
-        _postK(n, c, uint32(turns), uint8(steps));
+        _postK(n, _flat(), uint32(turns), uint8(steps));
     }
 
-    /// reachOf and result() of every spot against a 16-bit mask (bit s = spot s in reach); every spot in reach is
-    /// catchable (250 of 4000), so its tier is its rank by spot number (all landings equal, the lower spot first)
-    function _expect(uint256[16] memory ids, uint256 mask, string memory label) internal view {
-        uint16[16] memory c;
-        for (uint256 s; s < 16; ++s) {
-            c[s] = 250;
-        }
+    /// tiersOf of every spot, and reachOf + result() of each net (on the spot its shot was drawn on) against a 16-bit
+    /// mask (bit s = spot s in reach); every spot in reach is catchable (250 of 4000), so its tier is its rank by spot
+    /// number (all landings equal, the lower spot first). Returns which spots the nets met.
+    function _expect(uint32 n, uint256[16] memory ids, uint256 mask, string memory label)
+        internal
+        view
+        returns (uint256 met)
+    {
+        uint16[16] memory c = _flat();
         uint8[16] memory want = _rankTiers(c, mask, 0);
+        (,, uint32 shots, uint32 turns,, uint8 steps,,,) = qc.nightRecord(n);
+        assertEq(shots, 4000);
+        uint8[16] memory all = qc.tiersOf(c, turns, steps, 0);
         for (uint256 s; s < 16; ++s) {
-            bool reach = (mask >> s) & 1 == 1;
-            string memory at = string.concat(label, " spot ", vm.toString(s));
-            assertEq(qc.reachOf(ids[s]), reach ? 1 : 2, at);
-            (uint8 status,,, uint16 hits,, uint8 tier,) = qc.result(ids[s]);
-            assertEq(hits, 250, at);
-            assertEq(tier, want[s], at);
-            assertTrue(reach ? tier > 0 : tier == 0, at);
-            assertEq(status, reach ? 1 : 2, at);
+            assertEq(all[s], want[s], string.concat(label, " tiersOf spot ", vm.toString(s)));
         }
+        for (uint256 k; k < 16; ++k) {
+            uint8 s = _refDraw(n, SHA_1104, JOB_1104, ids[k], c);
+            met |= 1 << s;
+            _expectNet(ids[k], s, (mask >> s) & 1 == 1, want[s], string.concat(label, " net ", vm.toString(k), " on spot ", vm.toString(s)));
+        }
+    }
+
+    function _expectNet(uint256 id, uint8 s, bool reach, uint8 want, string memory at) internal view {
+        assertEq(qc.reachOf(id), reach ? 1 : 2, at);
+        (uint8 status,, uint8 spot, uint16 hits,, uint8 tier,) = qc.result(id);
+        assertEq(spot, s, at);
+        assertEq(hits, 250, at);
+        assertEq(tier, want, at);
+        assertTrue(reach ? tier > 0 : tier == 0, at);
+        assertEq(status, reach ? 1 : 2, at);
     }
 
     function _vectors(uint256 from, uint256 to) internal {
@@ -94,13 +109,19 @@ contract ReachVectorsTest is HonestyBase {
         assertGt(k.length, 500, "vectors");
         if (to > k.length) to = k.length;
         uint256 done;
+        uint256 metIn; // spots met in reach and out of reach over the slice
+        uint256 metOut;
         for (uint256 i = from; i < to; ++i) {
             if (k[i] == 0) continue; // 0 steps = he slept: no walk to post (ReachRuleTest checks the rule itself)
             uint256[16] memory ids = _night(FIRST + uint32(i), turns[i], k[i]);
-            _expect(ids, mask[i], string.concat("vector ", vm.toString(i), " k ", vm.toString(k[i])));
+            uint256 met = _expect(FIRST + uint32(i), ids, mask[i], string.concat("vector ", vm.toString(i), " k ", vm.toString(k[i])));
+            metIn |= met & mask[i];
+            metOut |= met & ~mask[i];
             ++done;
         }
         assertGt(done, 0);
+        assertEq(metIn, 0xFFFF, "every spot met in reach");
+        assertEq(metOut & 0xFFFF, 0xFFFF, "every spot met out of reach");
     }
 
     // four slices, so each test stays far under the per-test gas limit
@@ -144,7 +165,7 @@ contract ReachVectorsTest is HonestyBase {
             uint256 rule = vm.parseJsonUint(j, string.concat(key, ".rule"));
             assertEq(walk & ~rule, 0, "the walk never lands outside the rule");
             uint256[16] memory ids = _night(FIRST + 2000 + uint32(i), turns, k);
-            _expect(ids, rule, vm.parseJsonString(j, string.concat(key, ".why")));
+            _expect(FIRST + 2000 + uint32(i), ids, rule, vm.parseJsonString(j, string.concat(key, ".why")));
             if (i < 3) assertTrue(walk != rule, "a documented gap");
             else assertEq(walk, rule, "the task example: exact");
         }
@@ -156,16 +177,13 @@ contract ShortNightTest is HonestyBase {
     /// one step from spot 9 (9 turns): only spots 8 and 10 can be landed on; positions 3..13 have P = 0. Both have
     /// 250 landings: spot 8 ranks first (Rare), spot 10 last (Epic; the first shot, on spot 0, is out of reach)
     function test_one_step_reaches_only_the_two_neighbours() public {
-        uint256[16] memory ids;
-        vm.warp(qc.nightStart(N1104) + 60);
-        for (uint256 s; s < 16; ++s) {
-            ids[s] = _cast(makeAddr(string.concat("p", vm.toString(s))), uint8(s));
-        }
-        vm.warp(OVER_1104);
         uint16[16] memory c;
         for (uint256 s; s < 16; ++s) {
             c[s] = 250;
         }
+        vm.warp(qc.nightStart(N1104) + 60);
+        uint256[16] memory ids = _castEvery(c); // a net whose shot lands on each spot
+        vm.warp(OVER_1104);
         _postK(N1104, c, 9, 1);
         for (uint256 s; s < 16; ++s) {
             bool reach = s == 8 || s == 10;
@@ -178,7 +196,7 @@ contract ShortNightTest is HonestyBase {
 
     /// 2.5 % chip noise 3 spots from his start after 1 step: the parity rule called it in reach (a Rare catch)
     function test_noise_three_spots_away_after_one_step_never_catches() public {
-        uint256 id = _cast(alice, 12);
+        uint256 id = _castOn(12, _one(12, 100, 3900));
         vm.warp(OVER_1104);
         _postK(N1104, _one(12, 100, 3900), 9, 1); // 12 + 9 + 1 even, but 3 spots from his start (spot 9)
         assertGe(uint256(100) * 100, 4000, "2.5 %: catchable, were it in reach");
@@ -188,7 +206,7 @@ contract ShortNightTest is HonestyBase {
         assertEq(hits, 100, "the landings stay visible");
         assertEq(qc.reachOf(id), 2);
         string memory j = _json(id);
-        assertEq(vm.parseJsonString(j, _trait(j, 12, "Reach")), "Out of reach tonight");
+        assertEq(vm.parseJsonString(j, _trait(j, "Reach")), "Out of reach tonight");
         assertTrue(
             T.contains(
                 vm.parseJsonString(j, ".description"),
@@ -204,12 +222,13 @@ contract ShortNightTest is HonestyBase {
                 uint32 n = N1104 + uint32(k * 16 + start);
                 uint256 turns = 16 * k + start; // ring turn = start, turns >= steps
                 vm.warp(qc.nightStart(n) + 60);
-                uint256[16] memory ids;
+                uint16[16] memory c;
                 for (uint256 s; s < 16; ++s) {
-                    ids[s] = _cast(address(uint160(0xBEEF00 + s)), uint8(s));
+                    c[s] = 1;
                 }
+                uint256[16] memory ids = _castEvery(c); // one shot on every spot
                 vm.warp(qc.nightOverAt(n));
-                _postK(n, _one(0, 1, 1), uint32(turns), uint8(k));
+                _postK(n, c, uint32(turns), uint8(k));
                 for (uint256 s; s < 16; ++s) {
                     assertEq(qc.reachOf(ids[s]), _lands(s, start, k) ? 1 : 2);
                 }
@@ -231,7 +250,7 @@ contract ReachWordsTest is HonestyBase {
     string internal constant RULE = "a perfect walk can only land on spots of the right parity within ";
 
     function test_description_before_the_post_has_no_number() public {
-        string memory d = vm.parseJsonString(_json(_cast(alice, 3)), ".description");
+        string memory d = vm.parseJsonString(_json(_cast(alice)), ".description");
         assertTrue(
             T.contains(
                 d,
@@ -243,7 +262,7 @@ contract ReachWordsTest is HonestyBase {
     }
 
     function test_description_names_the_steps_and_the_start() public {
-        uint256 a = _cast(alice, 1);
+        uint256 a = _cast(alice);
         vm.warp(OVER_1104);
         _postK(N1104, _counts1104v12(), TURNS_1104, STEPS_1104_V12); // 10 steps, start 3817 % 16 = 9
         string memory d = vm.parseJsonString(_json(a), ".description");
@@ -257,7 +276,7 @@ contract ReachWordsTest is HonestyBase {
         assertFalse(T.contains(d, "every other spot"));
 
         vm.warp(qc.nightStart(N1104 + 1) + 60);
-        uint256 b = _cast(alice, 4);
+        uint256 b = _cast(alice);
         vm.warp(qc.nightOverAt(N1104 + 1));
         _postK(N1104 + 1, _one(4, 1, 1), 3, 1);
         d = vm.parseJsonString(_json(b), ".description");
@@ -271,7 +290,7 @@ contract ReachWordsTest is HonestyBase {
     }
 
     function test_description_of_a_slept_night_has_no_number() public {
-        uint256 id = _cast(alice, 2);
+        uint256 id = _cast(alice);
         vm.warp(OVER_1104);
         uint16[16] memory zero;
         _postK(N1104, zero, 0, 0);
@@ -283,32 +302,33 @@ contract ReachWordsTest is HonestyBase {
     /// the stroke is at y 273.1) must stay clear of the caption. Out of reach the caption is two lines at y 252 and
     /// 252 + 12 = 264 (no descenders on the second line): 9 px clear.
     function test_out_of_reach_caption_clears_the_net_on_spots_7_and_9() public {
-        uint256 seven = _cast(alice, 7);
-        uint256 nine = _cast(bob, 9);
-        vm.warp(OVER_1104);
         uint16[16] memory c;
         c[9] = 46;
-        c[0] = 3954;
+        c[7] = 30;
+        c[0] = 3924;
+        uint256 seven = _castOn(7, c);
+        uint256 nine = _castOn(9, c);
+        vm.warp(OVER_1104);
         _postK(N1104, c, 16, 1); // start 0, 1 step: only spots 1 and 15 in reach
         string memory s7 = _svg(_json(seven));
         string memory s9 = _svg(_json(nine));
         string memory lines =
             '<text x="160" y="236" text-anchor="middle" font-size="13" font-weight="bold" fill="#4a5562">GOT AWAY</text><text x="160" y="252" text-anchor="middle" font-size="9" fill="#4a5562">';
         assertTrue(T.contains(s9, string.concat(lines, '46 of 4000 shots: chip noise<tspan x="160" dy="12">he could not land here</tspan></text>')), s9);
-        assertTrue(T.contains(s7, string.concat(lines, 'no landings<tspan x="160" dy="12">he could not land here</tspan></text>')), s7);
-        assertFalse(T.contains(s7, "0 of 4000"), "no landings, not 0 of 4000 shots: chip noise");
-        assertFalse(T.contains(s7, "chip noise"));
+        assertTrue(T.contains(s7, string.concat(lines, '30 of 4000 shots: chip noise<tspan x="160" dy="12">he could not land here</tspan></text>')), s7);
+        assertFalse(T.contains(s7, "no landings"), "a drawn spot always has its shot");
         assertTrue(T.contains(s7, "id=\"outofreach\""));
+        assertTrue(T.contains(s7, "stroke-dasharray=\"4 3\" transform=\"rotate(157.5 160 160)\"/>"), "my net on spot 7");
     }
 
     /// in reach, a got-away net keeps the one-line caption at the usual height
     function test_in_reach_caption_unchanged() public {
-        uint256 id = _cast(alice, 1);
+        uint256 id = _castOn(1, _one(1, 20, 3980));
         vm.warp(OVER_1104);
-        _postK(N1104, _one(1, 0, 4000), 16, 1); // spot 1 in reach, no landings
+        _postK(N1104, _one(1, 20, 3980), 16, 1); // spot 1 in reach, 20 of 4000: under 1 %
         string memory s = _svg(_json(id));
         assertTrue(
-            T.contains(s, '<text x="160" y="262" text-anchor="middle" font-size="9" fill="#4a5562">0 of 4000 shots on spot 1</text>'),
+            T.contains(s, '<text x="160" y="262" text-anchor="middle" font-size="9" fill="#4a5562">20 of 4000 shots on spot 1</text>'),
             s
         );
     }
@@ -316,7 +336,7 @@ contract ReachWordsTest is HonestyBase {
     /// a caught hamster with neckwear (spot bit 2): the scarf's tail ends at y 228, above the CAUGHT label (cap top
     /// about y 236.5 for 13 px bold at y 246)
     function test_scarf_tail_clears_the_caught_label() public {
-        uint256 id = _cast(alice, 15); // hat, glasses, scarf, grin
+        uint256 id = _castOn(15, _counts1104()); // hat, glasses, scarf, grin
         _post1104(); // 808 / 4000: Common
         string memory s = _svg(_json(id));
         assertTrue(T.contains(s, "CAUGHT &#183; COMMON"));

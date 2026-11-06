@@ -11,7 +11,7 @@ contract CatchArt {
     struct Card {
         uint8 status; // 0 waiting for the chip, 1 caught, 2 got away, 3 he slept, 4 no chip result
         uint32 night;
-        uint8 spot;
+        uint8 spot; // the spot the net's drawn shot landed on; 255 (none) until a ran night is posted
         uint16 hits;
         uint32 shots;
         uint8 tier; // 0 none, 1 Common .. 5 Legendary
@@ -26,26 +26,33 @@ contract CatchArt {
         bytes32 sha; // sha256 of the result file the counts come from
     }
 
-    /// Inlined into JSON: no double quotes, no backslashes. The description is HEAD, then the net's own note (out of
-    /// reach: why it got away; caught: its rank), then WHEEL, the reach rule (with the night's steps and his start once
-    /// they are posted), then RULES.
-    string internal constant HEAD = "Free Sepolia test NFT, no value. ";
+    /// Inlined into JSON: no double quotes, no backslashes. The description is HEAD, then the net's own note (its drawn
+    /// spot; out of reach: why it got away; caught: its rank), then WHEEL, the reach rule (with the night's steps and
+    /// his start once they are posted), then RULES. HEAD says nothing about a price: the renderer does not know
+    /// whether its game takes test SQK for a net (QuantumCatch.NET_COST).
+    string internal constant HEAD = "Sepolia test NFT, no value. ";
     string internal constant WHEEL =
-        "A net on one spot of the Quantum Wheel. The real hamster Squeektoshi's wheel run that night (read from SqueekCore "
-        "by the hatcher) programs a quantum walk on a ring of 16 spots, which runs on a real IBM quantum computer the next "
-        "morning. ";
+        "A net for one night of Quantum Catch: a ticket for one of the chip's shots, nobody picks a spot. The real "
+        "hamster Squeektoshi's wheel run that night (read from SqueekCore by the hatcher) programs a quantum walk on a "
+        "ring of 16 spots, which runs on a real IBM quantum computer the next day. ";
     string internal constant RULES =
-        "A spot is catchable tonight if it is in reach and the chip lands there in at least 1% of its shots: a net on a "
-        "catchable spot catches that spot's hamster; otherwise the hamster got away. The tier is the spot's rank among "
-        "tonight's catchable spots by landings, most first (equal landings: the lower spot number first): the last one "
-        "is Epic, the one before it Rare, the two before those Uncommon, all others Common. Legendary is the Epic spot "
-        "when the chip's very first shot of the night landed on it. A net on a spot out of reach tonight never catches: "
-        "he could not land there, so any landings there are the chip's own noise. The hatcher's only power is to post "
-        "each night's numbers once (the landings per spot, his turns, the steps and the spot of the first shot), within "
-        "14 days after the night ends: it cannot mint, move or burn nets, and this contract cannot check its numbers "
-        "(check them against the result file, by its IBM job and sha256; the first shot is the first entry of its "
-        "shots_in_order plus his total turns, mod 16). If nothing is posted in time, the net reads No chip result for "
-        "good.";
+        "Once the night's result is posted, each net gets one of the chip's shots that night, drawn at random over all "
+        "its landings (keccak256 of the night, the result file's sha256, the IBM job id and the net's token id, modulo "
+        "the shots, counted through the spots in order), so a spot with more landings is drawn more often; the nets "
+        "close before the chip runs, so no caster can know or choose a draw; the hatcher, which posts the result, sees "
+        "the draws first and is trusted for them as for every number. A spot is catchable tonight if it is in reach "
+        "and the chip lands there in at least 1% of its shots: a net whose shot landed on a catchable spot catches that "
+        "spot's hamster; otherwise the hamster got away. The tier is the spot's rank among tonight's catchable spots by "
+        "landings, most first (equal landings: the lower spot number first): the last one is Epic, the one before it "
+        "Rare, the two before those Uncommon, all others Common. Legendary is the Epic spot when the chip's very first "
+        "shot of the night landed on it. A shot on a spot out of reach tonight never catches: he could not land there, "
+        "so any landings there are the chip's own noise. A night he slept draws nothing. The hatcher's only power is to "
+        "post each night's numbers once (the landings per spot, his turns, the steps, the spot of the first shot, the "
+        "IBM job and the file's sha256), within 14 days after the night ends: it is not a player, it cannot mint, move "
+        "or burn nets, and this contract cannot check its numbers (check them against the result file, by its IBM job "
+        "and sha256; the first shot is the first entry of its shots_in_order plus his total turns, mod 16). If nothing "
+        "is posted in time, the net reads No chip result for good. Only a net's holder, or an address it approves, can "
+        "burn it.";
     string internal constant OUT_NOTE = "Out of reach tonight: he could not land here; ";
 
     string internal constant INK = "#26201c";
@@ -56,13 +63,11 @@ contract CatchArt {
     ///        the drawn one
     function tokenURI(Card memory c, string memory painted) external pure returns (string memory) {
         string memory date = CatchLib.dateString(c.night);
-        string memory spotS = CatchLib.toString(c.spot);
+        string memory spotS = c.spot < 16 ? CatchLib.toString(c.spot) : "";
         string memory image = CatchLib.base64(svg(c, date, spotS, painted));
         bytes memory json = abi.encodePacked(
             '{"name":"Quantum Catch: night of ',
-            date,
-            ", spot ",
-            spotS,
+            c.spot < 16 ? string.concat(date, ", spot ", spotS) : date,
             '","description":"',
             _description(c),
             '","attributes":[',
@@ -75,23 +80,24 @@ contract CatchArt {
     }
 
     function _description(Card memory c) private pure returns (bytes memory) {
-        return abi.encodePacked(HEAD, reachNote(c), catchNote(c), WHEEL, reachRule(c), RULES);
+        bytes memory notes = abi.encodePacked(HEAD, drawNote(c), reachNote(c), catchNote(c));
+        return abi.encodePacked(notes, WHEEL, reachRule(c), RULES);
     }
 
     // ---------------------------------------------------------------- attributes
 
-    function _attributes(Card memory c, string memory date, string memory spotS) private pure returns (bytes memory) {
-        bytes memory head = abi.encodePacked(
-            _str("Night", date),
-            ",",
-            _num("Spot", spotS),
-            ",",
-            _str("Status", statusName(c.status)),
-            ",",
-            _str("Tier", tierName(c.tier)),
-            ","
-        );
-        return abi.encodePacked(head, _looks(c.spot), ",", _tail(c));
+    /// Night, Spot (once drawn), Status, Tier, the caught hamster's Hat / Glasses / Neckwear / Face (only when caught),
+    /// then Landings, Shots, IBM job, Steps, Reach, Result sha256, First shot
+    function _attributes(Card memory c, string memory date, string memory spotS)
+        private
+        pure
+        returns (bytes memory out)
+    {
+        out = _str("Night", date);
+        if (c.spot < 16) out = abi.encodePacked(out, ",", _num("Spot", spotS));
+        out = abi.encodePacked(out, ",", _str("Status", statusName(c.status)), ",", _str("Tier", tierName(c.tier)));
+        if (c.status == 1) out = abi.encodePacked(out, ",", _looks(c.spot));
+        return abi.encodePacked(out, ",", _tail(c));
     }
 
     function _looks(uint8 s) private pure returns (bytes memory) {
@@ -124,11 +130,19 @@ contract CatchArt {
         );
     }
 
-    /// A net out of reach tonight (it got away: a perfect walk could not land there) says why, with its landings:
-    /// "Out of reach tonight: he could not land here; the 40 landings here are the chip's noise. " Empty otherwise.
+    /// A net with a drawn shot says where it landed: "Its shot landed on spot 5. " Empty before the draw.
+    function drawNote(Card memory c) internal pure returns (string memory) {
+        if (c.spot >= 16) return "";
+        return string.concat("Its shot landed on spot ", CatchLib.toString(c.spot), ". ");
+    }
+
+    /// A net whose shot landed out of reach tonight (it got away: a perfect walk could not land there) says why, with
+    /// the landings there (at least the drawn one): "Out of reach tonight: he could not land here; the 40 landings
+    /// here are the chip's noise. " In reach under 1 %: "Under 1% of the shots landed here: the hamster got away. "
+    /// Empty otherwise.
     function reachNote(Card memory c) internal pure returns (string memory) {
+        if (c.status == 2 && c.reach == 1) return "Under 1% of the shots landed here: the hamster got away. ";
         if (c.reach != 2) return "";
-        if (c.hits == 0) return string.concat(OUT_NOTE, "the chip did not land here either. ");
         if (c.hits == 1) return string.concat(OUT_NOTE, "the 1 landing here is the chip's noise. ");
         return string.concat(OUT_NOTE, "the ", CatchLib.toString(c.hits), " landings here are the chip's noise. ");
     }
@@ -345,7 +359,9 @@ contract CatchArt {
                 'font-size="60" font-weight="bold" fill="#8e97b5">?</text>'
             );
             label = "WAITING FOR THE CHIP";
-            sub = abi.encodePacked("night of ", date, " &#183; spot ", spotS);
+            // two lines (in one line it ran into the ring's two lower side dots in Chrome): the date, then the draw
+            sub = abi.encodePacked("night of ", date, '<tspan x="160" dy="12">its spot is drawn after the run</tspan>');
+            high = true;
         }
         return abi.encodePacked(
             '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" font-family="Verdana,sans-serif">',
@@ -360,8 +376,9 @@ contract CatchArt {
     }
 
     /// The label (13 px bold) and the line under it (9 px). A two-line caption (out of reach: "... chip noise" and
-    /// "he could not land here" 12 px lower) is 10 px higher, at y 236 / 252 / 264, so its last line stays 9 px clear of
-    /// the dashed net on spots 7 and 9 (top edge y 273.1); otherwise y 246 / 262.
+    /// "he could not land here" 12 px lower; waiting: "night of <date>" and "its spot is drawn after the run") is 10 px
+    /// higher, at y 236 / 252 / 264, so its last line stays 9 px clear of the dashed net on spots 7 and 9 (top edge y
+    /// 273.1); otherwise y 246 / 262.
     function _caption(string memory ink, string memory label, bytes memory sub, bool high)
         private
         pure
@@ -384,15 +401,16 @@ contract CatchArt {
         );
     }
 
-    /// "308 of 4000 shots on spot 5", or, when a perfect walk cannot land there, "46 of 4000 shots: chip noise" (or
-    /// "no landings") with a second line "he could not land here" (short, no descenders: it sits just above the bottom
-    /// spots of the ring)
+    /// "308 of 4000 shots on spot 5" (the drawn shot's spot), or, when a perfect walk cannot land there, "46 of 4000
+    /// shots: chip noise" with a second line "he could not land here" (short, no descenders: it sits just above the
+    /// bottom spots of the ring). A drawn spot always has a landing (the drawn shot).
     function _landed(Card memory c, string memory spotS) private pure returns (bytes memory) {
         if (c.reach == 2) {
             return abi.encodePacked(
-                c.hits == 0
-                    ? "no landings"
-                    : string.concat(CatchLib.toString(c.hits), " of ", CatchLib.toString(c.shots), " shots: chip noise"),
+                CatchLib.toString(c.hits),
+                " of ",
+                CatchLib.toString(c.shots),
+                " shots: chip noise",
                 '<tspan x="160" dy="12">he could not land here</tspan>'
             );
         }
@@ -402,7 +420,7 @@ contract CatchArt {
     }
 
     /// The 16 spots, clockwise from the top. After a run each dot's size shows how often the chip landed there;
-    /// the dashed circle is this net.
+    /// the dashed circle is where this net's drawn shot landed (none before the draw).
     function _ring(Card memory c, string memory ink) private pure returns (bytes memory out) {
         bool ran = c.status == 1 || c.status == 2;
         out = abi.encodePacked('<g fill="', ink, '" fill-opacity=".35">');
@@ -417,9 +435,11 @@ contract CatchArt {
                 out, '<circle cx="160" cy="20" r="', CatchLib.toString(r), '" transform="rotate(', _angle(i), ' 160 160)"/>'
             );
         }
+        out = abi.encodePacked(out, "</g>");
+        if (c.spot >= 16) return out; // nothing drawn yet (or he slept, or no chip result): no net on the ring
         out = abi.encodePacked(
             out,
-            '</g><circle id="mynet" cx="160" cy="20" r="15" fill="none" stroke="',
+            '<circle id="mynet" cx="160" cy="20" r="15" fill="none" stroke="',
             ink,
             '" stroke-width="2.5" stroke-dasharray="4 3" transform="rotate(',
             _angle(c.spot),
