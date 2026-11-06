@@ -140,10 +140,11 @@ data = {**results, 'twin': twin, 'health_min': HEALTH_MIN,
         'core': {'address': newest['core'], 'genesis': newest['genesis']}}
 art = json.load(open(os.path.join(HERE, 'art', 'art.json')))
 SHOWCASE = json.load(open(os.path.join(HERE, 'art', 'showcase.json'), encoding='utf-8'))   # Season 2 preview cards (12 webp)
-TEASER = json.load(open(os.path.join(HERE, 'art', 'teaser.json')))                         # "Hamster battles" teaser (1200x500 webp)
+TEASER = json.load(open(os.path.join(HERE, 'art', 'teaser.json')))                         # "Hamster battles" fight scene (1400x781 webp)
+BANNERS = json.load(open(os.path.join(HERE, 'art', 'banners.json')))                       # the lab (footer) + the 5 prizes podium (How it works)
 assert len(SHOWCASE) == 12 and all(base64.b64decode(v['data'][:16])[:4] == b'RIFF' and v['traits'] for v in SHOWCASE.values())
 assert base64.b64decode(TEASER['data'][:16])[:4] == b'RIFF'
-art = {**art, 'showcase': SHOWCASE, 'teaser': TEASER}        # in memory only: art.json (packed on-chain) is not rewritten
+art = {**art, 'showcase': SHOWCASE, 'teaser': TEASER, 'banners': BANNERS}        # in memory only: art.json (packed on-chain) is not rewritten
 
 T = rd(os.path.join(HERE, 'page.template.html'))
 rep = {'/*__ENGINE__*/': rd(os.path.join(HERE, 'engine.js')), '/*__CATCH__*/': rd(os.path.join(HERE, 'catch.js')),

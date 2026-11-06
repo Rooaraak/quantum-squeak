@@ -238,7 +238,12 @@ test('v3 structure: the game view and the Details view, the art band and the Sea
     assert.ok(v.traits.length && !v.traits.some((t) => /v[a]ult/i.test(t)), `${name}: traits (none the export gate refuses)`);
     assert.ok(!text.includes(name), `${name}: drawn by JS, not static markup`);
   }
-  assert.ok(html.includes(TEASE.data.slice(0, 200)) && TEASE.w === 1200 && TEASE.h === 500, 'the teaser');
+  // owner 11-06: "use higgsfield to make a image here how they fight" + "some art from the hamster to make the page look better"
+  assert.ok(html.includes(TEASE.data.slice(0, 200)) && TEASE.w === 1400 && TEASE.h === 781, 'the fight scene');
+  const BAN = JSON.parse(fs.readFileSync(path.join(ROOT, 'wheel/art/banners.json'), 'utf8'));
+  for (const k of ['lab', 'podium']) assert.ok(html.includes(BAN[k].data.slice(0, 200)), `${k} art in the page`);
+  assert.ok(/<footer>\s*<img class="fart" id="labart"/.test(html), 'the lab picture opens the footer');
+  assert.ok(/<img class="podart" id="podart"[^>]*>\s*<dl class="faq"/.test(html), 'the prizes podium sits in How it works, before the questions');
   // the faucet resets per net night (SqkFaucet: one claim per wallet per open night), never "a day"
   assert.ok(!/once a day|free daily|per wallet per day|come back tomorrow/i.test(text + scripts), 'the faucet is per net night');
   const rm = block('@media (prefers-reduced-motion: reduce)');

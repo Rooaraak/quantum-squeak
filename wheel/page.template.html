@@ -294,6 +294,10 @@ a:hover { color: var(--ink) }
 #needlink { flex-direction: row; gap: 8px; min-height: 52px; border-color: var(--cyan); color: var(--cyan); text-decoration: none; transition: background-color .15s, color .15s }
 #needlink::after { content: "\2192"; font: 700 18px/1 var(--mono) }
 #needlink:hover { background: var(--cyan); color: var(--navy) }
+#mmlink { min-height: 60px; font-size: 22px; text-decoration: none; background: var(--accent); color: var(--cream); box-shadow: inset 0 -5px 0 var(--accent-d), 0 5px 0 var(--accent-dd), 0 18px 36px -10px rgba(216, 30, 58, .55) }
+#mmlink:active { transform: translateY(4px); box-shadow: inset 0 -3px 0 var(--accent-d), 0 1px 0 var(--accent-dd) }
+#needlink.quiet { min-height: 0; padding: 2px; border: 0; background: none; font: 400 13px/1.4 var(--mono); text-transform: none; letter-spacing: 0; color: var(--cyan); text-decoration: underline; text-underline-offset: 3px }
+#needlink.quiet::after { font-size: 13px }
 .status { display: flex; align-items: flex-start; gap: 9px; margin: 10px 2px 0 }
 .status .clock { display: none; flex: none; width: 17px; height: 17px; margin-top: 1px }
 .deck.tonight .status .clock { display: block }
@@ -333,9 +337,14 @@ a:hover { color: var(--ink) }
 .soon { position: relative; z-index: 0; margin-top: 8px; padding: 132px 0 56px }
 .soon::before, footer::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; border-image: linear-gradient(rgba(5, 10, 34, 0), var(--card2) 124px) fill 0 / / 0 100vmax }
 .soon::after { content: ""; position: absolute; z-index: -1; left: 0; right: 0; top: 0; height: 640px; pointer-events: none; background: radial-gradient(closest-side, rgba(125, 235, 255, .16), transparent) }
+/* phones: a short fade into the dark scene (owner's 11-06 phone shot showed a tall empty band above the battle art) */
+@media (max-width: 639px) { .soon { padding-top: 64px } .soon::before { border-image: linear-gradient(rgba(5, 10, 34, 0), var(--card2) 56px) fill 0 / / 0 100vmax } }
 .sban { position: relative; border-radius: var(--r-l); overflow: hidden; box-shadow: var(--lift), 0 0 60px -12px rgba(125, 235, 255, .4); background: var(--card) }
 .sban img { display: block; width: 100%; height: auto; aspect-ratio: 3 / 2; object-fit: cover }
 .sban img:not([src]), .gcard img:not([src]) { visibility: hidden }
+.fart { display: block; width: 100%; height: auto; max-width: 100%; aspect-ratio: 1400 / 594; object-fit: cover; margin: 0 0 22px; border-radius: var(--r-l); box-shadow: var(--lift), 0 0 50px -14px rgba(125, 235, 255, .35) }
+.podart { display: block; width: 100%; max-width: 640px; height: auto; aspect-ratio: 1200 / 670; margin: 22px 0 6px; border-radius: 14px }
+.fart:not([src]), .podart:not([src]) { visibility: hidden }
 .scopy { padding: 18px 12px 22px; text-align: center }
 .chipsoon { display: inline-block; padding: 6px 10px; border-radius: 4px; background: var(--accent); color: var(--cream); font: 700 12px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; rotate: -3deg; box-shadow: 0 4px 0 var(--accent-dd) }
 #soonh { margin: 12px 0 6px; font: 400 var(--fd-hero)/.95 var(--display); letter-spacing: .02em; text-transform: uppercase; color: var(--cream); text-shadow: 0 0 30px rgba(125, 235, 255, .45) }
@@ -364,7 +373,7 @@ a:hover { color: var(--ink) }
 @media (min-width: 640px) {
   .gal { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px }
   .gcard span { min-height: 2.6em }
-  .sban img { aspect-ratio: 12 / 5 }
+  .sban img { aspect-ratio: 2 / 1; object-position: 50% 30% }
   .scopy { position: absolute; left: 0; right: 0; bottom: 0; padding: 60px 24px 24px; background: linear-gradient(transparent, rgba(5, 10, 34, .9) 55%) }
 }
 @media (min-width: 900px) { .gal { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px } }
@@ -776,7 +785,7 @@ footer a { color: var(--ink) }
 
   <section class="soon" id="soon" aria-labelledby="soonh">
     <div class="sban">
-      <img id="teaser" alt="Two hamsters face off in a glowing arena: a tiger hamster with laser eyes and a gold one with devil horns" width="1200" height="500" decoding="async">
+      <img id="teaser" alt="Two hamsters fight in a glowing arena under the quantum computer: a tiger hamster fires laser eyes, a gold one with devil horns swings a ring of fire" width="1400" height="781" decoding="async">
       <div class="scopy"><span class="chipsoon">Coming soon</span><h2 id="soonh">Hamster battles</h2><p>Your catches will fight. New hamsters are on the way.</p></div>
     </div>
     <p class="gk" id="gk">A first look at Season 2</p>
@@ -824,6 +833,7 @@ footer a { color: var(--ink) }
             <li><b>The chip drops 4,000 times.</b> After his night ends (<span class="tend">13:00</span> your time) a real IBM quantum computer runs his program 4,000 times. Each run lands on one hamster: one drop.</li>
             <li><b>One drop is yours.</b> Your net gets one of those 4,000 drops, drawn at random on-chain once the night's result is posted, so nobody can choose it or know it before. The hamster it landed on is your catch. If your drop is chip noise (a spot he could not reach that night, or one with under 1% of the drops), your hamster got away.</li>
           </ol>
+          <img class="podart" id="podart" alt="The five prizes on a podium: honey, tiger, circuit, crystal and gold hamsters" width="1200" height="670" loading="lazy" decoding="async">
           <dl class="faq" id="faq">
             <dt>Why 16 hamsters?</dt><dd>The quantum program keeps his place on the ring in 4 qubits, and 4 qubits give exactly 16 different answers: one per hamster.</dd>
             <dt>Why 4,000 drops?</dt><dd>A quantum computer gives a random answer each time, so it runs the same program 4,000 times. Each run lands on one hamster: one drop. Hamsters with few drops are the rare ones.</dd>
@@ -911,6 +921,7 @@ footer a { color: var(--ink) }
   </div>
 
   <footer>
+    <img class="fart" id="labart" alt="Squeektoshi runs his golden wheel under the quantum computer; its drops of light rain onto 16 little stands" width="1400" height="594" loading="lazy" decoding="async">
     <p class="lede">Squeektoshi's run programs a real quantum computer. Catch the hamster it lands on.</p>
     <p class="sub">Squeektoshi is a real hamster. Probably the first hamster to program a quantum computer.</p>
     <p>Test tokens only (Sepolia test ETH, Squeekchain test SQK): nothing here has money value.</p>
@@ -1703,6 +1714,14 @@ footer a { color: var(--ink) }
   $('mycount').onclick = () => route('mine');
   $('howlink').onclick = (e) => { e.preventDefault(); route('how'); };
   $('needlink').onclick = (e) => { e.preventDefault(); route('how'); };
+  // a phone browser has no wallet inside it (owner 11-06 on his phone: "where is wallet connection"): one button opens this
+  // very page in the MetaMask app's own browser, where the cast button connects; "What you need" becomes a quiet link under it
+  if (/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) && !window.ethereum && /^https?:$/.test(location.protocol) && location.host) {
+    const mm = document.createElement('a'); mm.className = 'btn'; mm.id = 'mmlink'; mm.rel = 'noopener'; mm.textContent = 'Open in MetaMask';
+    mm.href = 'https://metamask.app.link/dapp/' + location.host + location.pathname;
+    $('watch').querySelector('p').textContent = 'Open this page in your wallet app to cast a net.';
+    $('watch').insertBefore(mm, $('needlink')); $('watch').insertBefore(document.createTextNode(' '), $('needlink')); $('needlink').classList.add('quiet');
+  }
   $('morelink').onclick = (e) => { e.preventDefault(); route('details'); };
   $('back').onclick = (e) => { e.preventDefault(); route(''); };
 
@@ -2201,6 +2220,7 @@ footer a { color: var(--ink) }
   }
   const artIn = () => { for (const im of document.querySelectorAll('#soon img[data-src]')) { im.src = im.dataset.src; delete im.dataset.src; } };
   if (ART.teaser) $('teaser').dataset.src = 'data:image/webp;base64,' + ART.teaser.data;
+  if (ART.banners) { $('labart').src = 'data:image/webp;base64,' + ART.banners.lab.data; $('podart').src = 'data:image/webp;base64,' + ART.banners.podium.data; }
   renderGallery();
   try { const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { artIn(); io.disconnect(); } }, { rootMargin: '800px' }); io.observe($('soon')); } catch (e) { artIn(); }
 

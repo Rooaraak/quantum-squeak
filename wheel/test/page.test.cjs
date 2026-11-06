@@ -103,6 +103,7 @@ async function scenario(name, o, body) {
     await (await p.target().createCDPSession()).send('Emulation.setLocaleOverride', { locale: 'en-GB' });
     p.__mobile = width < 640;          // a phone: touch, no hover; kept on every resize in the scenario (a change would reload the page)
     await p.setViewport({ width, height, deviceScaleFactor: 1, isMobile: p.__mobile, hasTouch: p.__mobile });
+    if (o.ua) await p.setUserAgent(o.ua);          // a real phone browser's user agent (no wallet inside it)
     await p.evaluateOnNewDocument((fast, noStorage, at, storage, KEY, wallet, random) => {
       if (fast) window.__QW_FAST = 1;
       if (random != null) Math.random = () => random;          // the practice net's draw, fixed for the test
@@ -753,6 +754,19 @@ async function nftErrorScenario(chain, name, viewport, account) {
   });
 
   // 4. desktop, dark: the first screen
+  // a phone browser without a wallet inside it (11-06 owner on his phone: "where is wallet connection im on mobile"): one
+  // button opens this page in the MetaMask app's own browser, where the cast button connects; "What you need" stays as a link
+  const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
+  await scenario('phone-wallet-app', { width: 390, height: 844, ua: IPHONE }, async (p, { shot, noHScroll }) => {
+    assert.ok(await hidden(p, '#act'), 'no cast button without a wallet');
+    assert.equal(await txt(p, '#watch'), 'Open this page in your wallet app to cast a net. Open in MetaMask What you need');
+    const want = await p.evaluate(() => 'https://metamask.app.link/dapp/' + location.host + location.pathname);
+    assert.equal(await p.$eval('#mmlink', (e) => e.href), want, 'the MetaMask deep link to this very page');
+    assert.ok((await p.$eval('#mmlink', (e) => e.getBoundingClientRect().bottom)) <= 844, 'the MetaMask button is on the first screen');
+    await p.click('#needlink'); await p.waitForFunction(() => QCP.route === 'details', { timeout: 5000 });
+    await p.goto(p.url().split('#')[0], { waitUntil: 'load' }); await sleep(300);
+    await noHScroll('phone without a wallet'); await shot('wallet-app');
+  });
   await scenario('desktop-dark', { width: 1280, height: 800, scheme: 'dark' }, async (p, { shot, noHScroll }) => {
     await noHScroll('desktop dark'); await shot('1-first-screen');
     // the Season 2 grid: every trait line takes the same two lines, so every name sits on one baseline
