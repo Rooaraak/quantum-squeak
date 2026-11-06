@@ -33,7 +33,7 @@ A community project. Not made by the Squeekchain team.
 6. **The hamster**: a spot's 4 bits choose what it wears (bit 0 party hat, bit 1 glasses, bit 2 scarf, bit 3 grin or
    honey face), and the tier chooses its skin. The NFT draws the painted hamster fully on-chain.
 7. **Your net**: one net per wallet per night, cast before 21:00 UTC. Each net costs 0.01 Squeekchain test SQK, burned
-   when you cast (`contracts/src/SqkFaucet.sol` gives 0.01 per wallet per day), and is a Sepolia test NFT
+   when you cast (`contracts/src/SqkFaucet.sol` gives 0.01 per wallet per net night), and is a Sepolia test NFT
    (`contracts/src/QuantumCatch.sol`), cast from a browser wallet with one permit signature and one transaction (test
    tokens and test gas only, no money value); without a wallet the page is for watching. When its night's chip result is
    posted, each net gets one of the night's landings: keccak256(the night, the result's sha256, the IBM job id, the net's

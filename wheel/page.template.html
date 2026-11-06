@@ -24,28 +24,39 @@
   --display: "Anton", Impact, "Haettenschweiler", "Arial Narrow", "Liberation Sans Narrow", "Roboto Condensed", sans-serif;
   --body: "Space Mono", ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   --mono: "Space Mono", ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  /* v3 design tokens: radii, depth (a hard edge + a soft drop), the cyan glow, a type scale, the page's light layer */
+  --r-s: 6px; --r-m: 12px; --r-l: 20px;
+  --lift: 0 6px 0 var(--edge), 0 22px 44px -18px rgba(2, 6, 30, .75);
+  --glow-c: 0 0 0 1px rgba(125, 235, 255, .35), 0 0 28px rgba(125, 235, 255, .28);
+  --fs-xs: 11px; --fs-s: 12.5px; --fs-m: 14px; --fs-l: 16px;
+  --fd-s: 17px; --fd-m: 22px; --fd-l: 30px; --fd-xl: clamp(40px, 4.4vw, 58px); --fd-hero: clamp(40px, 7vw, 84px);
+  --glow: radial-gradient(70% 50% at 80% 0%, rgba(125, 235, 255, .10), transparent 70%);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #070b1a; --bg2: #050815; --card: #0c1433; --card2: #050a22; --ink: #fff4dc; --muted: #b9c3ea; --line: #22348f; --line2: #2d4ddb;
+    --bg: #070b1a; --bg2: #050815; --card: #0e1a4a; --card2: #050a22; --ink: #fff4dc; --muted: #b9c3ea; --line: #22348f; --line2: #2d4ddb;
     --accent: #d81e3a; --accent2: #7debff; --violet: #b9a6ff; --good: #84ecc4; --bad: #ff9a8a;
     --tile: #101c5c; --tile-line: #2d4ddb; --bar: #1f2c6b; --edge: #000000;
     --t0: #d6dce8; --t4: #ffd66b;
     --stage-a: #050920;
+    --glow: radial-gradient(90% 55% at 78% -5%, rgba(30, 60, 200, .60), transparent 70%), radial-gradient(70% 45% at 0% 35%, rgba(20, 43, 148, .50), transparent 70%);
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #070b1a; --bg2: #050815; --card: #0c1433; --card2: #050a22; --ink: #fff4dc; --muted: #b9c3ea; --line: #22348f; --line2: #2d4ddb;
+  --bg: #070b1a; --bg2: #050815; --card: #0e1a4a; --card2: #050a22; --ink: #fff4dc; --muted: #b9c3ea; --line: #22348f; --line2: #2d4ddb;
   --accent: #d81e3a; --accent2: #7debff; --violet: #b9a6ff; --good: #84ecc4; --bad: #ff9a8a;
   --tile: #101c5c; --tile-line: #2d4ddb; --bar: #1f2c6b; --edge: #000000;
   --t0: #d6dce8; --t4: #ffd66b;
   --stage-a: #050920;
+  --glow: radial-gradient(90% 55% at 78% -5%, rgba(30, 60, 200, .60), transparent 70%), radial-gradient(70% 45% at 0% 35%, rgba(20, 43, 148, .50), transparent 70%);
   color-scheme: dark;
 }
 * { box-sizing: border-box }
 html { -webkit-text-size-adjust: 100% }
 body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.55 var(--body); -webkit-tap-highlight-color: transparent; overflow-x: hidden }
+/* the page's light: a soft cyan sky in light, the cobalt identity in dark (body keeps its --bg; this layer sits on top of it) */
+body::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; background: var(--glow) }
 button { font: inherit; color: inherit; cursor: pointer }
 button:disabled { cursor: default }
 :focus-visible { outline: 3px solid var(--cyan); outline-offset: 3px }
@@ -71,23 +82,30 @@ a:hover { color: var(--ink) }
 .navl.snd[aria-pressed="true"] { border-color: var(--cyan); color: var(--cyan) }
 .navl .myshort { display: inline }
 .navl .navt { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap }
-.brand { position: relative; z-index: 1; display: inline-flex; align-items: center; min-height: 44px; margin: -14px 0 -12px; font: 400 10px/1.3 var(--mono); white-space: nowrap; color: var(--muted); text-decoration: none }
+.brand { position: relative; z-index: 1; display: inline-flex; align-items: center; min-height: 44px; margin: -14px 0 -12px; font: 400 11px/1.3 var(--mono); white-space: nowrap; color: var(--muted); text-decoration: none }
 .brand b { color: var(--ink); font-weight: 700 }
 .brand:hover span { text-decoration: underline }
 .bump { animation: bump .7s ease-out }
 @keyframes bump { 40% { transform: scale(1.15) } }
 
 /* ---------- the first screen: stage (the machine), headline, roster, control deck ---------- */
-.card { background: var(--card); color: var(--ink); border: 3px solid var(--cream); border-radius: 18px; padding: 16px; box-shadow: 0 6px 0 var(--edge); min-width: 0 }
+.card { background: var(--card); color: var(--ink); border: 3px solid var(--cream); border-radius: var(--r-l); padding: 16px; box-shadow: var(--lift); min-width: 0 }
 .card.play { background: none; border: 0; border-radius: 0; padding: 0; box-shadow: none; position: relative; display: grid; grid-template-columns: minmax(0, 42fr) minmax(0, 58fr);
   grid-template-rows: auto auto auto auto auto auto; column-gap: 10px; margin-top: 4px }
 .stage { grid-column: 1 / -1; grid-row: 1 / 4; position: relative; overflow: hidden; container-type: inline-size; min-height: 280px; margin-inline: -8px;
-  background: var(--stage-a); color: var(--stage-ink); border: 4px solid var(--cream); border-top: 0; border-radius: 0 0 20px 20px; box-shadow: 0 6px 0 var(--edge) }
+  background: var(--stage-a); color: var(--stage-ink); border: 4px solid var(--cream); border-top: 0; border-radius: 0 0 var(--r-l) var(--r-l); box-shadow: var(--lift) }
 .stage > * { position: absolute; pointer-events: none }
 .stage .rail { left: 0; right: 0; top: 0; height: 8px; background: var(--cream); border-bottom: 2px solid var(--paper2); z-index: 4 }
-.stage .wimg { left: -6cqw; bottom: 6px; width: 64cqw; height: 64cqw; opacity: .2; will-change: transform }
+.stage .wimg { left: -6cqw; bottom: 6px; width: 64cqw; height: 64cqw; opacity: .2; will-change: transform; transition: opacity .6s }
+/* he is running right now (the live sensor): his wheel turns faster and comes forward */
+.stage.run .wimg { opacity: .36 }
+/* a breathing glow behind the quantum computer (centred on it) */
+.stage .coreglow { left: -1.5cqw; top: calc(8px - 5.6cqw); width: 50cqw; height: 50cqw; border-radius: 50%; background: radial-gradient(circle, rgba(125, 235, 255, .42), transparent 65%); z-index: 1; animation: breathe 4.2s ease-in-out infinite }
+@keyframes breathe { 50% { opacity: .5; transform: scale(.9) } }
 .stage .beam { left: 6cqw; width: 36cqw; top: 36cqw; bottom: 16px; background: rgba(125, 235, 255, .12); clip-path: polygon(46% 0, 54% 0, 100% 100%, 0 100%) }
-.stage .beam.b2 { background: rgba(125, 235, 255, .16); clip-path: polygon(48.5% 0, 51.5% 0, 72% 100%, 28% 100%) }
+.stage .beam.b2 { background: linear-gradient(180deg, rgba(125, 235, 255, .30), rgba(125, 235, 255, .06) 85%); background-size: 100% 200%; clip-path: polygon(48.5% 0, 51.5% 0, 72% 100%, 28% 100%);
+  animation: qcbeam 2.6s ease-in-out infinite, shimmer 3.5s linear infinite }
+@keyframes shimmer { to { background-position: 0 -200% } }
 .stage .streak { left: 80cqw; top: -40px; width: 26px; height: 140%; background: rgba(255, 255, 255, .035); transform: rotate(16deg) }
 .stage .streak.s2 { left: 91cqw; width: 8px; background: rgba(255, 255, 255, .03) }
 .stage .core { left: 9cqw; top: 8px; width: 29cqw; height: 38.7cqw; filter: drop-shadow(0 0 18px rgba(125, 235, 255, .6)); z-index: 2 }
@@ -97,11 +115,13 @@ a:hover { color: var(--ink) }
 .podium { left: 3cqw; width: 42cqw; bottom: 2px; height: 34px; z-index: 1 }
 .podium i { position: absolute; border-radius: 50% }
 .podium .sh { left: 0; right: 0; bottom: 0; height: 24px; background: #02040f }
-.podium .tp { left: 0; right: 0; bottom: 10px; height: 24px; background: var(--bg); border: 2px solid var(--cream) }
+.podium .tp { left: 0; right: 0; bottom: 10px; height: 24px; background: radial-gradient(ellipse at 50% 35%, #3b5be0, #1e3cc8 55%, #142b94); border: 2px solid var(--cream) }
 .podium .rg { left: 19%; right: 19%; bottom: 16px; height: 12px; border: 2px solid var(--accent) }
 .podium .gl { left: 28%; right: 28%; bottom: 18px; height: 8px; background: rgba(125, 235, 255, .5); box-shadow: 0 0 18px 5px rgba(125, 235, 255, .4) }
 .stage .ham { left: 6.5cqw; bottom: 18px; width: 34cqw; height: auto; aspect-ratio: 448 / 612; z-index: 3; transition: filter .4s }
 .stage .ham.away { filter: grayscale(.85) brightness(.5) }
+/* the mystery hamster: a hologram with a glowing '?' */
+#ham[data-spot=""] { filter: drop-shadow(0 0 2px rgba(125, 235, 255, .9)) drop-shadow(0 0 26px rgba(125, 235, 255, .45)) }
 .stage .stamp { left: 24cqw; bottom: 30%; translate: -50% 0; rotate: -8deg; z-index: 4; font: 700 11px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--cyan);
   border: 2px solid var(--cyan); padding: 6px 9px; border-radius: 6px; background: rgba(5, 10, 34, .85); opacity: 0; transition: opacity .3s; max-width: 40cqw; width: max-content; text-align: center; line-height: 1.2 }
 .stage .stamp.on { opacity: 1 }
@@ -111,14 +131,34 @@ a:hover { color: var(--ink) }
 @keyframes qcbeam { 0%, 100% { opacity: .7 } 50% { opacity: 1 } }
 .qc-idle { animation: qcidle 3.4s ease-in-out infinite }
 @keyframes qcidle { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-4px) } }
+/* the cast moment (~2 s): the beam flashes, a cyan drop falls down the beam onto the podium (a ring bursts), and the net's
+   card, waiting dimmed in the deck, lands with a glow */
+.stage.cast .beam { animation: qcbeam 2.6s ease-in-out infinite, beamflash 1.1s ease-out 1 }
+.stage.cast .beam.b2 { animation: qcbeam 2.6s ease-in-out infinite, shimmer 3.5s linear infinite, beamflash2 1.1s ease-out 1 }
+.stage.cast .coreglow { animation: breathe 4.2s ease-in-out infinite, coreflash 1.1s ease-out 1 }
+@keyframes beamflash { 10%, 45% { background-color: rgba(200, 248, 255, .5) } }
+@keyframes beamflash2 { 10%, 45% { opacity: 1; filter: brightness(2.2) } }
+@keyframes coreflash { 10%, 40% { opacity: 1; transform: scale(1.18) } }
+.podium.burst .gl { animation: burst .6s ease-out 1 }
+@keyframes burst { 30% { opacity: 1; background: #e9fcff } to { transform: scale(2.4); opacity: 0 } }
+.podium.burst .rg { animation: ringburst .8s ease-out 1 }
+@keyframes ringburst { 0% { border-color: var(--cyan); box-shadow: 0 0 0 2px var(--cyan), 0 0 22px var(--cyan) } 60% { transform: scale(2.4); opacity: 0; border-color: var(--cyan) } 61% { transform: none; opacity: 0 } }
+.nftbox.pre { opacity: .35; transform: translateY(8px) scale(.97); filter: saturate(.3) }
+.nftbox.new { animation: cardin .55s cubic-bezier(.3, 1.5, .5, 1), cardglow 1.6s ease-out .55s }
+@keyframes cardin { from { opacity: .35; transform: translateY(8px) scale(.97); filter: saturate(.3) } }
+@keyframes cardglow { 0% { box-shadow: 0 0 0 3px var(--cyan), 0 0 40px var(--cyan) } }
 
 .chiptag { grid-column: 2; grid-row: 1; z-index: 2; justify-self: start; align-self: start; margin: 10px 8px 0 0; padding: 4px 8px; background: var(--card2); border: 2px solid var(--cyan); border-radius: 5px; color: var(--cyan); min-width: 0 }
-.chiptag b { display: block; font: 700 10.5px/1.3 var(--mono); text-transform: uppercase; white-space: nowrap }
-.chiptag span { display: none; font: 400 11px/1.4 var(--mono); color: var(--muted) }
+.chiptag b { display: block; font: 700 11px/1.3 var(--mono); text-transform: uppercase; white-space: nowrap }
+/* ALIVE: his wheel right now (the live sensor + his turns tonight) and the nets cast tonight */
+.chiptag .alive { display: flex; flex-direction: column; gap: 3px; margin: 6px 0 0; font: 700 11px/1.3 var(--mono); white-space: normal }
+.alive .live { display: flex; gap: 7px; align-items: baseline; color: var(--muted); text-decoration: none }
+.alive .live.run { color: var(--good) }
+.alive .live::before { flex: none; translate: 0 -1px }
+.alive .netsn { color: var(--cyan); padding-left: 15px }
 .hl { grid-column: 2; grid-row: 2; z-index: 2; padding: 6px 8px 6px 0; min-width: 0 }
-.headline { margin: 0; font: 400 19px/1.02 var(--display); letter-spacing: .01em; text-transform: uppercase; color: var(--ink) }
+.headline { margin: 0; font: 400 20px/1.02 var(--display); letter-spacing: .01em; text-transform: uppercase; color: var(--ink); text-wrap: balance; text-shadow: 0 1px 10px rgba(5, 10, 34, .95) }
 .headline em { font-style: normal; color: var(--cyan) }
-.hl .lede { margin: 6px 0 0; font: 400 10px/1.35 var(--mono); color: var(--muted) }
 
 /* the name plate: YOUR CATCH, No. N (a '?' until the chip's drop decides), what it wears or when it is decided, the band */
 .plate { grid-column: 2; grid-row: 3; z-index: 2; align-self: end; justify-self: start; width: min(100%, 196px); margin: 4px 8px 8px 0 }
@@ -132,6 +172,9 @@ a:hover { color: var(--ink) }
 .plate .pw { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 1px; font: 700 9px/1.2 var(--mono); letter-spacing: .03em; text-transform: uppercase; min-width: 0 }
 .plate .pb { background: var(--navy); padding: 4px 12px }
 .plate .pb p { margin: 0; transform: skewX(10deg); font: 700 9.5px/1.3 var(--mono); color: var(--cyan); text-transform: uppercase }
+/* flat views (nothing known yet): the plate says only YOUR CATCH and the '?' */
+#play.flat .plate .pb, #play.flat .plate .pw { display: none }
+#play.flat .plate .pci { justify-content: center }
 
 /* the roster: the 16 hamsters you could catch (the ring of 16 spots, laid out as a grid; nobody picks one). Each tile: its
    number, the painted hamster, and a strip at the bottom: what it was on the night shown (a word from DATA) and that
@@ -215,58 +258,55 @@ a:hover { color: var(--ink) }
 .prizes { grid-column: 1 / -1; grid-row: 6; margin: 22px 0 0; min-width: 0 }
 .prizes .prh { margin: 0; font: 400 17px/1.05 var(--display); letter-spacing: .03em; text-transform: uppercase }
 .prow { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin-top: 6px }
-.prz { display: grid; justify-items: center; gap: 1px; padding: 4px 2px 5px; border: 2px solid var(--tile-line); border-radius: 10px; background: var(--tile); text-align: center; min-width: 0 }
+.prz { display: grid; justify-items: center; gap: 1px; padding: 4px 2px 5px; border: 2px solid var(--tile-line); border-radius: var(--r-m); background: var(--tile); text-align: center; min-width: 0; box-shadow: var(--lift) }
 .prz canvas { width: 100%; max-width: 46px; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle at 50% 30%, #3b5be0, var(--navy)) }
 .prz b { font: 400 13px/1.1 var(--display); letter-spacing: .03em; text-transform: uppercase }
 .prz span { font: 400 9.5px/1.25 var(--mono); color: var(--muted) }
 .prz .po { font-weight: 700; color: var(--ink); white-space: nowrap }
+.prz[data-t="3"] { border-color: var(--t3); box-shadow: var(--lift), 0 0 18px color-mix(in srgb, var(--t3) 35%, transparent) }
+.prz[data-t="4"] { border-color: var(--t4); box-shadow: var(--lift), 0 0 18px color-mix(in srgb, var(--t4) 35%, transparent) }
 .prz[data-t="0"] b { color: var(--t0) } .prz[data-t="1"] b { color: var(--t1) } .prz[data-t="2"] b { color: var(--t2) } .prz[data-t="3"] b { color: var(--t3) } .prz[data-t="4"] b { color: var(--t4) }
 .podds { margin: 6px 0 0; font: 400 10.5px/1.4 var(--mono); color: var(--muted) }
 .podds:empty { display: none }
-@media (max-width: 420px) { .prz b { font-size: 11px; letter-spacing: .01em } .prz .po.w { font-size: 8.5px; letter-spacing: -.03em } .nfthint { font-size: 10.5px } }
+@media (max-width: 420px) { .prz b { font-size: 11px; letter-spacing: .01em } .prz .po.w { font-size: 8.5px; letter-spacing: -.03em } }
 
-/* the control deck: LCD, the ONE action (casting = minting the free test NFT, R6'), the night's clock. On a phone the LCD is
-   a one-line strip over a full-width button; from 640 px they sit side by side. The action slot always has content: the
-   cast button, the watch line (no wallet), the minted net, or the LCD alone */
-.deck { grid-column: 1 / -1; grid-row: 5; margin: 8px -8px 0; padding: 7px 10px 4px; background: var(--card); color: var(--ink); border: 3px solid var(--cream); border-radius: 18px; box-shadow: 0 6px 0 var(--edge); min-width: 0 }
-.deckrow { display: flex; flex-direction: column; gap: 6px; align-items: stretch }
-.lcd { flex: none; min-height: 0; margin: 0; padding: 3px 10px; background: var(--card2); border: 3px solid var(--line); border-radius: 10px; color: var(--cyan);
-  display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 2px 10px; min-width: 0 }
-.lcd p { margin: 0 }
-.lcd .l1 { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 7px; font: 700 10px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; white-space: nowrap }
-.lcd .l1 b { font-size: 15px; letter-spacing: .02em }
-.lcd .l2 { min-width: 0; font: 400 9px/1.25 var(--mono); letter-spacing: .02em; text-transform: uppercase; text-align: right }
-.actions { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0 }
-.deckrow.solo .actions { display: none }
+/* the control deck: the ONE action (casting = minting the net's test NFT, R6') and ONE short line (owner, 6 Nov: "make it
+   simple"). Before casting: the big button + "Nets close 22:00 · result tomorrow 13:00"; after casting: the net's card
+   (thumb, ✓ Your net is in, the result's time, a countdown) and nothing else */
+.deck { grid-column: 1 / -1; grid-row: 5; margin: 12px -8px 0; padding: 10px; background: var(--card); color: var(--ink); border: 3px solid var(--cream); border-radius: var(--r-l); box-shadow: var(--lift); min-width: 0 }
+.actions { display: flex; flex-direction: column; gap: 8px; min-width: 0 }
 .btn { flex: none; min-height: 54px; max-width: 100%; margin: 0; padding: 6px 12px; border: 0; border-radius: 14px; font: 400 19px/1.05 var(--display); letter-spacing: .02em; text-transform: uppercase;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; text-align: center; transition: transform .12s, box-shadow .12s, background-color .15s, opacity .2s }
-#act { background: var(--accent); color: var(--cream); box-shadow: inset 0 -5px 0 var(--accent-d), 0 5px 0 var(--accent-dd) }
-#act:hover { background: #c2183f }
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; text-align: center; transition: transform .12s, box-shadow .12s, background-color .15s, opacity .2s, filter .15s }
+#act { min-height: 64px; font-size: 24px; background: var(--accent); color: var(--cream); box-shadow: inset 0 -5px 0 var(--accent-d), 0 5px 0 var(--accent-dd), 0 18px 36px -10px rgba(216, 30, 58, .55) }
+#act:hover { filter: brightness(1.06) }
 #act:active { transform: translateY(4px); box-shadow: inset 0 -3px 0 var(--accent-d), 0 1px 0 var(--accent-dd) }
-#act::after { content: attr(data-sub); font: 700 9.5px/1.2 var(--mono); letter-spacing: .08em }
+#act::after { content: attr(data-sub); font: 700 11px/1.2 var(--mono); letter-spacing: .08em }
 #act:not([data-sub])::after { display: none }
 .btn .nw { white-space: nowrap }
 #act:disabled { background: #6b2a4a; color: #f3dfe6; box-shadow: inset 0 -5px 0 #4d1d35, 0 5px 0 #2d0f1f; transform: none }
 .btn.ghost { min-height: 44px; background: transparent; color: var(--ink); border: 2px solid var(--muted); box-shadow: none; font-size: 16px; padding: 6px 14px }
 .btn.ghost:hover { border-color: var(--ink) }
 .btn:disabled { opacity: .85 }
-/* no wallet (or no contract in this build): watch mode, one plain line and the faucet link where the button would be */
-.watch { min-height: 54px; margin: 0; padding: 6px 10px; border: 2px dashed var(--muted); border-radius: 14px; display: flex; flex-direction: column; justify-content: center; gap: 0;
-  font: 400 10px/1.35 var(--mono); color: var(--ink) }
-.watch p { margin: 0 }
-.watch a { position: relative; font-weight: 700; color: var(--cyan); white-space: nowrap }
-.watch a::after { content: ""; position: absolute; inset: -14px -6px }
-.status { display: flex; align-items: flex-start; gap: 9px; margin: 8px 2px 0 }
+/* no wallet (or no contract in this build): watch mode, one plain line and ONE button ("What you need") where the cast
+   button would be, on the deck's own surface */
+.watch { margin: 0; padding: 2px 4px 0; display: flex; flex-direction: column; gap: 10px; font: 400 12.5px/1.45 var(--mono); color: var(--ink); text-align: center }
+.watch p { margin: 0; text-wrap: balance }
+#needlink { flex-direction: row; gap: 8px; min-height: 52px; border-color: var(--cyan); color: var(--cyan); text-decoration: none; transition: background-color .15s, color .15s }
+#needlink::after { content: "\2192"; font: 700 18px/1 var(--mono) }
+#needlink:hover { background: var(--cyan); color: var(--navy) }
+.status { display: flex; align-items: flex-start; gap: 9px; margin: 10px 2px 0 }
 .status .clock { display: none; flex: none; width: 17px; height: 17px; margin-top: 1px }
 .deck.tonight .status .clock { display: block }
-.prompt { margin: 0; min-width: 0; font: 700 12px/1.35 var(--mono); color: var(--ink) }
+.deck.tonight #status { justify-content: center; text-align: center; margin-top: 12px }
+.prompt { margin: 0; min-width: 0; font: 700 12px/1.35 var(--mono); color: var(--ink); text-wrap: balance }
+.cd, .cdn, .cdr { white-space: nowrap; font-variant-numeric: tabular-nums }
 .prompt small { display: block; margin-top: 3px; font: 400 11px/1.45 var(--mono); color: var(--muted) }
 .prompt small b { color: var(--ink) }
 .reveal { position: relative; margin: 2px 0 10px; border-radius: 12px; padding: 10px; background: var(--card2); border: 2px solid var(--line); display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 10px; align-items: center }
 .reveal.plain { grid-template-columns: minmax(0, 1fr) }
 .reveal.plain canvas { display: none }
 .reveal canvas { width: 64px; height: 64px; border-radius: 50%; background: radial-gradient(circle at 50% 30%, #3b5be0, #142b94) }
-.reveal .rt { font: 400 19px/1.1 var(--display); letter-spacing: .02em; margin: 0 }
+.reveal .rt { font: 400 24px/1.05 var(--display); letter-spacing: .02em; margin: 0 }
 .reveal .rs { font-size: 12px; line-height: 1.45; color: var(--stage-muted); margin: 4px 0 0 }
 .reveal .rs b { color: var(--stage-ink) }
 .qline { font-size: 12px; line-height: 1.4; margin: 6px 0 0; padding: 6px 8px; border-radius: 8px; background: rgba(0, 0, 0, .28); color: var(--stage-ink) }
@@ -275,16 +315,82 @@ a:hover { color: var(--ink) }
 .tag2 { display: inline-block; font: 700 10px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; padding: 3px 6px; border-radius: 4px; background: var(--mint); color: #062a1c; vertical-align: 1px; margin-right: 4px }
 .reveal.go { animation: rise .5s ease-out }
 @keyframes rise { from { opacity: 0; transform: translateY(10px) } }
-.nftbox { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 10px; align-items: center; margin: 0; padding: 7px 10px; border-radius: 12px; background: var(--cream); color: var(--navy); border: 0; font: 400 11px/1.4 var(--mono) }
-.nftbox img { width: 56px; height: 56px; border-radius: 8px; background: #0a0f24; display: block }
+/* the net's card (approved): NFT thumb + ✓ YOUR NET IS IN + the result's time + a countdown */
+.nftbox { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 14px; align-items: center; margin: 0; padding: 12px 14px; border-radius: 14px; background: var(--card2); color: var(--ink);
+  border: 2px solid var(--good); box-shadow: 0 0 0 3px rgba(132, 236, 196, .15), 0 0 28px rgba(132, 236, 196, .25); font: 400 12px/1.4 var(--mono) }
+.nftbox img { width: 88px; height: 88px; border-radius: 10px; background: #0a0f24; display: block }
 .nftbox img[hidden] + div { grid-column: 1 / -1 }
-.nftbox b { color: var(--navy) }
+#nfttext { display: grid; gap: 6px; min-width: 0 }
+#nfttext .ok { font: 400 26px/1 var(--display); letter-spacing: .02em; text-transform: uppercase; color: var(--good) }
+#nfttext .rl { font: 400 13px/1.3 var(--mono); color: var(--muted) }
+#nfttext .cdr { font: 700 22px/1.1 var(--mono); color: var(--cyan) }
 .nftmsg { font: 400 11.5px/1.4 var(--mono); color: var(--stage-muted); margin: 0 }
 .nftmsg.err { color: #ffb3a6 }
-.nfthint { font: 400 11px/1.4 var(--mono); color: var(--muted); margin: 6px 2px 2px }
 
-/* ---------- below the first screen ---------- */
+/* ---------- under the game: the art band ("Hamster battles", coming soon) and a first look at Season 2 ---------- */
+/* one night scene under the game: the cobalt fades into the dark (no hard line), and the footer stays in the dark. The full
+   width comes from a border-image outset (ink overflow: never a sideways scroll) */
+.soon { position: relative; z-index: 0; margin-top: 8px; padding: 132px 0 56px }
+.soon::before, footer::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; border-image: linear-gradient(rgba(5, 10, 34, 0), var(--card2) 124px) fill 0 / / 0 100vmax }
+.soon::after { content: ""; position: absolute; z-index: -1; left: 0; right: 0; top: 0; height: 640px; pointer-events: none; background: radial-gradient(closest-side, rgba(125, 235, 255, .16), transparent) }
+.sban { position: relative; border-radius: var(--r-l); overflow: hidden; box-shadow: var(--lift), 0 0 60px -12px rgba(125, 235, 255, .4); background: var(--card) }
+.sban img { display: block; width: 100%; height: auto; aspect-ratio: 3 / 2; object-fit: cover }
+.sban img:not([src]), .gcard img:not([src]) { visibility: hidden }
+.scopy { padding: 18px 12px 22px; text-align: center }
+.chipsoon { display: inline-block; padding: 6px 10px; border-radius: 4px; background: var(--accent); color: var(--cream); font: 700 12px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; rotate: -3deg; box-shadow: 0 4px 0 var(--accent-dd) }
+#soonh { margin: 12px 0 6px; font: 400 var(--fd-hero)/.95 var(--display); letter-spacing: .02em; text-transform: uppercase; color: var(--cream); text-shadow: 0 0 30px rgba(125, 235, 255, .45) }
+.scopy p { margin: 0; font: 400 var(--fs-m)/1.45 var(--mono); color: var(--muted) }
+.gk { margin: 44px 0 14px; text-align: center; font: 700 var(--fs-s)/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--cyan) }
+.gal { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px }
+.gcard { position: relative; margin: 0; border-radius: var(--r-m); overflow: hidden; background: var(--card); border: 2px solid rgba(201, 211, 255, .18); box-shadow: var(--lift);
+  transform: perspective(800px) rotateX(var(--ry, 0deg)) rotateY(var(--rx, 0deg)); transition: transform .2s ease-out, box-shadow .25s ease-out, border-color .25s }
+.gcard::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; background: radial-gradient(circle at var(--mx, 50%) var(--my, 0%), rgba(255, 255, 255, .18), transparent 55%); opacity: 0; transition: opacity .25s }
+.gcard:hover::after, .gcard:focus-visible::after { opacity: 1 }
+.gcard:hover, .gcard:focus-visible { box-shadow: var(--lift), var(--glow-c); border-color: rgba(125, 235, 255, .55) }
+.gcard img { display: block; width: 100%; height: auto; aspect-ratio: 480 / 643; background: var(--card2) }
+.gcard figcaption { position: absolute; left: 0; right: 0; bottom: 0; padding: 28px 12px 10px; background: linear-gradient(transparent, rgba(5, 10, 34, .92) 60%) }
+.gcard b { display: block; font: 400 var(--fd-s)/1.05 var(--display); letter-spacing: .02em; text-transform: uppercase; color: var(--cream) }
+.gcard span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; margin-top: 3px; font: 400 var(--fs-xs)/1.3 var(--mono); color: var(--muted) }
+.morep { margin: 36px 0 0; text-align: center }
+.morel { display: inline-flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 22px; border: 2px solid var(--cream); border-radius: 999px; color: var(--ink); text-decoration: none; font: 400 var(--fd-s)/1 var(--display); letter-spacing: .04em; text-transform: uppercase; transition: border-color .2s, color .2s }
+.morel:hover { border-color: var(--cyan); color: var(--cyan) }
+@media (max-width: 639px) {
+  .gal { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 12px; margin-inline: -16px; padding: 4px 16px 14px; scrollbar-width: none }
+  .gal::-webkit-scrollbar { display: none }
+  .gcard { flex: 0 0 62%; scroll-snap-align: center }
+}
+/* the grids: every trait line takes two lines and the columns are wide enough for the longest name, so every name sits on
+   one baseline (3 columns, 4 from 900 px, 6 from 1240 px) */
+@media (min-width: 640px) {
+  .gal { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px }
+  .gcard span { min-height: 2.6em }
+  .sban img { aspect-ratio: 12 / 5 }
+  .scopy { position: absolute; left: 0; right: 0; bottom: 0; padding: 60px 24px 24px; background: linear-gradient(transparent, rgba(5, 10, 34, .9) 55%) }
+}
+@media (min-width: 900px) { .gal { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px } }
+@media (min-width: 1240px) { .gal { grid-template-columns: repeat(6, minmax(0, 1fr)) } }
+@media (max-width: 380px) { .gcard span { min-height: 2.6em } }
+/* phones: "Cast a net" stays at hand once the deck has scrolled away (one tap = the same single cast, under the real button) */
+.castbar { position: fixed; z-index: 30; left: max(16px, env(safe-area-inset-left, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  translate: 0 calc(100% + 28px); opacity: 0; visibility: hidden; transition: translate .25s ease-out, opacity .2s, visibility .25s }
+.castbar.on { translate: 0 0; opacity: 1; visibility: visible }
+.castbar .btn { width: 100%; min-height: 60px; background: var(--accent); color: var(--cream); font-size: 24px; border-radius: 16px; box-shadow: inset 0 -5px 0 var(--accent-d), 0 5px 0 var(--accent-dd), 0 14px 30px -6px rgba(0, 0, 0, .6) }
+@media (min-width: 640px) { .castbar { display: none } }
+@media (max-width: 639px) { body.stickyon footer { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) } }
+
+/* ---------- Details (a view of its own: #details, #past, #tonight, #mine, #how, #check) ---------- */
 .ln { margin-top: 30px }
+.ln.view { margin-top: 0; padding-top: 6px }
+.dbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 56px }
+.back { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border: 2px solid var(--line2); border-radius: 999px; color: var(--ink); text-decoration: none; font: 700 13px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; transition: border-color .2s, color .2s }
+.back:hover { border-color: var(--cyan); color: var(--cyan) }
+.dmark { font: 400 20px/1 var(--display); letter-spacing: .04em; text-transform: uppercase }
+.dh { margin: 10px 0 20px; font: 400 var(--fd-xl)/1 var(--display); letter-spacing: .02em; text-transform: uppercase }
+#details .card { scroll-margin-top: 12px }
+.faq { margin: 14px 0 6px; display: grid; gap: 10px; max-width: 92ch }
+.faq dt { font: 400 var(--fd-s)/1.1 var(--display); text-transform: uppercase; letter-spacing: .03em; color: var(--cyan) }
+.faq dd { margin: 2px 0 0; font-size: 13px; max-width: 70ch }
+#needs { margin: 4px 0 16px; padding: 10px 12px; border-radius: var(--r-m); background: var(--card2); border: 2px solid var(--line) }
 .story { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-content: start; min-width: 0 }
 .card h3 { font: 400 22px/1.05 var(--display); letter-spacing: .03em; text-transform: uppercase; margin: 0 0 6px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap }
 .card h4 { font: 400 17px/1.1 var(--display); letter-spacing: .03em; text-transform: uppercase; margin: 18px 0 4px }
@@ -321,9 +427,15 @@ a:hover { color: var(--ink) }
 .wlist { margin: 8px 0 0; padding-left: 18px; font-size: 12.5px; color: var(--muted) }
 .wlist li { margin: 3px 0 }
 .mine16 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 10px }
-.mycard { border: 2px solid var(--tile-line); background: var(--tile); color: var(--ink); border-radius: 10px; padding: 6px 4px 8px; display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 3px; text-align: center; min-width: 0 }
+.mycard { border: 2px solid var(--tile-line); background: var(--tile); color: var(--ink); border-radius: var(--r-m); padding: 6px 4px 8px; display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 3px; text-align: center; min-width: 0 }
 button.mycard { font: inherit; color: inherit }
 button.mycard:hover { border-color: var(--cream) }
+/* My catches: the same tilt and shine as the Season 2 cards; Epic and Legendary glow */
+button.mycard { position: relative; transform: perspective(800px) rotateX(var(--ry, 0deg)) rotateY(var(--rx, 0deg)); transition: transform .2s ease-out, border-color .2s, box-shadow .25s }
+button.mycard::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; background: radial-gradient(circle at var(--mx, 50%) var(--my, 0%), rgba(255, 255, 255, .18), transparent 55%); opacity: 0; transition: opacity .25s }
+button.mycard:hover::after { opacity: 1 }
+.mycard[data-tier="3"] { border-color: var(--t3); box-shadow: 0 0 22px color-mix(in srgb, var(--t3) 40%, transparent) }
+.mycard[data-tier="4"] { border-color: var(--t4); box-shadow: 0 0 22px color-mix(in srgb, var(--t4) 45%, transparent) }
 .mycard canvas, .mycard img { width: 100%; max-width: 72px; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle at 50% 30%, #3b5be0, var(--navy)) }
 .mycard img { border-radius: 8px; background: #0a0f24 }
 .mycard .tn { font: 400 14px/1.1 var(--display); letter-spacing: .02em }
@@ -413,8 +525,12 @@ ol.recipe li { margin: 5px 0 }
 .gh { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-weight: 700; text-decoration: none; padding: 8px 14px; border-radius: 10px; border: 2px solid var(--cream); background: transparent; color: var(--ink); text-transform: uppercase; letter-spacing: .04em; font-size: 12.5px }
 .gh:hover { border-color: var(--cyan); color: var(--cyan) }
 .gh svg { width: 18px; height: 18px }
-footer { margin-top: 40px; padding: 18px 0 22px; font-size: 12px; color: var(--muted); background: var(--bg2); border-top: 3px solid var(--edge); box-shadow: 0 0 0 100vmax var(--bg2); clip-path: inset(0 -100vmax) }
+footer { position: relative; z-index: 0; margin-top: 0; padding: 28px 0 26px; font-size: 12px; color: var(--muted) }
+#details[hidden] + footer { border-top: 1px solid rgba(201, 211, 255, .14) }
+#details[hidden] + footer::before { border-image-source: linear-gradient(var(--card2), var(--card2)) }
+#details:not([hidden]) + footer { margin-top: 8px; padding-top: 128px }
 footer p { margin: 6px 0; max-width: 100ch }
+footer .lede { margin: 0 0 8px; font: 400 var(--fd-s)/1.2 var(--display); letter-spacing: .03em; text-transform: uppercase; color: var(--ink); max-width: 60ch }
 footer .sub { color: var(--ink); font-weight: 700 }
 footer a { color: var(--ink) }
 .myshort { display: inline }
@@ -436,14 +552,11 @@ footer a { color: var(--ink) }
   .spot.net::after { left: auto; right: 0; top: 0; padding: 4px 5px; background: var(--navy); font-size: 10px }
   .spot.net.drop::after { background: var(--accent) }
   .legend { flex-basis: auto; margin-left: auto }
-  .deck { margin-top: 12px; padding-top: 8px }
-  .deckrow { flex-direction: row; align-items: flex-start; gap: 10px }
-  .lcd { width: 38%; min-height: 58px; padding: 6px 9px; flex-direction: column; align-items: stretch; justify-content: center; gap: 5px }
-  .lcd .l1 b { font-size: 19px }
-  .lcd .l2 { text-align: left }
-  .deckrow.solo .lcd { flex: 1 1 auto; width: auto }
-  .btn, .watch { min-height: 58px }
-  .watch { padding: 7px 12px; font-size: 11px; line-height: 1.4 }
+  .deck { margin-top: 12px; padding: 12px }
+  .btn { min-height: 58px }
+  #act { min-height: 72px; font-size: 28px }
+  #act::after { font-size: 12px }
+  .watch { font-size: 13px }
   .btn.ghost { min-height: 44px }
   .mine16 { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)) }
   .navl .navt { position: static; width: auto; height: auto; overflow: visible; clip: auto }
@@ -467,8 +580,7 @@ footer a { color: var(--ink) }
   .stage .ham { left: calc(21cqw - 82px); width: 164px }
   .stage .stamp { left: 21cqw }
   .headline { font-size: 27px }
-  .hl .lede { font-size: 12px }
-  .chiptag span { display: block; margin-top: 2px }
+  .stage .coreglow { left: calc(21cqw - 90px); top: 10px; width: 180px; height: 180px }
 }
 /* PC from 1100 px (below that the header row does not fit beside the stage): the stage on the left, the header, headline,
    roster and deck on the right, on one shared grid (subgrid) */
@@ -480,27 +592,28 @@ footer a { color: var(--ink) }
   .hero h1 { font-size: 28px }
   .brand { margin: -10px 0 -12px; font-size: 11.5px }
   .card.play { grid-column: 1 / -1; grid-row: 1 / -1; grid-template-columns: subgrid; grid-template-rows: subgrid; column-gap: 32px; margin: 0 }
-  .stage { grid-column: 1; grid-row: 1 / -1; min-height: 760px; margin: 0 0 14px; border-width: 0 6px 6px; border-radius: 0 0 26px 26px; box-shadow: 0 8px 0 var(--edge) }
+  .stage { grid-column: 1; grid-row: 1 / -1; min-height: 760px; margin: 0 0 14px; border-width: 0 6px 6px; border-radius: 0 0 26px 26px; box-shadow: 0 8px 0 var(--edge), 0 26px 50px -20px rgba(2, 6, 30, .8) }
+  .stage .coreglow { left: 12cqw; top: 4cqw; width: 54cqw; height: 54cqw }
   .stage .rail { height: 12px; border-bottom-width: 3px }
-  .stage .wimg { left: 0; top: 43.7cqw; bottom: auto; width: 78cqw; height: 78cqw }
-  .stage .beam { left: 13.6cqw; width: 51cqw; top: 49cqw; bottom: auto; height: 73cqw }
+  .stage .wimg { left: 0; top: auto; bottom: calc(8px + 70px - 4.7cqw); width: 78cqw; height: 78cqw }
+  .stage .beam { left: 13.6cqw; width: 51cqw; top: 49cqw; bottom: calc(8px + 40px); height: auto }
   .stage .streak { left: 80cqw; width: 40px; top: -60px }
   .stage .streak.s2 { left: 90cqw; width: 10px }
   .stage .core { left: 16.2cqw; top: 12px; width: 45.9cqw; height: 61.2cqw; filter: drop-shadow(0 0 26px rgba(125, 235, 255, .55)) }
   .stage .mount { left: calc(39.1cqw - 26px); width: 52px; height: 26px; border-width: 3px }
   .stage .vline { display: block; left: 82cqw; top: 15px; width: 2px; height: 57px; background: var(--cream) }
   .stage .dash { left: 54.8cqw; top: 120px; width: 11.9cqw }
-  .podium { left: 9.4cqw; width: 59.5cqw; top: 117cqw; bottom: auto; height: 70px }
+  .podium { left: 9.4cqw; width: 59.5cqw; top: auto; bottom: 8px; height: 70px }
   .podium .sh { height: 56px }
   .podium .tp { bottom: 14px; height: 56px; border-width: 3px }
   .podium .rg { left: 17%; right: 17%; bottom: 28px; height: 28px }
   .podium .gl { left: 27%; right: 27%; bottom: 32px; height: 20px; box-shadow: 0 0 28px 8px rgba(125, 235, 255, .35) }
-  .stage .ham { left: 13.6cqw; width: 51cqw; top: 53.4cqw; bottom: auto }
-  .stage .stamp { left: 39cqw; top: 84cqw; bottom: auto; font-size: 13px }
+  .stage .ham { left: 13.6cqw; width: 51cqw; top: auto; bottom: calc(8px + 70px - 6cqw) }
+  .stage .stamp { left: 39cqw; top: auto; bottom: calc(78px + 30cqw); font-size: 13px }
   .chiptag { grid-column: 1; grid-row: 1 / -1; justify-self: end; align-self: start; width: 31%; margin: 72px 2.5% 0 0; padding: 10px 12px; border-radius: 6px }
   .chiptag b { font-size: 15px; line-height: 1.25; white-space: normal }
-  .chiptag span { display: block; margin-top: 6px }
-  .plate { grid-column: 1; grid-row: 1 / -1; justify-self: end; align-self: start; width: 33%; margin: 75% 4% 0 0 }
+  .chiptag .alive { font-size: 12px; margin-top: 8px }
+  .plate { grid-column: 1; grid-row: 1 / -1; justify-self: end; align-self: end; width: 33%; margin: 0 4% 190px 0 }
   .plate .pk { margin-left: 18px; padding: 5px 12px }
   .plate .pk span { font-size: 12px }
   .plate .pc { box-shadow: 8px 8px 0 var(--bg) }
@@ -512,8 +625,7 @@ footer a { color: var(--ink) }
   .plate .pb { padding: 7px 18px }
   .plate .pb p { font-size: 11px; line-height: 1.35 }
   .hl { grid-column: 2; grid-row: 2; padding: 16px 0 0 }
-  .headline { font-size: clamp(34px, 3.6vw, 46px); line-height: 1 }
-  .hl .lede { margin-top: 14px; font-size: 15px; line-height: 1.5; color: #dce3ff }
+  .headline { font-size: var(--fd-xl); line-height: .98; text-shadow: none }
   .pick { grid-column: 2; grid-row: 3; margin-top: 22px }
   .pickhead { gap: 6px 12px }
   .pickhead h2 { font-size: 22px }
@@ -522,7 +634,7 @@ footer a { color: var(--ink) }
   .legend::before { width: 22px; height: 4px }
   .ring { margin-top: 16px }
   .caption { font-size: 13px }
-  .deck { grid-column: 2; grid-row: 4; align-self: start; margin: 18px 0 0; padding: 16px 18px 8px; border-width: 4px; border-radius: 22px; box-shadow: 0 8px 0 var(--edge) }
+  .deck { grid-column: 2; grid-row: 4; align-self: start; margin: 18px 0 0; padding: 16px 18px; border-width: 4px; border-radius: 22px; box-shadow: 0 8px 0 var(--edge), 0 26px 50px -20px rgba(2, 6, 30, .8) }
   .prizes { grid-column: 2; grid-row: 5; align-self: start; margin: 16px 0 30px; display: grid; grid-template-columns: 58px minmax(0, 1fr); align-items: center; gap: 6px 10px }
   .prizes .prh { font-size: 19px; line-height: 1.05 }
   .prow { margin: 0; gap: 6px }
@@ -541,36 +653,41 @@ footer a { color: var(--ink) }
   #play.flat .prz .ps { display: block }
   #play.flat .prz b { font-size: 15px; letter-spacing: .03em }
   #play.flat .podds { margin-top: 8px; font-size: 11.5px }
-  .deckrow { gap: 16px }
-  .lcd { width: clamp(184px, 18vw, 232px); min-height: 84px; padding: 10px 14px; gap: 7px }
-  .lcd .l1 { font-size: 12px; gap: 0 10px }
-  .lcd .l1 b { font-size: 32px }
-  .lcd .l2 { font-size: 10.5px }
   .btn { min-height: 84px; font-size: clamp(22px, 2.2vw, 28px); border-radius: 16px; gap: 7px }
-  #act { box-shadow: inset 0 -7px 0 var(--accent-d), 0 7px 0 var(--accent-dd) }
-  #act::after { font-size: 11px }
+  #act { min-height: 88px; font-size: clamp(30px, 2.6vw, 36px); box-shadow: inset 0 -7px 0 var(--accent-d), 0 7px 0 var(--accent-dd), 0 22px 40px -12px rgba(216, 30, 58, .55) }
+  #act::after { font-size: 12px }
   .btn.ghost { min-height: 48px; font-size: 20px }
-  .watch { min-height: 84px; padding: 10px 16px; font-size: 12.5px }
-  .nftbox { grid-template-columns: 72px minmax(0, 1fr); padding: 8px 12px; font-size: 12px }
-  .nftbox img { width: 72px; height: 72px }
-  .nfthint { font-size: 12px }
-  .status { gap: 10px; margin-top: 18px }
+  .watch { padding-top: 4px; font-size: 13px }
+  #needlink { min-height: 60px; font-size: 22px }
+  .nftbox { grid-template-columns: 104px minmax(0, 1fr); gap: 18px; padding: 16px 18px }
+  .nftbox img { width: 104px; height: 104px; border-radius: 12px }
+  #nfttext .ok { font-size: 32px }
+  #nfttext .rl { font-size: 14px }
+  #nfttext .cdr { font-size: 26px }
+  .status { gap: 10px; margin-top: 16px }
   .status .clock { width: 18px; height: 18px }
   .prompt { font-size: 14.5px }
   .prompt small { font-size: 12px }
   .reveal { grid-template-columns: 80px minmax(0, 1fr); padding: 12px }
   .reveal canvas { width: 80px; height: 80px }
-  .reveal .rt { font-size: 24px }
+  .reveal .rt { font-size: 30px }
   .reveal .rs { font-size: 13px }
   .ln { margin-top: 36px }
   .story { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: start }
   .story .past, .story details.more { grid-column: 1 / -1 }
-  .card { border-width: 4px; border-radius: 22px; padding: 20px; box-shadow: 0 8px 0 var(--edge) }
+  .card { border-width: 4px; border-radius: 22px; padding: 20px; box-shadow: 0 8px 0 var(--edge), 0 26px 50px -20px rgba(2, 6, 30, .8) }
   details.more { padding: 0 }
   details.more > summary { padding: 20px }
   details.more > .in { padding: 0 20px 22px }
   footer { font-size: 13px }
+  #details .dbar, #details .dh, #details .story { max-width: 860px; margin-inline: auto }
+  #details .story { grid-template-columns: minmax(0, 1fr) }
+  .cmp { max-width: 560px }
+  #oddsrows td:nth-child(2), #details thead th:nth-child(2) { text-align: left }
 }
+}
+@media (max-width: 380px) {
+  .brand { font-size: 10px }
 }
 @media (max-width: 350px) {
   .brand { white-space: normal }
@@ -588,11 +705,13 @@ footer a { color: var(--ink) }
   .tiers div:nth-child(4) { grid-column: 2 / span 2 }
 }
 @media (prefers-reduced-motion: reduce) {
-  .live.run::before, #play.playing .ham, .qc-beam, .qc-idle { animation: none }
+  .live.run::before, #play.playing .ham, .qc-beam, .qc-idle, .coreglow, .stage .beam.b2, .stage.cast .beam, .stage.cast .beam.b2, .stage.cast .coreglow, .podium.burst .gl, .podium.burst .rg, .nftbox.new, .reveal.go { animation: none }
+  .castbar, .gcard, .gcard::after, .mycard, .mycard::after, .stage .wimg { transition: none }
 }
 </style>
 
 <div class="page">
+  <div class="view" id="game">
   <div class="first">
     <header class="hero">
       <div class="top">
@@ -609,6 +728,7 @@ footer a { color: var(--ink) }
     <section class="card play" id="play" aria-labelledby="stageh">
       <div class="stage" id="stage">
         <img class="wimg" id="wimg" alt="" aria-hidden="true">
+        <div class="coreglow" aria-hidden="true"></div>
         <div class="beam qc-beam" aria-hidden="true"></div>
         <div class="beam b2 qc-beam" aria-hidden="true"></div>
         <div class="streak" aria-hidden="true"></div>
@@ -622,11 +742,8 @@ footer a { color: var(--ink) }
         <canvas class="ham qc-idle" id="ham" width="448" height="612" aria-hidden="true"></canvas>
         <span class="stamp" id="stamp"></span>
       </div>
-      <p class="chiptag"><b>IBM quantum computer</b><span id="chipline"></span></p>
-      <div class="hl">
-        <p class="headline">A real <em>quantum computer</em> decides which hamster you catch.</p>
-        <p class="lede">Squeektoshi's run programs a real quantum computer. Catch the hamster it lands on.</p>
-      </div>
+      <div class="chiptag"><b>IBM quantum computer</b><p class="alive" id="alive" hidden><a class="live" id="live" href="https://squeekchain.com" target="_blank" rel="noopener" hidden><span id="livet"></span></a><span class="netsn" id="netsn" hidden></span></p></div>
+      <div class="hl"><p class="headline">A real <em>quantum computer</em> decides which hamster you catch.</p></div>
       <div class="plate" id="plate">
         <span class="pk"><span id="platek">Your catch</span></span>
         <div class="pc"><div class="pci"><p class="pn"><span>No.</span><b id="platen">?</b></p><ul class="pw" id="platew" aria-label="Look"></ul></div><div class="pb"><p id="plateb"></p></div></div>
@@ -641,27 +758,37 @@ footer a { color: var(--ink) }
           <canvas id="revcv" width="192" height="192"></canvas>
           <div><p class="rt" id="revt"></p><p class="rs" id="revs"></p><p class="qline" id="revq" hidden></p></div>
         </div>
-        <div class="deckrow" id="deckrow">
-          <div class="lcd" id="lcd"><p class="l1"><b id="lcdn">4,000</b><span id="lcdk">drops</span></p><p class="l2" id="lcd2"></p></div>
-          <div class="actions" id="actions">
-            <button class="btn" id="act" type="button" hidden></button>
-            <p class="nftmsg" id="nftmsg" hidden aria-live="polite"></p>
-            <div class="watch" id="watch" hidden><p>To catch, open this page in a browser with a crypto wallet (e.g. MetaMask) on the free Sepolia test network. <a id="faucet" href="https://cloud.google.com/application/web3/faucet/ethereum/sepolia" target="_blank" rel="noopener">Get free test ETH</a>.<span id="watchsqk" hidden></span></p></div>
-            <div class="watch" id="sqkout" hidden><p id="sqkoutt"></p></div>
-            <div class="nftbox" id="nftbox" hidden><img id="nftimg" alt="Your net NFT"><div id="nfttext"></div></div>
-            <button class="btn ghost" id="alt" type="button" hidden></button>
-            <button class="btn ghost" id="skip" type="button" hidden>Skip to the landing &raquo;</button>
-          </div>
+        <div class="actions" id="actions">
+          <button class="btn" id="act" type="button" hidden></button>
+          <p class="nftmsg" id="nftmsg" hidden aria-live="polite"></p>
+          <div class="watch" id="watch" hidden><p>Open this page in a crypto wallet to cast a net.</p> <a class="btn ghost" id="needlink" href="#how">What you need</a></div>
+          <div class="watch" id="sqkout" hidden><p id="sqkoutt"></p></div>
+          <div class="nftbox" id="nftbox" hidden><img id="nftimg" alt="Your net NFT"><div id="nfttext"></div></div>
+          <button class="btn ghost" id="alt" type="button" hidden></button>
+          <button class="btn ghost" id="skip" type="button" hidden>Skip to the landing &raquo;</button>
         </div>
-        <p class="nfthint" id="nfthint" hidden>Free on the Sepolia test network · you only pay test gas, worth nothing. One net per wallet per night.</p>
-        <div class="status"><svg class="clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:var(--cyan)"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><p class="prompt" id="prompt" aria-live="polite"></p></div>
+        <div class="status" id="status"><svg class="clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:var(--cyan)"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><p class="prompt" id="prompt" aria-live="polite"></p></div>
       </div>
       <div class="prizes" id="prizes"><h2 class="prh" id="prizesh">The prizes</h2><div class="prow" id="prow" role="list" aria-labelledby="prizesh"></div><p class="podds" id="podds"></p></div>
       <canvas class="fx" id="fx" aria-hidden="true"></canvas>
     </section>
   </div>
 
-  <div class="ln">
+  <section class="soon" id="soon" aria-labelledby="soonh">
+    <div class="sban">
+      <img id="teaser" alt="Two hamsters face off in a glowing arena: a tiger hamster with laser eyes and a gold one with devil horns" width="1200" height="500" decoding="async">
+      <div class="scopy"><span class="chipsoon">Coming soon</span><h2 id="soonh">Hamster battles</h2><p>Your catches will fight. New hamsters are on the way.</p></div>
+    </div>
+    <p class="gk" id="gk">A first look at Season 2</p>
+    <div class="gal" id="gallery" role="list" aria-labelledby="gk"></div>
+    <p class="morep"><a class="morel" id="morelink" href="#details">How it works · Details <span aria-hidden="true">&rarr;</span></a></p>
+  </section>
+  <div class="castbar" id="castbar" aria-hidden="true"><button class="btn" id="castgo" type="button" tabindex="-1">Cast a net</button></div>
+  </div>
+
+  <div class="ln view" id="details" hidden>
+    <div class="dbar"><a class="back" id="back" href="#">&larr; Back</a><span class="dmark">Quantum Catch</span></div>
+    <h2 class="dh" id="dh">Details</h2>
     <div class="story">
       <section class="card past" id="past" aria-labelledby="pasth">
         <h3 id="pasth">Past nights</h3>
@@ -671,7 +798,7 @@ footer a { color: var(--ink) }
 
       <section class="card tonight" id="tonight" aria-labelledby="tnh">
         <p class="sofar" id="sofar" hidden></p>
-        <div class="tnhead"><p class="k" id="tnk">Tonight's net</p><a class="pill live" id="live" hidden title="" href="https://squeekchain.com" target="_blank" rel="noopener">LIVE</a></div>
+        <div class="tnhead"><p class="k" id="tnk">Tonight's net</p></div>
         <h3 class="when" id="tnh"></h3>
         <p class="small" id="tnclose"></p>
         <p id="tnstate"></p>
@@ -690,12 +817,18 @@ footer a { color: var(--ink) }
       <details class="card more" id="how">
         <summary>How it works</summary>
         <div class="in">
+          <p class="small" id="needs">What you need: a crypto wallet on the Sepolia test network, <span id="needsqk">0.01 test SQK (free here, once per night)</span> and a little free test ETH for the fee (<a id="faucet" href="https://cloud.google.com/application/web3/faucet/ethereum/sepolia" target="_blank" rel="noopener">get free test ETH</a>). Test tokens: no money value. One net per wallet per night.</p>
           <ol class="steps4" id="howsteps">
-            <li><b>Cast a net.</b> Before nets close at 21:00 UTC (<span class="tclose">22:00</span> your time). <span id="howcost">A net is a test NFT on Sepolia</span> One net per wallet per night. Nobody picks a hamster.</li>
-            <li><b>He runs.</b> Squeektoshi is a real hamster. Squeekchain measures his wheel every 10 minutes and settles it on-chain (Sepolia). His run sets up the quantum program: each round tilts a quantum coin, a lazy round barely, a sprint all the way.</li>
-            <li><b>The chip drops 4,000 times.</b> After his night ends (12:00 UTC, <span class="tend">13:00</span> your time) a real IBM quantum computer runs his program 4,000 times. Each run is one drop: it lands on one of the 16 hamsters.</li>
-            <li><b>One drop is yours.</b> Your net gets one of those 4,000 drops, drawn at random on-chain once the night's result is posted, so nobody can choose it or know it before. The hamster it landed on is your catch. The fewer drops a hamster gets, the rarer it is. If your drop is chip noise (a spot he could not reach that night, or one with under 1% of the drops), your hamster got away.</li>
+            <li><b>Cast a net.</b> Before <span class="tclose">22:00</span> your time. <span id="howcost">A net is a test NFT on Sepolia.</span> One net per wallet per night. Nobody picks a hamster.</li>
+            <li><b>He runs.</b> Squeektoshi, a real hamster, runs his wheel tonight; Squeekchain records it every 10 minutes. His run becomes the quantum program. He usually starts between <span class="tstart">22:10 and 22:40</span>.</li>
+            <li><b>The chip drops 4,000 times.</b> After his night ends (<span class="tend">13:00</span> your time) a real IBM quantum computer runs his program 4,000 times. Each run lands on one hamster: one drop.</li>
+            <li><b>One drop is yours.</b> Your net gets one of those 4,000 drops, drawn at random on-chain once the night's result is posted, so nobody can choose it or know it before. The hamster it landed on is your catch. If your drop is chip noise (a spot he could not reach that night, or one with under 1% of the drops), your hamster got away.</li>
           </ol>
+          <dl class="faq" id="faq">
+            <dt>Why 16 hamsters?</dt><dd>The quantum program keeps his place on the ring in 4 qubits, and 4 qubits give exactly 16 different answers: one per hamster.</dd>
+            <dt>Why 4,000 drops?</dt><dd>A quantum computer gives a random answer each time, so it runs the same program 4,000 times. Each run lands on one hamster: one drop. Hamsters with few drops are the rare ones.</dd>
+            <dt>Which drop is mine?</dt><dd>After the result is posted, the contract draws one of the 4,000 drops for your net at random (a fingerprint of the night's result and your net's number). Nobody can choose it or know it before.</dd>
+          </dl>
           <div class="tiers" aria-label="Rarity: the spots caught that night, ranked by the chip's looks"><div><b>Common</b>the rest</div><div><b>Uncommon</b>3rd + 4th fewest</div><div><b>Rare</b>2nd fewest</div><div><b>Epic</b>the fewest</div><div><b>Legendary</b>Epic + first look</div></div>
           <p class="small" id="rarityline">The least-visited spot he could reach is Epic; if the chip's very first look landed there, it is Legendary.</p>
           <h4 id="oddsh">Last night's odds</h4>
@@ -723,8 +856,7 @@ footer a { color: var(--ink) }
           <p class="small" id="qnote"></p>
 
           <h4>The ring</h4>
-          <p class="small">Each of the 16 spots has its own hamster: the spot's 4 bits pick a party hat, glasses, a scarf and a grin. The ring turns with his night: he starts at his own spot, his total turns counted round the ring of 16 (the dashed ring on the wheel). Each step moves him one spot, so he can only land on every other spot, and on a short night only near his start: the rest of the ring is out of reach that night (greyed). Drops that land there are the chip's noise: a net whose drop lands there gets away. Where he starts depends on his total turns, so nobody knows it before he runs.</p>
-          <p class="small">A normal computer can simulate this small walk. What is real: his run is real, and the chip is a real IBM quantum computer with real noise.</p>
+          <p class="small">Each of the 16 hamsters has its own look: its number's 4 bits pick a party hat, glasses, a scarf and a grin. He starts at his own spot (the dashed tile), set by his total turns, so nobody knows it before he runs. On a short night he can only reach spots near his start; drops elsewhere are chip noise, and a net whose drop lands there gets away.</p>
         </div>
       </details>
 
@@ -732,7 +864,7 @@ footer a { color: var(--ink) }
         <summary>Check it yourself</summary>
         <div class="in">
           <p><a class="gh" id="ghlink" href="#" target="_blank" rel="noopener"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 3.5 1.5 8l4 4.5M10.5 3.5l4 4.5-4 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Code on GitHub</a></p>
-          <p class="small">Every number here is public. The night shown on the wheel:</p>
+          <p class="small">Every number here is public. This night:</p>
           <dl class="kv" id="checkkv"></dl>
           <p class="small"><b>The recipe in 6 lines</b></p>
           <ol class="recipe">
@@ -770,6 +902,8 @@ footer a { color: var(--ink) }
           <p class="small" id="twinjob"></p>
           <p class="small" id="twinhealth"></p>
           <p class="small" id="contract" hidden></p>
+          <p class="small">Squeektoshi's wheel runs are measured by <a href="https://squeekchain.com" target="_blank" rel="noopener">Squeekchain</a> and settled on Sepolia in 10-minute rounds.</p>
+          <p class="small">A normal computer can simulate this small walk. What is real is that every chip result shown here ran on real IBM hardware, with real noise, on his real run. Chip runs whose twin test scores under <span class="hmin">79%</span> are thrown out and redone, and each one is listed on its night.</p>
           <p class="fine">A demonstration on one chip, not a lab-grade test.</p>
         </div>
       </details>
@@ -777,9 +911,9 @@ footer a { color: var(--ink) }
   </div>
 
   <footer>
+    <p class="lede">Squeektoshi's run programs a real quantum computer. Catch the hamster it lands on.</p>
     <p class="sub">Squeektoshi is a real hamster. Probably the first hamster to program a quantum computer.</p>
-    <p>Squeektoshi's wheel runs are measured by <a href="https://squeekchain.com" target="_blank" rel="noopener">Squeekchain</a> and settled on Sepolia in 10-minute rounds. His night becomes a quantum walk on a ring of 16 spots, and IBM's chip looks where he lands. Test tokens only (Sepolia test ETH, Squeekchain test SQK): nothing here has money value.</p>
-    <p>A normal computer can simulate this small walk. What is real is that every chip result shown here ran on real IBM hardware, with real noise, on his real run. Chip runs whose twin test scores under <span class="hmin">79%</span> are thrown out and redone, and each one is listed on its night. A demonstration on one chip, not a lab-grade test.</p>
+    <p>Test tokens only (Sepolia test ETH, Squeekchain test SQK): nothing here has money value.</p>
     <p>A community project. Not made by the Squeekchain team. <a class="ghf" id="ghfoot" href="#" target="_blank" rel="noopener">Code on GitHub</a></p>
     <p class="fc" id="footc" hidden></p>
   </footer>
@@ -977,6 +1111,13 @@ footer a { color: var(--ink) }
   // ---------- state: the stage shows TONIGHT (the open net) or one built-in night ----------
   const S = { view: 'tonight', sel: null, playing: false, watched: {}, focus: null, nftBusy: false, sqk: {} };
   const win = () => QC.netWindow(now());
+  // the deck's ONE line tonight (owner, 6 Nov): when nets close, when the result comes (his night ends; then the chip).
+  // "Nets close 22:00 · result tomorrow 13:00"; after the 21:00 UTC lock: "Nets close 22:00 tomorrow · result Sat 13:00"
+  const timeLine = (w) => `Nets close ${tLocal(w.closeMs)}${w.when === 'tonight' ? '' : ' ' + relDay(w.closeMs)} · result ${relDay(w.endMs)} ${tLocal(w.endMs)}`;
+  const endOf = (d) => (QC.nightStart(QC.nightOfDay(d)) + QC.DAY) * 1000;            // a night's end (13:00 your time): then the chip
+  // the faucet resets per NET NIGHT (SqkFaucet: one claim per wallet per open night), so the next claim opens at tonight's close
+  const nextClaim = (w) => `Free test SQK already used. Next one from ${tLocal(w.closeMs)} ${relDay(w.closeMs)}.`;
+  const NET_IN = '✓ Your net is in';
   // casting a net = minting its test NFT (R6'): it needs the contract in this build and a browser wallet; without either the
   // page is watch-only (the roster, the stage, past nights, the practice net and How it works all still work)
   const nftOn = () => !!(CFG.catchAddress && window.ethereum && typeof window.ethereum.request === 'function');
@@ -989,8 +1130,8 @@ footer a { color: var(--ink) }
   const paidNow = () => { const c = costNow(); return c == null ? PAID : c > 0n; };
   const costLabel = () => (typeof S.sqk.cost === 'bigint' && S.sqk.cost > 0n ? sqkUnits(S.sqk.cost) : CFG.netCost || '0.01');
   const dripLabel = () => (typeof S.sqk.drip === 'bigint' && S.sqk.drip > 0n ? sqkUnits(S.sqk.drip) : costLabel());
-  // the faucet gives one net's worth per wallet per day (once per net night): claimed = already today
-  const claimedToday = () => S.sqk.claimed === true;
+  // the faucet gives one net's worth once per wallet per net night: claimed = already this night
+  const claimedNow = () => S.sqk.claimed === true;
 
   // ---------- the roster: the 16 hamsters as 16 tiles (number tag, painted hamster, what it was on the night shown) ----------
   const ring = $('ring'), spots = [], dots = [], strips = [];
@@ -1055,7 +1196,7 @@ footer a { color: var(--ink) }
     // legend) and its drops as a bar. Tonight's tiles are never greyed: nobody knows tonight's reach before his run
     const sd = S.playing ? null : stripDay(), sc = sd ? view(sd).counts : null, mx = sc ? Math.max(1, ...sc) : 1;
     spots.forEach((el, s) => { if (!sd) return setStrip(s, null); const h = spotResult(sd, s); setStrip(s, wordOf(h), sc[s] / mx, h.tier); });
-    $('legend').textContent = !sd ? '' : t ? `What each was ${lastWord(sd)} · bars: its drops of ${fmtInt(chipOf(sd).wheel_shots)}` : `Bars: its drops of ${fmtInt(chipOf(sd).wheel_shots)}`;
+    $('legend').textContent = !sd ? '' : t ? `What each was ${lastWord(sd)} · bars: drops of ${fmtInt(chipOf(sd).wheel_shots)}` : `Bars: drops of ${fmtInt(chipOf(sd).wheel_shots)}`;
     paintStage();
   }
   function spotLabel(d, s, rev, out, own) {
@@ -1088,30 +1229,15 @@ footer a { color: var(--ink) }
     }
     return { s: null, key: 'Night' };
   }
-  const resultWords = (h) => (h.tier >= 0 ? `${h.name} · ${fmtInt(h.hits)} drops` : h.reach ? `got away · ${fmtInt(h.hits)} drops` : 'got away · chip noise');
   const when13 = (w) => `${relDay(w.endMs)} ${tLocal(w.endMs)}`;              // "tomorrow 13:00" (his night ends; then the chip)
+  // the plate's band: nothing on the flat views (tonight, a night not in the page yet); on a night its date and one word
   function plateBand(t, d, w, s, h) {
-    if (t) {
-      const net = store.nets[w.day];
-      if (net && isDrop(net)) return `Your net is in<br>Decided ${when13(w)}`;
-      if (net) return `${OLD}<br>Nets close ${tLocal(w.closeMs)}`;
-      return `Nets close ${tLocal(w.closeMs)} ${relDay(w.closeMs)}<br>One net per wallet`;
-    }
-    const nn = `Night of ${dShort(d)}`;
-    if (!N(d)) return `${nn}<br>${now() >= (QC.nightStart(QC.nightOfDay(d)) + QC.DAY) * 1000 ? 'Waiting for the chip' : 'His night is on'}`;
-    if (N(d).slept) return `${nn}<br>He slept`;
-    if (h) return `${nn}<br>${resultWords(h)}`;
-    const m = mine(d);
-    return `${nn}<br>${!chipOf(d) ? 'Waiting for the chip' : m ? (drawn(m) ? 'Result ready' : 'Reading your drop') : practiceOpen(d) ? 'Free practice' : S.watched[d] ? 'No net that night' : 'Watch his night'}`;
+    if (t || !N(d)) return '';
+    const m = mine(d), word = N(d).slept ? 'he slept' : h ? (h.tier >= 0 ? h.name : 'got away') : !m ? '' : !chipOf(d) ? 'waiting' : !drawn(m) ? 'posted soon' : !m.seen ? 'result ready' : '';
+    return word ? `${dShort(d)} · ${word}` : dShort(d);
   }
-  function plateWears(t, d, w, s, m) {
-    if (s != null) return WEARS(s);
-    if (t) return ['decided', when13(w)];
-    if (N(d) && N(d).slept) return ['no catch'];
-    if (m && !chipOf(d)) return ['decided by', 'the chip'];
-    if (m) return drawn(m) ? ['tap to see'] : ['your drop', 'is posted soon'];
-    return [practiceOpen(d) ? 'one free try' : 'tap a hamster'];
-  }
+  // what it wears, once the hamster is known
+  const plateWears = (s) => (s != null ? WEARS(s) : []);
   function paintStage() {
     const t = S.view === 'tonight', d = t ? null : S.view, w = win(), P = stageSpot(), s = P.s, m = t ? store.nets[w.day] : mine(d);
     const h = !t && s != null && N(d) && revealedNow(d) ? spotResult(d, s) : null;
@@ -1123,32 +1249,23 @@ footer a { color: var(--ink) }
       composite(s == null ? 0 : s, tier).then((src) => {
         if (hamWant !== want) return;
         const g = ham.getContext('2d'), W = ham.width, H = ham.height; g.clearRect(0, 0, W, H); g.drawImage(src, 0, 0);
-        if (mode === 'q') { g.globalCompositeOperation = 'source-atop'; g.fillStyle = 'rgba(32,44,110,0.95)'; g.fillRect(0, 0, W, H); g.globalCompositeOperation = 'source-over';
-          g.fillStyle = 'rgba(201,211,255,.85)'; g.font = '400 170px Anton, "Liberation Sans Narrow", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('?', W / 2, H * 0.5); }
+        // the mystery hamster: a hologram (cyan to cobalt, the fur and shading show through) with a glowing '?'
+        if (mode === 'q') { g.globalCompositeOperation = 'source-atop'; const gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, 'rgba(125,235,255,.55)'); gr.addColorStop(1, 'rgba(30,60,200,.75)'); g.fillStyle = gr; g.fillRect(0, 0, W, H); g.globalCompositeOperation = 'source-over';
+          g.shadowColor = 'rgba(125,235,255,.9)'; g.shadowBlur = 30; g.fillStyle = '#fff4dc'; g.font = '400 180px Anton, "Liberation Sans Narrow", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('?', W / 2, H * 0.5);
+          g.shadowBlur = 0; g.shadowColor = 'transparent'; }
       });
     }
     ham.dataset.spot = s == null ? '' : String(s); ham.dataset.tier = h ? String(h.tier) : '';
     $('platek').textContent = P.key; $('platen').textContent = s == null ? '?' : String(s); $('platen').previousElementSibling.hidden = s == null;
-    $('platew').innerHTML = plateWears(t, d, w, s, m).map((x) => `<li>${esc(x)}</li>`).join('');
-    $('plateb').innerHTML = plateBand(t, d, w, s, h);
-    const L = t ? stripDay() : null;
-    $('chipline').textContent = t ? (L ? `${L === prevDay(w.day) ? "Last night's chip" : `Chip on ${dShort(L)}`}: ${chipOf(L).backend}` : 'Not run yet')
-      : !N(d) ? 'Not run yet' : N(d).slept ? 'He slept that night' : chipOf(d) ? `Chip that night: ${chipOf(d).backend}` : 'Not run yet';
-    // the stamp over the podium: your net is in / not looked at yet / he slept
-    const st = $('stamp'), stamp = S.playing ? '' : t ? (m && isDrop(m) ? 'Your net is in' : '') : !N(d) ? (m && isDrop(m) ? 'Your net is in' : '')
-      : N(d).slept ? 'He slept' : !chipOf(d) ? 'Not looked at yet' : m && isDrop(m) && !drawn(m) ? 'Drop posted soon' : '';
+    $('platew').innerHTML = plateWears(s).map((x) => `<li>${esc(x)}</li>`).join('');
+    $('plateb').innerHTML = esc(plateBand(t, d, w, s, h));
+    // the stamp over the podium: only "He slept" (the deck says everything else, in one line)
+    const st = $('stamp'), stamp = !S.playing && !t && N(d) && N(d).slept ? 'He slept' : '';
     st.textContent = stamp; st.classList.toggle('on', !!stamp);
-    // the LCD: tonight the chip's drops and when (one of them is yours); on a night the catch and that night's drops
-    const c = d && chipOf(d), shots = (chipOf(practiceDay()) || {}).wheel_shots || 4000;
-    if (t) { $('lcdn').textContent = fmtInt(shots); $('lcdk').textContent = 'drops'; $('lcd2').textContent = `${when13(w)} · 1 is yours`; }
-    else {
-      $('lcdn').textContent = s == null ? '#??' : '#' + pad2(s); $('lcdk').textContent = P.key;
-      $('lcd2').textContent = !N(d) ? `Night of ${dShort(d)}` : c ? `${fmtInt(c.wheel_shots)} drops · ${dayLabel(d)}` : N(d).slept ? 'He slept' : 'Waiting for the chip';
-    }
   }
 
   // ---------- wheel spin (speed follows his turns during the replay) ----------
-  let wAng = 0, wSpeed = 5, lastT = 0;
+  let wAng = 0, wSpeed = 5, lastT = 0, wIdle = 5;             // wIdle: 5 °/s, 40 while he runs right now (the ALIVE line)
   function spin(t) {
     const dt = lastT ? Math.min(0.1, (t - lastT) / 1000) : 0; lastT = t;
     if (!reduceMotion) { wAng = (wAng + wSpeed * dt) % 360; $('wimg').style.transform = `rotate(${wAng.toFixed(2)}deg)`; }
@@ -1160,7 +1277,7 @@ footer a { color: var(--ink) }
   const stageNight = () => (S.view === 'tonight' ? null : S.view);
   const Cap = (x) => x.charAt(0).toUpperCase() + x.slice(1);
   const an = (w) => (/^[UEAIO]/.test(w) ? 'an' : 'a');
-  // tonight's ONE action with a wallet: cast a net (paying its test SQK), or first today's free test SQK from the faucet, or a
+  // tonight's ONE action with a wallet: cast a net (paying its test SQK), or first the free test SQK from the faucet, or a
   // plain line when there is nothing to press. NOT_WIRED: the build says a net costs test SQK but its contract takes none
   // (the old pick-a-spot v1 contract until the switch: wheel/build.py checks this guard is here, RULINGS 52/58)
   const NOT_WIRED = () => `A net costs ${costLabel()} test SQK (burned). Casting opens soon; until then try a free practice net under Past nights.`;
@@ -1171,37 +1288,30 @@ footer a { color: var(--ink) }
     // a cast would only fail, so a plain line instead of the button
     if ((PAID && cost === 0n) || S.notWired) return { line: NOT_WIRED() };
     if (paid && cost != null && typeof q.balance === 'bigint' && q.balance < cost) {
-      const f = faucetAddr(), has = q.balance > 0n ? 'too little' : 'none';
-      if (!f) return { line: `A net costs ${costLabel()} test SQK and this wallet has ${has}.` };
-      if (claimedToday()) return { line: `A net costs ${costLabel()} test SQK and this wallet has ${has}. Today's free ${dripLabel()} is already claimed: come back tomorrow.` };
-      if (typeof q.faucetLeft === 'bigint' && typeof q.drip === 'bigint' && q.faucetLeft < q.drip) return { line: `A net costs ${costLabel()} test SQK. The free test SQK faucet is empty right now: please look again later.` };
-      return { act: { text: `Get today's free ${dripLabel()} test SQK`, go: getSqk, sub: 'one transaction · Sepolia test network' } };
+      const f = faucetAddr();
+      if (!f) return { line: `This wallet has ${q.balance > 0n ? 'too little' : 'no'} test SQK.` };
+      if (claimedNow()) return { line: nextClaim(win()) };
+      if (typeof q.faucetLeft === 'bigint' && typeof q.drip === 'bigint' && q.faucetLeft < q.drip) return { line: 'The free test SQK is out right now. Try again later.' };
+      return { act: { text: 'Get free test SQK', go: getSqk, sub: 'enough for one net' } };
     }
-    return { act: paid ? { text: `Cast a net · ${costLabel()} test SQK`, go: castNft, sub: 'burned · Sepolia test network' } : { text: 'Cast a net · free', go: castNft, sub: NFT_SUB } };
+    return { act: paid ? { text: `Cast a net · ${costLabel()} test SQK`, go: castNft, sub: 'test token · no money value' } : { text: 'Cast a net · free', go: castNft, sub: NFT_SUB } };
   }
-  function nftHint(k) {
-    if (!k || !k.act) return '';
-    if (k.act.go === getSqk) return `Free test SQK from this page: ${dripLabel()} per wallet per day, enough for one net. You also need a little Sepolia test ETH for the fee.`;
-    return paidNow() ? 'Plus a little Sepolia test ETH for the fee. Test tokens: no value. One net per wallet per night.'
-      : 'Free on the Sepolia test network · you only pay test gas, worth nothing. One net per wallet per night.';
-  }
+  // the game page (owner, 6 Nov): a headline, ONE button and ONE short line per state; explanations live in Details. Old
+  // picked nets (the retired v1 contract) keep their words
   function renderStage() {
     const t = S.view === 'tonight', d = stageNight(), w = win(), b = $('srcbadge');
-    let head, badge = '', bcls = '', prompt = '', sub = '', act = null, alt = null, watch = false, line = '', k = null;
+    let head, prompt = '', sub = '', act = null, alt = null, watch = false, line = '';
     if (t) {
       const net = store.nets[w.day];
       head = `${Cap(w.when)}'s net`;
       const closes = `Nets close at <b>${tLocal(w.closeMs)}</b> your time (in <b class="cdn">${QC.countdown(w.leftMs)}</b>)`;
       if (!net) {
-        // the deck's clock: when nets close, when the result can come (his night ends, then the chip looks), his usual start
-        prompt = `Nets close ${tLocal(w.closeMs)} ${relDay(w.closeMs)} · result ${relDay(w.endMs)} after ${tLocal(w.endMs)}`;
-        sub = `He usually starts ${tLocal(w.startFromMs)}–${tLocal(w.startToMs)} · closes in <b class="cdn">${QC.countdown(w.leftMs)}</b>`;
+        prompt = timeLine(w);
         // casting = minting the net's test NFT (one click, one transaction); no wallet or no contract: watch mode
         if (!nftOn()) watch = true;
-        else { k = castState(); act = k.act || null; line = k.line || ''; }
+        else { const k = castState(); act = k.act || null; line = k.line || ''; }
       } else if (isDrop(net)) {
-        prompt = `${Cap(when13(w))} the quantum computer decides.`;
-        sub = `${closes}. He usually starts between ${tLocal(w.startFromMs)} and ${tLocal(w.startToMs)}. His night ends ${tDay(w.endMs)} your time, then IBM's chip drops ${fmtInt(4000)} times: one drop is yours.`;
+        // the net's card says it all (✓ Your net is in, the result's time, a countdown)
       } else {
         prompt = `Your ${OLD} is on No. ${net.spot}.`;
         sub = `${closes}. He usually starts between ${tLocal(w.startFromMs)} and ${tLocal(w.startToMs)}. His night ends ${tDay(w.endMs)} your time, then IBM's chip looks: come back after that to see if you caught him.`;
@@ -1209,43 +1319,48 @@ footer a { color: var(--ink) }
     } else if (!N(d)) {
       // the viewer's net on a locked night that is not in the page yet: his run is on (live rounds so far), or over and
       // waiting for IBM's chip. Tomorrow's net is one tap away (secondary button).
-      const m = store.nets[d], nn = QC.nightOfDay(d), endMs = (QC.nightStart(nn) + QC.DAY) * 1000, over = now() >= endMs, so = sofar && sofar.day === d ? sofar : null, sw = QC.startWindow(nn);
-      head = `Your net · night of ${dayLabel(d)}`; badge = over ? 'waiting for the chip' : 'his night is on'; bcls = 'wait';
-      prompt = isDrop(m) ? 'Your net is in.' : `Your ${OLD} is on No. ${m.spot}.`;
-      const then = isDrop(m) ? "then IBM's chip drops 4,000 times: one drop is yours." : "then IBM's chip looks.";
-      if (!over) sub = (so && so.rounds ? `Tonight so far: <b>${so.rounds}</b> round${so.rounds === 1 ? '' : 's'}, <b>${fmtInt(so.turns)}</b> turns (settled on-chain up to ${tLocal(so.upToMs)} your time).`
-        : now() < sw[1] ? `Nets are closed. He usually starts between ${tLocal(sw[0])} and ${tLocal(sw[1])} your time.` : 'His night is on.') + ` It ends ${tDay(endMs)} your time, ${then}`;
-      else sub = `His night is over. ${staleWords() || `IBM's chip has not looked yet: come back later to see ${isDrop(m) ? 'what you caught' : 'if you caught him'}.`}`;
+      const m = store.nets[d], nn = QC.nightOfDay(d), endMs = endOf(d), over = now() >= endMs, so = sofar && sofar.day === d ? sofar : null, sw = QC.startWindow(nn);
+      head = `Your net · ${dayLabel(d)}`;
+      // a drop net: the card (✓ Your net is in · Result today at 13:00 · countdown); his turns are on the ALIVE line
+      if (isDrop(m)) prompt = over ? staleWords() : '';
+      else {
+        prompt = `Your ${OLD} is on No. ${m.spot}.`;
+        if (!over) sub = (so && so.rounds ? `Tonight so far: <b>${so.rounds}</b> round${so.rounds === 1 ? '' : 's'}, <b>${fmtInt(so.turns)}</b> turns (settled on-chain up to ${tLocal(so.upToMs)} your time).`
+          : now() < sw[1] ? `Nets are closed. He usually starts between ${tLocal(sw[0])} and ${tLocal(sw[1])} your time.` : 'His night is on.') + ` It ends ${tDay(endMs)} your time, then IBM's chip looks.`;
+        else sub = `His night is over. ${staleWords() || "IBM's chip has not looked yet: come back later to see if you caught him."}`;
+      }
       const wn = w.when === 'tonight' ? "tonight's" : "tomorrow's";
       alt = { text: store.nets[w.day] ? `Show ${wn} net` : nftOn() ? `Cast ${wn} net` : `See ${wn} net`, go: () => selectView('tonight') };
     } else {
       const n = N(d), c = chipOf(d), m = mine(d), pr = practiceOpen(d), drop = isDrop(m);
-      head = pr || (m && m.practice) ? `Practice · night of ${dayLabel(d)}` : m ? `Your net · night of ${dayLabel(d)}` : `Night of ${dayLabel(d)}`;
-      badge = c ? 'IBM chip' : n.slept ? 'he slept' : 'waiting for the chip'; bcls = pr || (m && m.practice) ? 'practice' : c ? 'chip' : 'wait';
-      if (pr || (m && m.practice)) badge = 'practice';
-      if (S.playing) { prompt = m && !drop ? `No. ${m.spot}: here comes his night…` : 'Here comes his night…'; sub = c ? `Then IBM's chip drops ${fmtInt(c.wheel_shots)} times${m && drop ? ': one drop is yours' : ''}.` : ''; }
-      else if (n.slept) { prompt = m ? 'He slept: no catch that night.' : 'He slept that night.'; sub = 'No run, nothing to catch.'; }
-      else if (pr) {
-        prompt = 'Try a free practice net on this night.';
-        sub = `IBM's chip already dropped ${fmtInt(c.wheel_shots)} times here. Your practice net gets one of those drops at random, like a real net: one free try.`;
-        act = { text: 'Cast a practice net · free', go: castPractice, sub: 'Practice: one free try' };
+      head = pr || (m && m.practice) ? `Practice · ${dayLabel(d)}` : m ? `Your net · ${dayLabel(d)}` : `Night of ${dayLabel(d)}`;
+      if (S.playing) prompt = m && !drop ? `No. ${m.spot}: here comes his night…` : 'Here comes his night…';
+      else if (n.slept) prompt = m ? 'He slept: no catch that night.' : 'He slept that night.';
+      else if (pr) { prompt = 'One free try on a night that already ran.'; act = { text: 'Cast a practice net · free', go: castPractice }; }
+      else if (m && !c) {
+        if (drop) prompt = netResult(d, m.spot).status === 'noresult' ? 'No chip result came for this night.' : staleWords();     // the net's card: waiting for the quantum computer
+        else { prompt = `Your ${OLD} is on No. ${m.spot}.`; sub = netResult(d, m.spot).status === 'noresult' ? 'No chip result came for this night, so this net stays as it is.' : `His run is in. ${staleWords() || "IBM's chip has not looked yet: come back later to see if you caught him."}`; }
+        alt = { text: '▶ Watch his run', go: () => play() };
       }
-      else if (m && !c) { prompt = drop ? 'Your net is in.' : `Your ${OLD} is on No. ${m.spot}.`; sub = netResult(d, m.spot).status === 'noresult' ? 'No chip result came for this night, so this net stays as it is.' : `His run is in. ${staleWords() || `IBM's chip has not looked yet: come back later to see ${drop ? 'what you caught' : 'if you caught him'}.`}`; alt = { text: '▶ Watch his run', go: () => play() }; }
-      else if (m && !drawn(m)) { prompt = "The chip has dropped. Your drop is posted soon."; sub = "Your net gets one of its 4,000 drops when the night's result is posted on Sepolia: come back a little later."; alt = { text: '▶ Watch his night', go: () => play() }; }
-      else if (m && !m.seen) { prompt = drop ? 'Your net is in. Which hamster did your drop land on?' : `Your ${OLD} is on No. ${m.spot}. Did the chip find him there?`; sub = drop ? `IBM's chip dropped ${fmtInt(c.wheel_shots)} times: one drop is yours. Watch his night to find out.` : "IBM's chip has looked. Watch his night to find out."; act = { text: drop ? 'See what you caught' : 'See if you caught him', go: () => play() }; }
+      else if (m && !drawn(m)) { prompt = 'Your result is posted soon.'; alt = { text: '▶ Watch his night', go: () => play() }; }
+      else if (m && !m.seen) {
+        if (drop) prompt = 'Your result is ready.';
+        else { prompt = `Your ${OLD} is on No. ${m.spot}. Did the chip find him there?`; sub = "IBM's chip has looked. Watch his night to find out."; }
+        act = { text: drop ? 'See what you caught' : 'See if you caught him', go: () => play() };
+      }
       else if (m) {
-        const r = netResult(d, m.spot);
-        prompt = r.status === 'caught' ? (drop ? `You caught ${an(r.h.name)} ${r.h.name}!` : `You caught ${an(r.h.name)} ${r.h.name} hamster!`) : drop ? 'Your hamster got away (chip noise).' : 'He got away.';
-        sub = m.practice ? 'That was your practice net. Real nets are cast before he runs, when nobody knows where the chip will drop: one per wallet per night.' : drop ? `Your net, night of ${dayLabel(d)}.` : `Your ${OLD} on No. ${m.spot}, night of ${dayLabel(d)}.`;
+        // the result card says what was caught; practice gets one line about real nets
+        if (m.practice) prompt = 'That was practice. Real nets are cast before he runs.';
+        else if (!drop) { const r = netResult(d, m.spot); prompt = r.status === 'caught' ? `You caught ${an(r.h.name)} ${r.h.name} hamster!` : 'He got away.'; sub = `Your ${OLD} on No. ${m.spot}, night of ${dayLabel(d)}.`; }
         alt = { text: '▶ Replay', go: () => play() };
-      } else if (c && !S.watched[d]) { prompt = 'You had no net on this night.'; sub = "Nets are cast before he runs: one per night. Watch where IBM's chip dropped."; alt = { text: '▶ Watch his night', go: () => play() }; }
-      else if (c) { prompt = `Where the chip dropped · ${dayLabel(d)}`; sub = 'Tap a hamster for its numbers.'; alt = { text: '▶ Replay', go: () => play() }; }
-      else { prompt = 'His run is in.'; sub = "IBM's chip has not looked yet. You had no net on this night."; alt = { text: '▶ Watch his run', go: () => play() }; }
+      } else if (c && !S.watched[d]) { prompt = 'No net this night.'; alt = { text: '▶ Watch his night', go: () => play() }; }
+      else if (c) { prompt = 'Tap a hamster for its numbers.'; alt = { text: '▶ Replay', go: () => play() }; }
+      else { prompt = 'His run is in.'; alt = { text: '▶ Watch his run', go: () => play() }; }
       if (!S.playing && !act && m && (m.seen || !c || !drawn(m))) { const nx = nextStep(); if (nx) act = nx; }
       if (!S.playing && !act && !m && !pr && chipOf(d) && S.watched[d]) { const nx = nextStep(); if (nx) act = nx; }
     }
-    $('stageh').textContent = head; b.className = 'src ' + bcls; b.textContent = badge;
-    $('prompt').innerHTML = `${esc(prompt)}${sub ? `<small>${sub}</small>` : ''}`;
+    $('stageh').textContent = head; b.className = 'src'; b.textContent = '';          // (the badge stays empty: one line per state)
+    $('prompt').innerHTML = `${esc(prompt)}${sub ? `<small>${sub}</small>` : ''}`; $('status').hidden = !prompt;
     const A = $('act'), B = $('alt');
     A.hidden = S.playing || !act; B.hidden = S.playing || !alt;
     if (act) {
@@ -1255,17 +1370,11 @@ footer a { color: var(--ink) }
     if (alt) { B.textContent = alt.text; B.onclick = alt.go; }
     $('skip').hidden = !S.playing;
     $('watch').hidden = S.playing || !watch;
-    $('watchsqk').hidden = !PAID; $('watchsqk').textContent = !PAID ? '' : faucetAddr() ? ` You also need ${costLabel()} test SQK (free daily from this page).` : ` You also need ${costLabel()} test SQK.`;
     $('sqkout').hidden = S.playing || !line; $('sqkoutt').textContent = line;
     $('deck').classList.toggle('tonight', t && !store.nets[w.day]);
-    // the long honest line about the net, under the deck while the cast (or faucet) button is there
-    const hint = !S.playing && t && !store.nets[w.day] && act ? nftHint(k) : '';
-    $('nfthint').hidden = !hint; $('nfthint').textContent = hint;
     if (!S.playing) $('caption').innerHTML = captionText();
-    renderReveal(); renderNftBox(); deckSolo();
+    renderReveal(); renderNftBox(); castbarCheck();
   }
-  // the action slot always holds something; when it would be empty the LCD takes the whole row
-  const deckSolo = () => { $('deckrow').classList.toggle('solo', ['act', 'nftmsg', 'watch', 'sqkout', 'nftbox', 'alt', 'skip'].every((k) => $(k).hidden)); };
   // after a result: the next thing to do is tonight's net (if not cast yet)
   function nextStep() {
     const w = win(), wn = w.when === 'tonight' ? "tonight's" : "tomorrow's";
@@ -1277,57 +1386,54 @@ footer a { color: var(--ink) }
     if (!d || !N(d)) return '';
     if (N(d).slept) return '';
     if (revealedNow(d)) return S.focus != null ? spotInfo(d, S.focus) : '';
-    if (!chipOf(d)) return 'The ghost is spread over the 16 spots. When the chip drops, he lands.';
+    if (!chipOf(d)) return 'Waiting for the quantum computer.';
     return '';
   }
+  // a tapped tile: its name and its share of the drops, one line (the ghost / normal shares live in Details: the compare chart)
   function spotInfo(d, s) {
     const h = spotResult(d, s);
-    if (!h.reach) return `No. <b>${s}</b>: out of reach that night, he could not land here.${h.hits ? ` The chip's ${fmtInt(h.hits)} drops here (${pct(h.share)}) are its noise: a net whose drop lands here gets away.` : ''}`;
-    const head = `No. <b>${s}</b>: ${h.tier >= 0 ? `<b>${h.name}</b>` : 'got away'}, ${pct(h.share)} of the chip's drops landed here.` +
-      rankWords(h, 'here') + (h.first && h.tier !== 4 ? " The chip's very first drop landed here." : '') + (h.tier < 0 ? ' Under 1%: chip noise.' : '');
-    let why = ` Quantum ghost ${pct(h.q)}, normal hamster ${pct(h.cl)}.`;
-    if (h.cl >= 0.01 && h.q * 2 <= h.cl) why += " The ghost's paths cancel out here.";
-    else if (h.q >= 0.01 && h.q >= 2 * h.cl) why += " The ghost's paths add up here.";
-    return head + why;
+    if (!h.reach) return `No. <b>${s}</b>: out of reach that night (chip noise).`;
+    return `No. <b>${s}</b>: <b>${h.tier >= 0 ? h.name : 'got away'}</b> · ${pct(h.share)} of the drops.` + (h.first ? " The chip's very first drop landed here." : '');
   }
   function renderReveal() {
     const d = stageNight(), el = $('reveal'), m = d ? mine(d) : null;
     const show = !!d && !S.playing && revealedNow(d);
     if (!show) { el.hidden = true; return; }
     const v = view(d), c = chipOf(d), q = v.q, qe = $('revq');
-    qe.hidden = !q; if (q) { qe.textContent = qWords(q, d); qe.classList.toggle('noise', !q.kept); }
+    qe.hidden = true; if (q) { qe.textContent = qWords(q, d); qe.classList.toggle('noise', !q.kept); }      // (the night's quantumness: How it works)
     if (m && m.seen && drawn(m)) {
       const r = netResult(d, m.spot), h = r.h, L = look(h), drop = isDrop(m);
       el.classList.remove('plain'); paintInto($('revcv'), m.spot, L.tier, L.dark, !h.reach);
-      $('revt').textContent = h.tier >= 0 ? `${Cap(an(h.name))} ${h.name} ${SKIN[h.tier]} hamster!` : drop ? 'Your hamster got away (chip noise).' : 'He got away.';
+      $('revt').textContent = h.tier >= 0 ? `${Cap(an(h.name))} ${h.name} ${SKIN[h.tier]} hamster!` : drop ? 'Your hamster got away.' : 'He got away.';
       $('revt').style.color = h.tier >= 0 ? `var(--r${h.tier})` : 'var(--stage-muted)';
       const tag = m.practice ? '<span class="tag2">practice</span>' : drop ? '' : `<span class="tag2">${OLD}</span>`;
       $('revs').innerHTML = tag + (drop
-        ? (h.tier >= 0 ? `Your drop landed on No. ${m.spot} (${esc(LOOKW(m.spot))}), one of the chip's <b>${fmtInt(h.hits)}</b> drops there (${pct(h.share)} of ${fmtInt(c.wheel_shots)}).${rankWords(h, 'there')}`
-          : h.reach ? `Your drop landed on No. ${m.spot}: only <b>${pct(h.share)}</b> of the ${fmtInt(c.wheel_shots)} drops landed there (a catch needs 1%), so it counts as chip noise.`
-          : `Your drop landed on No. ${m.spot}, a spot he could not reach that night: only the chip's noise lands there (${fmtInt(h.hits)} of ${fmtInt(c.wheel_shots)} drops).`)
+        ? (h.tier >= 0 ? `<b>${fmtInt(h.hits)}</b> of the ${fmtInt(c.wheel_shots)} drops landed on No. ${m.spot}.${rankWords(h, 'there')}`
+          : h.reach ? `Only <b>${pct(h.share)}</b> of the drops landed on No. ${m.spot} (a catch needs 1%): chip noise.`
+          : `Your drop hit No. ${m.spot}, a spot he could not reach: chip noise.`)
         : (h.tier >= 0 ? `Spot ${m.spot} (${esc(LOOKW(m.spot))}): the chip found him there in <b>${pct(h.share)}</b> of its ${fmtInt(c.wheel_shots)} looks.${rankWords(h, 'there')}`
           : h.reach ? `The chip found him on spot ${m.spot} in only <b>${pct(h.share)}</b> of its ${fmtInt(c.wheel_shots)} looks (a catch needs 1%).`
           : `Spot ${m.spot} was out of reach that night: he could not land there.${h.hits ? ` The chip's ${fmtInt(h.hits)} landings there are its noise.` : ''}`));
     } else {
       el.classList.add('plain');
-      $('revt').textContent = `The ghost landed · ${dayLabel(d)}`; $('revt').style.color = 'var(--accent2)';
-      $('revs').innerHTML = `IBM's chip dropped ${fmtInt(c.wheel_shots)} times. Bright spots: where it landed most.${m && !drawn(m) ? ' Your own drop is shown once the result is posted on Sepolia.' : ''}`;
+      $('revt').textContent = `Where the drops landed · ${dayLabel(d)}`; $('revt').style.color = 'var(--accent2)';
+      $('revs').innerHTML = `Brighter = more drops.${m && !drawn(m) ? ' Your own drop is shown once the result is posted.' : ''}`;
     }
     el.hidden = false;
   }
-  // the minted net in the action slot, on its own night (looked up by the night it was cast for) until the chip has looked
+  // the net's card in the action slot (approved, 6 Nov: the NFT thumb + "✓ Your net is in" + "Result tomorrow at 13:00" + a
+  // countdown, nothing else), on its own night until the chip has looked. An old picked net's NFT keeps its words
   function renderNftBox() {
     const w = win(), d = S.view === 'tonight' ? w.day : S.view, net = store.nets[d], box = $('nftbox');
-    const on = !S.playing && !!(net && net.nft) && !chipOf(d) && !(N(d) && N(d).slept);
+    const on = !S.playing && !!net && (isDrop(net) || !!net.nft) && !chipOf(d) && !(N(d) && N(d).slept) && netResult(d, null).status !== 'noresult';
     box.hidden = !on;
-    if (on) {
-      const nd = esc(dayLabel(net.nft.day || d));
-      $('nfttext').innerHTML = isDrop(net)
-        ? `<b>Your net is in:</b> a test NFT on Sepolia (no money value), night of ${nd}. It shows your catch (or "got away") once the chip's result is posted.`
-        : `<b>Your net is an NFT</b> on Sepolia (free test, no value): night of ${nd}, ${OLD} on No. ${net.spot}. It turns into your catch (or "got away") when the chip's result is posted.`;
-      const im = $('nftimg'); if (net.nft.image && /^data:image\/svg\+xml;base64,/.test(net.nft.image)) { im.src = net.nft.image; im.hidden = false; } else im.hidden = true;
-    }
+    if (!on) return;
+    if (isDrop(net)) {
+      const end = endOf(d), over = now() >= end;
+      $('nfttext').innerHTML = `<b class="ok">${NET_IN}</b><span class="rl">${over ? 'Waiting for the quantum computer…' : `Result ${relDay(end)} at ${tLocal(end)}`}</span>` +
+        (over ? '' : `<b class="cdr" data-to="${end}">in ${QC.countdown(end - now())}</b>`);
+    } else $('nfttext').innerHTML = `<b>Your net is an NFT</b> on Sepolia (free test, no value): night of ${esc(dayLabel(net.nft.day || d))}, ${OLD} on No. ${net.spot}. It turns into your catch (or "got away") when the chip's result is posted.`;
+    const im = $('nftimg'), src = net.nft && net.nft.image; if (src && /^data:image\/svg\+xml;base64,/.test(src)) { im.src = src; im.hidden = false; } else im.hidden = true;
   }
 
   // ---------- tapping a hamster (no picking: information only) + the practice net ----------
@@ -1337,14 +1443,15 @@ footer a { color: var(--ink) }
     if (!d || !N(d)) return;                         // tonight / a night not in the page yet: the roster is hidden
     const m = mine(d);
     if (revealedNow(d)) { S.focus = s; paintRing(); $('caption').innerHTML = spotInfo(d, s); return; }
-    if (m && !chipOf(d)) $('caption').innerHTML = 'The chip has not dropped yet.';
+    if (m && !chipOf(d)) $('caption').innerHTML = 'The quantum computer has not run yet.';
     else if (m && drawn(m)) $('caption').innerHTML = `Tap <b>${isDrop(m) ? 'See what you caught' : 'See if you caught him'}</b>.`;
     else if (m) $('caption').innerHTML = 'Your drop is posted soon.';
-    else if (practiceOpen(d)) $('caption').innerHTML = 'Nobody picks: tap <b>Cast a practice net</b> and one of the chip\'s drops is yours.';
+    else if (practiceOpen(d)) $('caption').innerHTML = 'Tap <b>Cast a practice net</b>: one of the chip\'s drops is yours.';
     else $('caption').innerHTML = 'You had no net on this night.';
   }
   // the ONE action (or the watch line) must be on screen when it matters (short phones: it sits under the roster)
   function showAct(instant) {
+    if (!$('details').hidden) return;                // the visitor is reading Details: never pull the page away
     try {
       const a = !$('act').hidden ? $('act') : !$('watch').hidden ? $('watch') : null; if (!a) return;
       const r = a.getBoundingClientRect(), by = r.bottom + 12 - innerHeight;
@@ -1368,7 +1475,7 @@ footer a { color: var(--ink) }
   let run = 0, skipping = false;
   $('skip').onclick = () => { skipping = true; };
   const playing = (on) => { ring.classList.toggle('playing', on); $('play').classList.toggle('playing', on); };
-  function cancelPlay() { run++; skipping = false; S.playing = false; playing(false); wSpeed = 5; clearFx(); }
+  function cancelPlay() { run++; skipping = false; S.playing = false; playing(false); wSpeed = wIdle; clearFx(); }
   const STEP_MS = 520;
   async function play() {
     const d = stageNight(); if (!d || !N(d) || N(d).slept) return;
@@ -1379,7 +1486,7 @@ footer a { color: var(--ink) }
     playing(true); renderStage(); paintRing(); highlight(-1);
     const v = view(d);
     setGlow(v.start, 'ghost'); setDots(v.start);
-    $('caption').innerHTML = 'He starts at his own spot (dashed). <b>Glow</b>: the quantum hamster, a ghost spread over the 16 spots. <b>White dot</b>: a normal hamster.';
+    $('caption').innerHTML = 'He starts here (dashed frame).';
     await wait(900); if (!live()) return;
     for (let k = 0; k < n.steps.length; k++) {
       if (!live()) return;
@@ -1391,7 +1498,7 @@ footer a { color: var(--ink) }
       await wait(STEP_MS);
     }
     if (!live()) return;
-    highlight(-1); wSpeed = 5;
+    highlight(-1); wSpeed = wIdle;
     const m0 = mine(d), yours = m0 && isDrop(m0) && drawn(m0) ? m0.spot : null;
     if (c) {
       $('caption').innerHTML = `Then IBM's chip drops <b>${fmtInt(c.wheel_shots)} times</b>.`;
@@ -1401,7 +1508,7 @@ footer a { color: var(--ink) }
       if (yours != null) { $('caption').innerHTML = `One of those ${fmtInt(c.wheel_shots)} drops is <b>yours</b>…`; await yourDrop(yours, my); if (!live()) return; }
     } else {
       setDots(ZERO); setGlow(v.perfect, 'ghost');
-      $('caption').innerHTML = 'The ghost is spread over the 16 spots. The chip has not dropped yet.';
+      $('caption').innerHTML = 'The quantum computer has not run yet.';
       await wait(1100); if (!live()) return;
     }
     S.playing = false; playing(false);
@@ -1422,7 +1529,7 @@ footer a { color: var(--ink) }
     }
     renderAll();
     if (c && known) {
-      try { const a = $('act').hidden ? $('reveal') : $('act'), r = a.getBoundingClientRect(), by = r.bottom + 12 - innerHeight; if (by > 0) window.scrollBy({ top: by, behavior: fast() ? 'auto' : 'smooth' }); } catch (e) { /* fine */ }
+      if ($('details').hidden) try { const a = $('act').hidden ? $('reveal') : $('act'), r = a.getBoundingClientRect(), by = r.bottom + 12 - innerHeight; if (by > 0) window.scrollBy({ top: by, behavior: fast() ? 'auto' : 'smooth' }); } catch (e) { /* fine */ }
       SFX.reveal(spotResult(d, m.spot).tier); bumpMine();
     }
   }
@@ -1504,13 +1611,13 @@ footer a { color: var(--ink) }
       b.innerHTML = `<span class="wd">${dayLabel(d, { day: undefined, month: undefined })}</span><span class="dn">${dayDate(d).getUTCDate()}</span>` +
         (m ? '<span class="dot" title="your net"></span>' : '') + (r && r.status === 'caught' && m.seen ? '<span class="ok" title="caught">&#10003;</span>' : '');
       b.setAttribute('aria-label', `Night of ${dayLabel(d, { weekday: 'long', month: 'long' })}${m ? (m.practice ? ', your practice net' : ', your net') : ''}${N(d) ? '' : ', not looked at yet'}`);
-      b.onclick = () => { selectView(d); toStage(); };
+      b.onclick = () => showNight(d);
       box.appendChild(b);
     }
     const w = win(), tb = document.createElement('button'); tb.type = 'button'; tb.dataset.day = 'tonight';
     tb.innerHTML = `<span class="wd">${w.when === 'tonight' ? 'Tonight' : 'Tomorrow'}</span><span class="dn">${dayDate(w.day).getUTCDate()}</span>` + (store.nets[w.day] ? '<span class="dot" title="your net"></span>' : '');
     tb.setAttribute('aria-label', `${w.when === 'tonight' ? "Tonight's" : "Tomorrow's"} net, ${dayLabel(w.day, { weekday: 'long', month: 'long' })}`);
-    tb.onclick = () => { selectView('tonight'); toStage(); }; box.appendChild(tb);
+    tb.onclick = () => showNight('tonight'); box.appendChild(tb);
     for (const b of box.children) b.setAttribute('aria-pressed', String(b.dataset.day === S.view));
     const pd = practiceDay();
     $('pastsub').textContent = "Tap a night to see where IBM's chip dropped." + (practiceOpen(pd) ? ` One free practice net on ${dayLabel(pd)}.` : '');
@@ -1518,6 +1625,7 @@ footer a { color: var(--ink) }
   // the strip sits below the first screen: after a tap, bring the stage back into view, and with it the ONE action (a short
   // phone: the action wins, the top of the stage may stay above)
   const toStage = () => {
+    if (!$('details').hidden) return;
     try {
       const P = $('play').getBoundingClientRect(), a = !$('act').hidden ? $('act') : !$('watch').hidden ? $('watch') : null;
       const by = Math.max(Math.min(P.top, 0), a ? a.getBoundingClientRect().bottom + 12 - innerHeight : -Infinity);
@@ -1549,7 +1657,7 @@ footer a { color: var(--ink) }
     $('waiting').innerHTML = wait.map((d) => { const x = store.nets[d]; return `<li><b>${dayLabel(d)}</b>: ${isDrop(x) ? 'your net' : `your ${OLD} on No. ${x.spot}`}, ${wword(netResult(d, x.spot).status)}.</li>`; }).join('') + (stale ? `<li>${stale}</li>` : '');
     $('waiting').hidden = !wait.length;
   }
-  $('tngo').onclick = () => { selectView('tonight'); toStage(); };
+  $('tngo').onclick = () => showNight('tonight');
   // the countdown ticks; at the lock (21:00 UTC) the open night rolls over and everything redraws
   let lastOpen = win().day;
   setInterval(() => {
@@ -1557,6 +1665,10 @@ footer a { color: var(--ink) }
     if (w.day !== lastOpen) { const was = lastOpen; lastOpen = w.day; if (S.view === 'tonight') { S.sel = null; if (store.nets[was]) S.view = was; } renderAll(); fetchResults(); return; }
     const t = QC.countdown(w.leftMs);
     document.querySelectorAll('.cd, .cdn').forEach((e) => { e.textContent = t; });
+    // the net's card counts down to its result (13:00); at 0 it turns into "Waiting for the quantum computer…"
+    let due = false;
+    document.querySelectorAll('.cdr').forEach((e) => { const ms = +e.dataset.to - now(); if (ms <= 0) due = true; else e.textContent = 'in ' + QC.countdown(ms); });
+    if (due && !S.playing) renderStage();
   }, 1000);
 
   // ---------- my catches ----------
@@ -1571,7 +1683,7 @@ footer a { color: var(--ink) }
     const looksGot = new Set(); let best = -1, caught = 0;
     for (const [d, m] of L) {
       const r = netResult(d, m.spot), el = document.createElement('button'); el.type = 'button'; el.className = 'mycard'; el.dataset.night = d;
-      el.onclick = () => { selectView(d); scrollStage(); };
+      el.onclick = () => showNight(d); tilt(el);
       const dd = dayLabel(d, { weekday: undefined }), no = drawn(m) ? `#${m.spot}` : '#?', kind = m.practice ? 'practice' : isDrop(m) ? '' : OLD;
       if (r.status === 'slept') { el.dataset.tier = -1; el.innerHTML = `<span class="tn">He slept</span><span class="tp">${dd}${isDrop(m) ? '' : ' · ' + no}</span><span class="tp">no catch</span>`; box.appendChild(el); continue; }
       if (r.status === 'drawing') { el.classList.add('todo'); el.dataset.tier = 'x'; el.innerHTML = `<span class="tn">Soon</span><span class="tp">${dd} · #?</span><span class="tp">your drop is posted soon</span>`; box.appendChild(el); continue; }
@@ -1588,8 +1700,11 @@ footer a { color: var(--ink) }
     $('myh').textContent = caught ? `My catches: ${caught}` : 'My catches';
     $('mystats').innerHTML = caught ? `Looks collected: <b>${looksGot.size} of 16</b>${best >= 0 ? ` · rarest: <b>${TIER[best]}</b>` : ''}` : '';
   }
-  $('mycount').onclick = () => $('mine').scrollIntoView({ behavior: fast() ? 'auto' : 'smooth', block: 'start' });
-  $('howlink').onclick = () => { $('how').open = true; };          // the link then jumps to it
+  $('mycount').onclick = () => route('mine');
+  $('howlink').onclick = (e) => { e.preventDefault(); route('how'); };
+  $('needlink').onclick = (e) => { e.preventDefault(); route('how'); };
+  $('morelink').onclick = (e) => { e.preventDefault(); route('details'); };
+  $('back').onclick = (e) => { e.preventDefault(); route(''); };
 
   // ---------- How it works: his night, the coin tilts, did the chip keep the quantum pattern ----------
   const howDay = () => { const d = stageNight(); return (d && N(d) ? d : null) || practiceDay() || DAYS[DAYS.length - 1]; };
@@ -1601,12 +1716,11 @@ footer a { color: var(--ink) }
   function renderHow() {
     const d = howDay(), n = N(d), R = n.rounds, w = win();
     const paid = paidNow();
-    $('howrules').innerHTML = `One net per wallet per night, cast before he runs: nets close at 21:00 UTC (${tLocal(w.closeMs)} your time); he usually starts between 21:10 and 21:40 UTC. ` +
-      (paid ? `Each net costs ${costLabel()} Squeekchain test SQK, burned when you cast${faucetAddr() ? ` (this page's faucet gives ${dripLabel()} per wallet per day)` : ''}, and is an NFT on the Sepolia test network; you also pay a little test gas. Test tokens: nothing here has money value. `
-        : 'Each net is a free NFT on the Sepolia test network (you pay only test gas, worth nothing). ') +
-      "Nets are cast from a browser wallet; without one the page is for watching. Under Past nights there is also one free practice net, on the newest night the chip has looked at.";
-    $('howcost').textContent = paid ? `A net costs ${costLabel()} Squeekchain test SQK, which gets burned${faucetAddr() ? ' (free from this page, once a day)' : ''}, and is a test NFT on Sepolia.` : 'A net is a free test NFT on Sepolia (only test gas).';
+    $('howrules').textContent = 'Free practice: one net on the newest night, under Past nights.';
+    $('howcost').textContent = paid ? `It costs ${costLabel()} test SQK (burned${faucetAddr() ? '; free here once per night' : ''}) and is a test NFT on Sepolia.` : 'It is a free test NFT on Sepolia (only test gas).';
+    $('needsqk').textContent = paid ? `${costLabel()} test SQK${faucetAddr() ? ' (free here, once per night)' : ''}` : 'no test SQK (nets are free)';
     document.querySelectorAll('.tclose').forEach((e) => { e.textContent = tLocal(w.closeMs); });
+    document.querySelectorAll('.tstart').forEach((e) => { e.textContent = `${tLocal(w.startFromMs)} and ${tLocal(w.startToMs)}`; });
     document.querySelectorAll('.tend').forEach((e) => { e.textContent = tLocal(w.endMs); });
     renderOdds();
     if (!R.length) { $('nighth').textContent = `His night of ${dayLabel(d)}: he slept`; ['nightsub', 'nightsrc', 'bars', 'ticks', 'nightstats', 'dials', 'progsub'].forEach((k) => { $(k).innerHTML = ''; }); renderCompare(d); return; }
@@ -1640,7 +1754,7 @@ footer a { color: var(--ink) }
     const d = practiceDay();
     if (!d) { $('oddsrows').innerHTML = ''; $('oddssub').textContent = ''; $('prow').innerHTML = ''; $('podds').textContent = ''; return; }
     const O = oddsOf(d), when = d === prevDay(win().day) ? `last night (${dShort(d)})` : dayLabel(d);
-    $('oddssub').textContent = `An example: ${when}. IBM's chip dropped ${fmtInt(O.shots)} times; a net that night would have caught whatever its one drop landed on.`;
+    $('oddssub').textContent = `${Cap(when)}, ${fmtInt(O.shots)} drops. Legendary = the Epic hamster when the chip's very first drop lands on it too.`;
     $('oddsrows').innerHTML = [5, 4, 3, 2, 1, 0].map((i) => { const x = O.by[i], name = i ? TIER[i - 1] : 'Got away (chip noise)';
       return `<tr><td>${name}</td><td>${x.spots.length ? x.spots.map((s) => 'No. ' + s).join(', ') : i === 5 ? 'none: the first drop was not on the Epic' : 'none'}</td><td>${fmtInt(x.hits)}</td><td>${pct(x.hits / O.shots)}</td></tr>`; }).join('');
     // the prizes row on the first screen: the five skins, each with that night's chance
@@ -1655,7 +1769,7 @@ footer a { color: var(--ink) }
     const zero = (t) => (t === 4 ? (inN < 1000 ? `~1 in ${fmtInt(Number(inN.toPrecision(2)))}` : 'rare') : t === 3 && O.by[5].hits ? '→ Legendary' : pct(0));
     [...box.children].forEach((el, t) => { const x = O.by[t + 1], p = x.hits ? pct(x.hits / O.shots) : zero(t), po = el.querySelector('.po'); po.textContent = p; po.classList.toggle('w', p.length > 9);
       el.setAttribute('aria-label', `${TIER[t]}, ${SKIN[t]} skin: ${x.hits ? `${p} of the drops ${when}` : t === 4 ? `none ${when}; ${p === 'rare' ? 'rare' : `about ${p.replace('~', '')}`} per net` : t === 3 && O.by[5].hits ? `none ${when}: the first drop made the Epic hamster Legendary` : `none ${when}`}`); });
-    $('podds').textContent = `Chance = share of the drops ${when}. Legendary = the Epic hamster when the chip's very first drop lands on it too. Got away (chip noise): ${pct(O.by[0].hits / O.shots)}`;
+    $('podds').textContent = d === prevDay(win().day) ? 'Chances from last night.' : `Chances from ${dayLabel(d)}.`;
     box.children[4].title = "Legendary: the Epic hamster, when the chip's very first drop of the night lands on it";
   }
   function highlight(k, g) {
@@ -1767,16 +1881,15 @@ footer a { color: var(--ink) }
   const NFT_STEP = { connect: 'Open your wallet to connect…', network: 'Switching your wallet to Sepolia (test network)…', check: 'Checking this night…',
     'sqk-check': 'Checking your test SQK…', 'sqk-sign': 'Sign in your wallet: let your net burn exactly the test SQK it costs (a signature, no fee)…',
     'sqk-approve': 'Your wallet cannot sign that: approve exactly the test SQK a net costs (one extra transaction)…',
-    faucet: "Confirm the one transaction in your wallet: today's free test SQK, only the Sepolia test fee.", wait: 'Waiting for Sepolia…', done: 'Done!' };
+    faucet: 'Confirm in your wallet (test fee only)…', wait: 'Waiting for Sepolia…', done: 'Done!' };
   const stepText = (k) => (k === 'send' ? (paidNow() ? `Confirm the one transaction in your wallet: your net (${costLabel()} test SQK, burned), plus the Sepolia test fee.`
     : 'Confirm the one transaction in your wallet: a free net, only the Sepolia test fee.') : NFT_STEP[k] || '');
-  const nftMsg = (t, err, k) => { const e = $('nftmsg'); e.hidden = !t; e.textContent = t || ''; e.classList.toggle('err', !!err); e.dataset.k = (t && k) || ''; deckSolo(); };
+  const nftMsg = (t, err, k) => { const e = $('nftmsg'); e.hidden = !t; e.textContent = t || ''; e.classList.toggle('err', !!err); e.dataset.k = (t && k) || ''; };
   // no test SQK yet (catch.js NO_SQK: nothing signed or sent): an expected first step, said plainly under the button that
-  // now takes its place (the faucet), or above the line that says why there is none today
+  // now takes its place (the faucet), or above the line that says why there is none right now
   const noSqkWords = () => {
     const k = castState();
-    return k.act && k.act.go === getSqk ? `This wallet has no test SQK yet. Tap the button to get today's free ${dripLabel()} (one transaction), then cast. Nothing was sent.`
-      : 'This wallet does not have the test SQK a net costs. Nothing was sent.';
+    return k.act && k.act.go === getSqk ? 'No test SQK yet: get the free one above, then cast. Nothing was sent.' : 'This wallet does not have the test SQK a net costs. Nothing was sent.';
   };
   const pubFetch = (u, i) => fetch(u, Object.assign({ signal: (window.AbortSignal && AbortSignal.timeout) ? AbortSignal.timeout(8000) : undefined }, i));
   const balanceCheck = () => (/^https?:$/.test(location.protocol) ? QC.rpcBalance(pubFetch, RPC) : null);
@@ -1795,8 +1908,9 @@ footer a { color: var(--ink) }
       try { meta = QC.tokenMeta(QC.dec.string(await QC.walletCall(window.ethereum)(CFG.catchAddress, QC.enc.tokenURI(r.tokenId)))); } catch (e) { /* the picture can come later */ }
       store.nets[r.day] = { drop: true, spot: null, at: now(), seen: false, nft: { tokenId: r.tokenId, tx: r.txHash, day: r.day, image: meta && meta.image ? meta.image : null } }; save();
       S.nftBusy = false; renderAll(); SFX.reveal(0); bumpMine();
-      nftMsg(r.day !== w.day ? `Sepolia's clock had already passed 21:00 UTC: your net is for the night of ${dayLabel(r.day)}.` : '');
-      walletNets(false); readSqk();
+      nftMsg(r.day !== w.day ? `Nets had just closed: your net is for ${dayLabel(r.day)}.` : '');
+      try { castMoment(); } catch (e) { /* a decoration never reports a failed cast */ }
+      walletNets(false); readSqk(); readNets();
     } catch (e) {
       S.nftBusy = false;
       // too little test SQK: the faucet button takes the cast button's place (the wallet is connected now, so read it again)
@@ -1814,7 +1928,7 @@ footer a { color: var(--ink) }
       if (e && e.code === 'timeout') setTimeout(() => walletNets(false), 60000);
     }
   }
-  // today's free test SQK (one net's worth, once per wallet per day): ONE transaction, claim() on the faucet
+  // the free test SQK (one net's worth, once per wallet per net night): ONE transaction, claim() on the faucet
   async function getSqk() {
     const f = faucetAddr();
     if (S.nftBusy || !nftOn() || !f) return;
@@ -1827,13 +1941,15 @@ footer a { color: var(--ink) }
       readSqk();
     } catch (e) {
       S.nftBusy = false;
-      if (e && e.code === 'claimed') S.sqk = Object.assign({}, S.sqk, { claimed: true });
-      renderStage(); nftMsg(QC.plainError(e), true); readSqk();
+      // already claimed this night: the page's own words (the next claim opens at tonight's close), once
+      if (e && e.code === 'claimed') { S.sqk = Object.assign({}, S.sqk, { claimed: true }); renderStage(); nftMsg($('sqkout').hidden ? nextClaim(win()) : ''); }
+      else { renderStage(); nftMsg(QC.plainError(e), true); }
+      readSqk();
     }
   }
   // what a net costs and what this wallet holds (read-only; never asks the wallet for anything): the wallet's own chain if
   // it is on Sepolia, else the public Sepolia RPC. The contract is the truth: its NET_COST() (0 = free nets; the old v1
-  // contract has none, so 0 too), its SQK, this wallet's balance and today's faucet claim
+  // contract has none, so 0 too), its SQK, this wallet's balance and this night's faucet claim
   let sqkRead = 0;
   async function readSqk() {
     if (!nftOn()) return;
@@ -1942,32 +2058,151 @@ footer a { color: var(--ink) }
     try {
       const call = QC.rpcCall((u, i) => fetch(u, Object.assign({ signal: (window.AbortSignal && AbortSignal.timeout) ? AbortSignal.timeout(8000) : undefined }, i)), RPC);
       sofar = await QC.tonightSoFar(call, DATA.core.address, DATA.core.genesis, Math.floor(now() / 1000));
-      renderTonight(); if (S.view === sofar.day && !N(S.view) && !S.playing) renderStage();
+      renderTonight(); renderAlive(); if (S.view === sofar.day && !N(S.view) && !S.playing) renderStage();
     } catch (e) { return; }                   // blocked or offline: nothing shown, nothing retried
-    if (!document.hidden) soTimer = setTimeout(readSoFar, 120000);
+    if (!document.hidden) soTimer = setTimeout(() => { readSoFar(); readNets(); }, 120000);
   }
 
-  // ---------- LIVE: his wheel right now, from Squeekchain's official status API (hidden when it cannot be reached) ----------
+  // ---------- ALIVE: his wheel right now, from Squeekchain's official status API (hidden when it cannot be reached or the
+  // sensor is offline), his turns tonight (settled rounds) and the nets cast tonight ----------
   const LIVE_API = 'https://api.squeekchain.com/v1/status';
-  let liveFails = 0, liveTimer = null;
+  let liveFails = 0, liveTimer = null, liveNow = null;
   function liveState(st) {
     const m = st && st.measurement; if (!m) return null;
     const age = (now() - Date.parse(m.observedAt)) / 1000, fresh = m.freshness === 'online' && age >= -60 && age < (Number(m.staleAfterSeconds) || 120) + 30;
-    if (!fresh) return { on: false, word: 'OFFLINE', text: 'the sensor is offline right now' };
-    const v = Number(m.speedMmPerSecond) || 0;
-    return v > 0 ? { on: true, word: `RUNNING<span class="spd"> ${(v / 1000).toFixed(2)} m/s</span>`, text: `Squeektoshi is running right now (${(v / 1000).toFixed(2)} m/s)` } : { on: false, word: 'RESTING', text: 'Squeektoshi is resting right now' };
+    return fresh ? { on: (Number(m.speedMmPerSecond) || 0) > 0, offline: false } : { on: false, offline: true };
   }
   async function livePoll() {
     clearTimeout(liveTimer);
     try {
       const r = await fetch(LIVE_API, { cache: 'no-store', signal: (window.AbortSignal && AbortSignal.timeout) ? AbortSignal.timeout(8000) : undefined });
-      const L = liveState(await r.json()); liveFails = 0;
-      if (L) { const b = $('live'); b.hidden = false; b.className = 'pill live' + (L.on ? ' run' : ''); b.innerHTML = `LIVE<span class="lw"> · ${L.word}</span>`; b.title = `His real wheel: ${L.text} (Squeekchain live sensor)`; b.setAttribute('aria-label', `Live: ${L.text}`); }
-    } catch (e) { liveFails++; if (liveFails >= 3) return; }
+      liveNow = liveState(await r.json()); liveFails = 0; renderAlive();
+    } catch (e) { liveFails++; if (liveFails >= 3) { liveNow = null; renderAlive(); return; } }
     if (!document.hidden) liveTimer = setTimeout(livePoll, liveFails ? 15000 * liveFails : 30000);
   }
+  // "N nets cast tonight": the NetCast logs of the night he runs now (QC.nightOf(now): before 22:00 the open night, after the
+  // lock the closed one until 13:00), straight from the public Sepolia RPC (never the wallet; catch.js reads only eth_call).
+  // The public node keeps logs for about 10,000 blocks (~34 h): the count looks back 9,500 blocks (12 s each) and stays
+  // hidden once the night's first casts are older than that (a count that could be short is not shown)
+  const LOOKBACK = 9500;
+  let netsCount = 0;
+  async function readNets() {
+    if (!/^https?:$/.test(location.protocol) || !CFG.catchAddress) return;
+    const t = Math.floor(now() / 1000), n = QC.nightOf(t);
+    try {
+      if (t - QC.closeAt(n - 1) > LOOKBACK * 12) throw new Error('older than the public node keeps');
+      const rq = async (method, params) => { const r = await pubFetch(RPC, { method: 'POST', headers: { 'content-type': 'application/json' }, cache: 'no-store',
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }) }); const j = await r.json(); if (!r.ok || j.error) throw new Error('rpc'); return j.result; };
+      const head = parseInt(await rq('eth_blockNumber', []), 16);
+      const logs = await rq('eth_getLogs', [{ address: CFG.catchAddress, topics: [QC.TOPIC_NETCAST, '0x' + n.toString(16).padStart(64, '0')],
+        fromBlock: '0x' + Math.max(0, head - LOOKBACK).toString(16), toBlock: 'latest' }]);
+      netsCount = Array.isArray(logs) ? logs.length : 0;
+    } catch (e) { netsCount = 0; }                                   // blocked / refused: hidden, never an error
+    renderAlive();
+  }
+  function renderAlive() {
+    const L = liveNow, b = $('live'), nn = $('netsn'), on = !!(L && !L.offline && L.on);
+    b.hidden = !L || L.offline;
+    if (!b.hidden) {
+      const tu = on && sofar && sofar.turns ? ` · ${fmtInt(sofar.turns)} turns` : '';
+      $('livet').textContent = on ? 'Squeektoshi is running right now' + tu : 'Squeektoshi is resting';
+      b.className = 'live' + (on ? ' run' : ''); b.title = 'His real wheel, from the Squeekchain live sensor';
+    }
+    nn.hidden = !netsCount; nn.textContent = netsCount === 1 ? '1 net cast tonight' : `${fmtInt(netsCount)} nets cast tonight`;
+    $('alive').hidden = b.hidden && nn.hidden;
+    $('stage').classList.toggle('run', on);
+    wIdle = on ? 40 : 5; if (!S.playing) wSpeed = wIdle;
+  }
   // back on the tab (e.g. the next morning): look for new results too, so a net left open overnight resolves without a reload
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) { if (liveFails < 3) livePoll(); readSoFar(); fetchResults(); readDrops(); readSqk(); } else { clearTimeout(liveTimer); clearTimeout(soTimer); } });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { if (liveFails < 3) livePoll(); readSoFar(); readNets(); fetchResults(); readDrops(); readSqk(); } else { clearTimeout(liveTimer); clearTimeout(soTimer); } });
+
+  // ---------- Details: a view of its own in this one page (#details #past #tonight #mine #how #check), with a Back link.
+  // No pushState (the claude.ai preview iframe may refuse it): the hash, read on load and on hashchange ----------
+  const DETAIL = new Set(['details', 'past', 'tonight', 'mine', 'how', 'check']);
+  let lastHash = null;
+  function route(name) {
+    name = String(name || '').replace(/^#/, ''); const det = DETAIL.has(name);
+    if (det && S.playing) skipping = true;                       // leaving a replay ends it; its "seen" is saved as usual
+    $('game').hidden = det; $('details').hidden = !det;
+    if (name === 'how' || name === 'details') $('how').open = true;
+    if (name === 'check') $('check').open = true;
+    try { const h = location.hash.slice(1); if (det ? h !== name : DETAIL.has(h)) location.hash = det ? name : ''; } catch (e) { /* sandboxed: fine */ }
+    try { lastHash = location.hash.slice(1); } catch (e) { lastHash = det ? name : ''; }
+    try { const t = det && name !== 'details' ? $(name) : null; if (t) t.scrollIntoView({ block: 'start' }); else window.scrollTo(0, 0); } catch (e) { /* fine */ }
+    castbarCheck();
+  }
+  window.addEventListener('hashchange', () => { let h = ''; try { h = location.hash.slice(1); } catch (e) { /* fine */ } if (h !== lastHash) route(h); });
+  const showNight = (d) => { route(''); selectView(d); toStage(); };
+
+  // ---------- the cast moment (~2 s): the beam flashes, a drop falls onto the podium, the net's card appears with a glow.
+  // Reduced motion (and the tests' fast mode): the card simply appears ----------
+  function castMoment() {
+    const box = $('nftbox'), st = $('stage'), pod = st.querySelector('.podium'), v0 = S.view;
+    if (fast() || box.hidden || $('game').hidden) return;
+    // down the beam, from under the computer onto the podium's top (its centre)
+    const G = fxGeom(), r = pod.querySelector('.tp').getBoundingClientRect(), x1 = r.left - G.pr.left + r.width / 2, y1 = r.top - G.pr.top + r.height * 0.45, [x0, y0] = G.O;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    fx.width = Math.round(G.W * dpr); fx.height = Math.round(G.H * dpr); fx.style.width = G.W + 'px'; fx.style.height = G.H + 'px';
+    const g = fx.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const hb = document.querySelector('.hl').getBoundingClientRect();     // never across the headline (as the landings)
+    g.beginPath(); g.rect(0, 0, G.W, G.H); g.rect(hb.left - G.pr.left, hb.top - G.pr.top, hb.width, hb.height); g.clip('evenodd');
+    const end = () => { st.classList.remove('cast'); pod.classList.remove('burst'); box.classList.remove('pre', 'new'); clearFx(); };
+    const still = () => !S.playing && S.view === v0 && !$('game').hidden;
+    st.classList.add('cast'); box.classList.add('pre');
+    const R = Math.max(11, Math.min(16, st.clientWidth * 0.024));                      // the drop: bigger on a big stage
+    const t0 = performance.now() + 140, at = (u) => { const e = u * u; return [x0 + (x1 - x0) * e, y0 + (y1 - y0) * e]; };   // falls after the flash starts
+    function frame(T) {
+      if (!still()) return end();
+      const u = Math.max(0, Math.min(1, (T - t0) / 760)), [x, y] = at(u);
+      g.clearRect(0, 0, G.W, G.H);
+      if (u < 1) {
+        // a short cyan trail (where it was a moment ago), then the drop: white core, cyan glow
+        for (let k = 5; k >= 1; k--) { const [tx, ty] = at(Math.max(0, u - k * 0.035)); g.fillStyle = `rgba(125,235,255,${(0.42 - k * 0.07).toFixed(2)})`; g.beginPath(); g.arc(tx, ty, R * (1 - k * 0.12), 0, Math.PI * 2); g.fill(); }
+        g.shadowColor = 'rgba(125,235,255,.95)'; g.shadowBlur = R * 2.2; g.fillStyle = '#7debff'; g.beginPath(); g.arc(x, y, R, 0, Math.PI * 2); g.fill();
+        g.shadowBlur = 0; g.fillStyle = '#f2feff'; g.beginPath(); g.arc(x, y - R * 0.18, R * 0.45, 0, Math.PI * 2); g.fill();
+        return requestAnimationFrame(frame);
+      }
+      clearFx(); pod.classList.add('burst'); box.classList.remove('pre'); void box.offsetWidth; box.classList.add('new'); SFX.land();
+      setTimeout(end, 1100 + 1600);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  // ---------- phones: a sticky "Cast a net" once the deck has scrolled away (only after scrolling PAST it, never on load).
+  // A tap = back to the deck + the real button's click: one tap is still the one transaction, the wallet steps show under it ----------
+  let deckOut = false;
+  try { new IntersectionObserver(([e]) => { deckOut = !e.isIntersecting && e.boundingClientRect.top < 0; castbarCheck(); }).observe($('deck')); } catch (e) { /* old browser: no bar */ }
+  function castbarCheck() {
+    const A = $('act'), on = deckOut && innerWidth < 640 && $('details').hidden && S.view === 'tonight' && !S.playing && !S.nftBusy && !A.hidden && !A.disabled && (A.onclick === castNft || A.onclick === getSqk);
+    $('castbar').classList.toggle('on', on); $('castbar').setAttribute('aria-hidden', String(!on)); $('castgo').tabIndex = on ? 0 : -1;
+    document.body.classList.toggle('stickyon', on);
+    if (on) $('castgo').textContent = A.textContent.split(' · ')[0];           // "Cast a net" / "Get free test SQK"
+  }
+  $('castgo').onclick = () => { toStage(); $('act').click(); };
+  window.addEventListener('resize', castbarCheck);
+
+  // ---------- Season 2: a first look (12 preview hamsters, not catchable yet) + the "Hamster battles" teaser. Names and traits
+  // are drawn here (JS only); the pictures load when the band comes near ----------
+  function tilt(el) {
+    let fine = false; try { fine = matchMedia('(hover: hover) and (pointer: fine)').matches; } catch (e) { /* no */ }
+    if (reduceMotion || !fine) return;
+    el.addEventListener('pointermove', (e) => { const r = el.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+      el.style.setProperty('--rx', ((x - 0.5) * 14).toFixed(2) + 'deg'); el.style.setProperty('--ry', ((0.5 - y) * 14).toFixed(2) + 'deg');
+      el.style.setProperty('--mx', (x * 100).toFixed(1) + '%'); el.style.setProperty('--my', (y * 100).toFixed(1) + '%'); });
+    el.addEventListener('pointerleave', () => { for (const k of ['--rx', '--ry', '--mx', '--my']) el.style.removeProperty(k); });
+  }
+  function renderGallery() {
+    const box = $('gallery'); if (box.children.length || !ART.showcase) return;
+    for (const [name, x] of Object.entries(ART.showcase)) {
+      const f = document.createElement('figure'); f.className = 'gcard'; f.setAttribute('role', 'listitem'); f.tabIndex = 0;
+      f.innerHTML = `<img alt="${esc(name)}: ${esc(x.traits.join(', '))}" width="480" height="643"><figcaption><b>${esc(name)}</b><span>${esc(x.traits.slice(1, 3).join(' · '))}</span></figcaption>`;
+      f.querySelector('img').dataset.src = 'data:image/webp;base64,' + x.data; box.appendChild(f); tilt(f);
+    }
+  }
+  const artIn = () => { for (const im of document.querySelectorAll('#soon img[data-src]')) { im.src = im.dataset.src; delete im.dataset.src; } };
+  if (ART.teaser) $('teaser').dataset.src = 'data:image/webp;base64,' + ART.teaser.data;
+  renderGallery();
+  try { const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { artIn(); io.disconnect(); } }, { rootMargin: '800px' }); io.observe($('soon')); } catch (e) { artIn(); }
 
   // ---------- go ----------
   // first screen: a result waiting to be seen, else the viewer's net whose night is on or waiting for the chip (or for its
@@ -1987,7 +2222,9 @@ footer a { color: var(--ink) }
   if (CFG.catchAddress) { const k = $('contract'); k.hidden = false; k.innerHTML = `Each net is a test NFT: QuantumCatch contract <a class="addr" href="https://sepolia.etherscan.io/address/${CFG.catchAddress}" target="_blank" rel="noopener">${CFG.catchAddress}</a> on Sepolia (no money value; one net per wallet per night; its catch is drawn on-chain from the night's drops).`;
     const f = $('footc'), a = CFG.catchAddress; f.hidden = false; f.innerHTML = `Contract <a href="https://sepolia.etherscan.io/address/${a}" target="_blank" rel="noopener">QuantumCatch ${a.slice(0, 6)}…${a.slice(-4)}</a> on Sepolia`; }
   S.view = startView(false);
-  renderAll(); livePoll(); fetchResults(); readSoFar(); walletNets(false); readSqk(); readDrops();
+  renderAll(); livePoll(); fetchResults(); readSoFar(); readNets(); walletNets(false); readSqk(); readDrops();
+  // a Details hash on load (a shared link, the browser's back button): that view; else the game
+  try { if (location.hash.length > 1) route(location.hash.slice(1)); else lastHash = ''; } catch (e) { lastHash = ''; }
   // a wallet that injects itself after the page loaded: casting becomes possible, and its nets and test SQK are read
   window.addEventListener('ethereum#initialized', () => { renderAll(); walletNets(false); readSqk(); readDrops(); }, { once: true });
   // the '?' on the stage and on dark portraits is drawn in Anton: draw it again once the web font is in
@@ -1995,6 +2232,7 @@ footer a { color: var(--ink) }
   if (readyNow(S.view)) requestAnimationFrame(() => showAct(true));   // a result waiting: its button on screen
   window.QCP = { get stage() { return S.view; }, get playing() { return S.playing; }, get sel() { return S.sel; }, store: () => JSON.parse(JSON.stringify(store)),
     data: DATA, spotResult, netResult, viewOf: view, select: selectView, practiceDay, win, get sofar() { return sofar; },
-    get sqk() { return Object.fromEntries(Object.entries(S.sqk).map(([k, v]) => [k, typeof v === 'bigint' ? v.toString() : v])); }, paid: PAID };
+    get sqk() { return Object.fromEntries(Object.entries(S.sqk).map(([k, v]) => [k, typeof v === 'bigint' ? v.toString() : v])); }, paid: PAID,
+    get route() { return $('details').hidden ? 'main' : 'details'; } };
 })();
 </script>

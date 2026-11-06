@@ -15,7 +15,7 @@ makes from his rounds; runs of the other recipe (the v1.2 re-runs of archive nig
 the night's result. Every chip run carries `first_shot`: the SPOT of the chip's very first shot (shots_in_order[0], a
 position, turned onto the ring by wheel.py spot_of), which makes the night's Epic spot Legendary when it lands there (the
 owner's rarity rule, contracts/src/QuantumCatch.sol tiersOf; the page ranks with wheel/engine.js tiers)."""
-import glob, importlib.util, json, os, re, sys
+import base64, glob, importlib.util, json, os, re, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -139,6 +139,11 @@ data = {**results, 'twin': twin, 'health_min': HEALTH_MIN,
         'config': {'repoUrl': REPO, 'catchAddress': CATCH.lower() if CATCH else None, 'chainId': '0xaa36a7', **SQK_CFG},
         'core': {'address': newest['core'], 'genesis': newest['genesis']}}
 art = json.load(open(os.path.join(HERE, 'art', 'art.json')))
+SHOWCASE = json.load(open(os.path.join(HERE, 'art', 'showcase.json'), encoding='utf-8'))   # Season 2 preview cards (12 webp)
+TEASER = json.load(open(os.path.join(HERE, 'art', 'teaser.json')))                         # "Hamster battles" teaser (1200x500 webp)
+assert len(SHOWCASE) == 12 and all(base64.b64decode(v['data'][:16])[:4] == b'RIFF' and v['traits'] for v in SHOWCASE.values())
+assert base64.b64decode(TEASER['data'][:16])[:4] == b'RIFF'
+art = {**art, 'showcase': SHOWCASE, 'teaser': TEASER}        # in memory only: art.json (packed on-chain) is not rewritten
 
 T = rd(os.path.join(HERE, 'page.template.html'))
 rep = {'/*__ENGINE__*/': rd(os.path.join(HERE, 'engine.js')), '/*__CATCH__*/': rd(os.path.join(HERE, 'catch.js')),

@@ -193,9 +193,10 @@ test('no picking: the claw-machine words, the 4 steps of How it works, last nigh
   assert.ok(!/put it on a hamster|free game/i.test(scripts), 'nor in the page\'s scripts');
   assert.match(css, /@media \(hover: hover\) \{ \.spot:hover \{ border-color: var\(--cream\) \} \}/, 'no sticky hover frame on a tapped tile (touch screens)');
   assert.match(first, /<h2 class="prh" id="prizesh">The prizes<\/h2><div class="prow" id="prow" role="list" aria-labelledby="prizesh"><\/div>/, 'the prizes: drawn by JS (composite)');
-  for (const k of ["`Cast a net · ${costLabel()} test SQK`", "'Cast a net · free'", "`Get today's free ${dripLabel()} test SQK`", "Today's free ${dripLabel()} is already claimed: come back tomorrow.`",
-    "` You also need ${costLabel()} test SQK (free daily from this page).`", "'Your hamster got away (chip noise).'", "'He slept: no catch that night.'", "`${when13(w)} · 1 is yours`",
-    "'burned · Sepolia test network'", "const OLD = 'old net (picked)'", "'Cast a practice net · free'"]) assert.ok(scripts.includes(k), `the words: ${k}`);
+  // v3 (owner, 6 Nov "make it simple"): one button + one short line per state; the faucet resets per NET NIGHT (SqkFaucet)
+  for (const k of ["`Cast a net · ${costLabel()} test SQK`", "'Cast a net · free'", "'Get free test SQK'", "`Free test SQK already used. Next one from ${",
+    "'Your hamster got away.'", "'He slept: no catch that night.'", "'test token · no money value'", "'✓ Your net is in'", "'Chances from last night.'",
+    "'Squeektoshi is running right now'", "'Squeektoshi is resting'", "const OLD = 'old net (picked)'", "'Cast a practice net · free'"]) assert.ok(scripts.includes(k), `the words: ${k}`);
   const how = text.slice(text.indexOf('<details class="card more" id="how">'), text.indexOf('<details class="card more" id="check">'));
   const steps = how.match(/<ol class="steps4" id="howsteps">([\s\S]*?)<\/ol>/);
   assert.ok(steps, 'How it works: the steps');
@@ -206,6 +207,43 @@ test('no picking: the claw-machine words, the 4 steps of How it works, last nigh
   const check = text.slice(text.indexOf('<details class="card more" id="check">'), text.indexOf('</details>\n    </div>\n  </div>'));
   assert.match(plain(check), /Each net gets one of the night's landings: keccak256 of \(the night, the posted result's hash and job id, the net's token id\) modulo the number of landings/, 'the draw, in the recipe');
   assert.match(css, /\.spot\.net\.drop::after \{ content: "YOURS" \}/, 'your drop\'s tile, after the replay');
+});
+
+// v3 (owner, 6 Nov: "too much text under ... could be somewhere separated", "add awesome artwork", "game is coming soon"): the
+// game view (#game: stage, deck, prizes, the art band + Season 2 gallery, one Details link) and a Details view in the same
+// file (#details: Past nights, Tonight, My catches, How it works, Check it yourself), shown by an ASCII hash with a Back link
+test('v3 structure: the game view and the Details view, the art band and the Season 2 gallery, no LCD, the faucet per night, reduced motion', () => {
+  assert.ok(text.indexOf('<div class="view" id="game">') >= 0, 'the game view');
+  assert.ok(text.indexOf('<div class="view" id="game">') < text.indexOf('<div class="ln view" id="details" hidden>'), 'then the Details view (hidden until its hash)');
+  assert.ok(text.includes('<a class="back" id="back" href="#">'), 'a Back link');
+  assert.ok(!/(href|id)="#?(settings|sidebar|customize|upgrade|downloads|comment-[^"]*)"/.test(text), 'no reserved hash names');
+  for (const h of ['details', 'past', 'tonight', 'mine', 'how', 'check']) assert.ok(scripts.includes(`'${h}'`) && /^[a-z]+$/.test(h), `hash ${h}`);
+  const first = text.slice(text.indexOf('<section class="card play"'), text.indexOf('<div class="story">'));
+  const soon = first.indexOf('id="soon"'), gal = first.indexOf('id="gallery"'), bar = first.indexOf('id="castbar"'), endPlay = first.indexOf('</section>');
+  assert.ok(soon > endPlay && gal > soon, 'the art band and the gallery under the game, before the Details stories');
+  assert.ok(bar > endPlay, 'the sticky cast bar sits outside #play');
+  assert.ok(!/class="spot"/.test(first), 'no tile markup in the slice');
+  for (const id of ['lcd', 'nfthint', 'chipline', 'deckrow', 'watchsqk']) assert.ok(!text.includes(`id="${id}"`), `no #${id} (owner: "make it simple")`);
+  assert.match(first, /<span class="chipsoon">Coming soon<\/span><h2 id="soonh">Hamster battles<\/h2><p>Your catches will fight\. New hamsters are on the way\.<\/p>/, 'the art band words');
+  assert.match(first, /<a class="morel" id="morelink" href="#details">How it works · Details/, 'one link to Details');
+  const how = text.slice(text.indexOf('<details class="card more" id="how">'), text.indexOf('<details class="card more" id="check">'));
+  assert.match(how, /<dl class="faq" id="faq">/, "the owner's plain answers in How it works");
+  assert.ok(how.includes('4 qubits give exactly 16 different answers: one per hamster') && how.includes('runs the same program 4,000 times') && how.includes('Nobody can choose it or know it before.'));
+  assert.match(how, /<p class="small" id="needs">What you need: /);
+  // the Season 2 preview cards + the teaser: in the page (ART), names and traits drawn by JS only, nothing the gate refuses
+  const SHOW = JSON.parse(fs.readFileSync(path.join(ROOT, 'wheel/art/showcase.json'), 'utf8')), TEASE = JSON.parse(fs.readFileSync(path.join(ROOT, 'wheel/art/teaser.json'), 'utf8'));
+  assert.equal(Object.keys(SHOW).length, 12);
+  for (const [name, v] of Object.entries(SHOW)) {
+    assert.ok(html.includes(v.data.slice(0, 200)), `${name}: in the page`);
+    assert.ok(v.traits.length && !v.traits.some((t) => /v[a]ult/i.test(t)), `${name}: traits (none the export gate refuses)`);
+    assert.ok(!text.includes(name), `${name}: drawn by JS, not static markup`);
+  }
+  assert.ok(html.includes(TEASE.data.slice(0, 200)) && TEASE.w === 1200 && TEASE.h === 500, 'the teaser');
+  // the faucet resets per net night (SqkFaucet: one claim per wallet per open night), never "a day"
+  assert.ok(!/once a day|free daily|per wallet per day|come back tomorrow/i.test(text + scripts), 'the faucet is per net night');
+  const rm = block('@media (prefers-reduced-motion: reduce)');
+  for (const k of ['.coreglow', '.nftbox.new', '.castbar', '.gcard', '.stage.cast .beam']) assert.ok(rm.includes(k), `reduced motion: ${k}`);
+  assert.ok(!/\.chiptag span/.test(css), 'no .chiptag span rule (it would hide the ALIVE line)');
 });
 
 const DATA_ = (() => { const m = scripts.match(/const DATA = (\{.*?\});\n/s); assert.ok(m, 'DATA literal'); return JSON.parse(m[1]); })();

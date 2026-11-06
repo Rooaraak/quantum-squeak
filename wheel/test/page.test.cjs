@@ -68,7 +68,7 @@ function serve(body, resultsBody) {
 const ONLY = process.env.QW_ONLY ? process.env.QW_ONLY.split(',') : null;      // QW_ONLY=lock,resolve runs just those
 async function scenario(name, o, body) {
   if (ONLY && !ONLY.includes(name)) return;
-  const { width, height, scheme = 'light', api = 'mock', fast = true, noStorage = false, page = html, at = T0, storage = null, rpc = null, rpcUrl = null, wallet = null, random = null } = o;
+  const { width, height, scheme = 'light', api = 'mock', fast = true, noStorage = false, page = html, at = T0, storage = null, rpc = null, rpcUrl = null, wallet = null, random = null, hash = '' } = o;
   const t0 = Date.now(), srv = await serve(page, 'results' in o ? o.results : RESULTS);
   const browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--lang=en-GB'] });
   const kill = setTimeout(() => { browser.close().catch(() => {}); }, 100000);
@@ -132,7 +132,7 @@ async function scenario(name, o, body) {
         } };
       }
     }, fast, noStorage, at, storage, KEY, wallet, random);
-    await p.goto(`http://127.0.0.1:${srv.address().port}/`, { waitUntil: 'load' });
+    await p.goto(`http://127.0.0.1:${srv.address().port}/${hash ? '#' + hash : ''}`, { waitUntil: 'load' });
     await p.waitForFunction(() => window.QCP && document.querySelectorAll('.spot').length === 16, { timeout: 15000 });
     assert.equal(await p.evaluate(() => document.compatMode), 'CSS1Compat', 'standards mode, as the site and the artifact serve the page');
     await sleep(600);
@@ -155,6 +155,9 @@ const scrollTo = (p, sel) => p.evaluate((sel) => document.querySelector(sel).scr
 const box = (p, sel) => p.evaluate((sel) => { const r = document.querySelector(sel).getBoundingClientRect(); return { top: r.top, bottom: r.bottom, left: r.left, h: r.height, docTop: r.top + scrollY }; }, sel);
 const visible = async (p, sel, h) => { const b = await box(p, sel); return b.h > 0 && b.top >= 0 && b.bottom <= h; };
 const revealed = (p, t = 40000) => p.waitForFunction(() => !QCP.playing && !document.getElementById('reveal').hidden, { timeout: t });
+// v3: Details is a view of its own (#details #past #tonight #mine #how #check) with a Back link; the game is the main view
+const openDetails = async (p, id = 'details') => { await p.evaluate((id) => { location.hash = id; }, id); await p.waitForFunction(() => !document.getElementById('details').hidden); await sleep(150); };
+const backToMain = async (p) => { await p.click('#back'); await p.waitForFunction(() => document.getElementById('details').hidden && window.QCP.route === 'main'); await sleep(150); };
 const firstScreenText = (p) => p.evaluate(() => document.querySelector('.hero').innerText + '\n' + document.getElementById('play').innerText);
 const items = (p, sel) => p.$$eval(sel, (e) => e.map((x) => x.textContent.replace(/\s+/g, ' ').trim()));
 const dl = (d) => new Date(d + 'T12:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
@@ -190,9 +193,9 @@ async function castNft(p, day = '2026-11-05') {
   await p.waitForFunction((day) => { try { const n = JSON.parse(localStorage.getItem('quantum-catch-v1')).nets[day]; return !!(n && n.nft); } catch (e) { return false; } }, { timeout: 30000 }, day);
   await sleep(200);
 }
-// watch mode (no wallet, or no contract in the build): one plain line and the faucet link instead of the cast button; a build
-// whose config says a net costs test SQK (the real one and the anvil ones) adds one more line about the test SQK
-const WATCH = 'To catch, open this page in a browser with a crypto wallet (e.g. MetaMask) on the free Sepolia test network. Get free test ETH.';
+// watch mode (no wallet, or no contract in the build): one plain line and ONE button, "What you need" (How it works), instead
+// of the cast button; the test SQK and the test ETH faucet are in How it works ("What you need", first in it)
+const WATCH = 'Open this page in a crypto wallet to cast a net. What you need';
 const FAUCET = 'https://cloud.google.com/application/web3/faucet/ethereum/sepolia';
 // the real build says "free daily from this page" exactly when wheel/config.json names a faucet (v2 live since 11-06:
 // it does); the anvil builds pass their own value
@@ -200,14 +203,16 @@ const REAL_FAUCET = !!JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'con
 async function watchMode(p, paid = true, faucet = REAL_FAUCET) {
   assert.ok(await hidden(p, '#act'), 'no cast button without a wallet');
   assert.ok(!(await hidden(p, '#watch')), 'the watch line instead');
-  assert.equal(await txt(p, '#watch'), WATCH + (!paid ? '' : faucet ? ' You also need 0.01 test SQK (free daily from this page).' : ' You also need 0.01 test SQK.'));
-  assert.equal(await hidden(p, '#watchsqk'), !paid);
+  assert.equal(await txt(p, '#watch'), WATCH);
+  assert.equal(await txt(p, '#needsqk'), !paid ? 'no test SQK (nets are free)' : faucet ? '0.01 test SQK (free here, once per night)' : '0.01 test SQK', 'What you need (How it works)');
   assert.equal(await p.$eval('#faucet', (e) => e.href), FAUCET);
 }
 // the free practice net: under Past nights, on the newest night the chip has looked at (R3: not the first screen)
 async function openPractice(p) {
+  await openDetails(p, 'past');
   await p.click(`#nights button[data-day="${NEWEST}"]`); await sleep(250);
   assert.equal(await p.evaluate(() => QCP.stage), NEWEST, 'Past nights opens the practice night');
+  assert.equal(await p.evaluate(() => QCP.route), 'main', 'a night from Details: back on the game');
 }
 // a 4-step tour for the screenshots (no wallet: watch mode): first screen, practice result, tonight's net with the countdown,
 // How it works open
@@ -227,8 +232,8 @@ async function tour(p, { shot, noHScroll }) {
   await watchMode(p);
   await p.evaluate(() => document.getElementById('play').scrollIntoView({ block: 'start' })); await sleep(250);
   await shot('3-tonight-watch');
-  await p.click('#how > summary'); await sleep(200);
-  await scrollTo(p, '#how'); await sleep(250);
+  await openDetails(p, 'how'); await sleep(250);
+  assert.ok(await p.$eval('#how', (e) => e.open), 'How it works opens in Details');
   await shot('4-how-it-works');
   await noHScroll('how it works open');
   return s;
@@ -381,12 +386,10 @@ const ME = '0x' + '5a'.repeat(20), T5 = QC.netId(N5, ME), SCENT = String(CENT); 
 const DROP5 = (spot = null) => ({ drop: true, spot, at: 1, seen: false, nft: { tokenId: T5, day: '2026-11-05', image: null } });
 // a drop net in this browser: the night's net NFT of wallet a, its hamster not known yet
 const DROP = (day, a) => ({ drop: true, spot: null, at: 1, seen: false, nft: { tokenId: QC.netId(QC.nightOfDay(day), a), day, image: null } });
-const PAID_HINT = 'Plus a little Sepolia test ETH for the fee. Test tokens: no value. One net per wallet per night.';      // the button says the price
-const FAUCET_HINT = 'Free test SQK from this page: 0.01 per wallet per day, enough for one net. You also need a little Sepolia test ETH for the fee.';
 // no test SQK yet: an expected first step, a plain line (not a red error) under the faucet button that takes the cast button's place
-const NO_SQK_WORDS = "This wallet has no test SQK yet. Tap the button to get today's free 0.01 (one transaction), then cast. Nothing was sent.";
+const NO_SQK_WORDS = 'No test SQK yet: get the free one above, then cast. Nothing was sent.';
 const NOT_WIRED = 'A net costs 0.01 test SQK (burned). Casting opens soon; until then try a free practice net under Past nights.';
-const CAST_BTN = ['Cast a net · 0.01 test SQK', 'burned · Sepolia test network'];
+const CAST_BTN = ['Cast a net · 0.01 test SQK', 'test token · no money value'];
 // every line #nftmsg showed, in order (the wallet steps pass quickly)
 const watchMsgs = (p) => p.evaluate(() => { window.__msgs = []; const e = document.getElementById('nftmsg'); new MutationObserver(() => { const t = e.textContent; if (t && window.__msgs[window.__msgs.length - 1] !== t) window.__msgs.push(t); }).observe(e, { childList: true, characterData: true, subtree: true }); });
 const sqkRead = (p, f) => p.waitForFunction(f, { timeout: 15000 });
@@ -406,7 +409,8 @@ async function nftCastScenario(chain, name, viewport, account) {
     assert.equal(q0.faucetLeft, String(await chain.sqkOf(chain.faucet)), 'what the faucet holds');
     assert.ok(await hidden(p, '#watch'), 'a wallet and the contract: no watch line');
     assert.deepEqual(await p.$eval('#act', (e) => [e.hidden, e.disabled, e.textContent, e.dataset.sub]), [false, false, ...CAST_BTN], 'one button, ready: nothing to pick first');
-    assert.equal(await txt(p, '#nfthint'), PAID_HINT);
+    assert.equal(await p.$('#nfthint'), null, 'no hint under the button: one short line per state (owner, 6 Nov)');
+    assert.equal(await txt(p, '#prompt'), 'Nets close 22:00 · result tomorrow 13:00', 'the ONE line under the button');
     assert.equal(await p.$$eval('.spot[aria-pressed], .spot.sel, .spot.net', (e) => e.length), 0, 'no picker: no pressed or selected tile');
     // the button's price never breaks inside ("CAST A NET · 0.01 TEST / SQK"): a long label wraps after the dot
     assert.equal(await p.$eval('#act .nw', (e) => [e.textContent, e.getClientRects().length].join(' ')), '0.01 test SQK 1', 'the price on one line');
@@ -421,9 +425,25 @@ async function nftCastScenario(chain, name, viewport, account) {
     assert.equal((await stored(p)).nets['2026-11-05'], undefined, 'nothing saved before the cast');
     await noHScroll('nft ready'); await shot('1-ready');
     const bal0 = await chain.sqkOf(account), sup0 = await chain.supply();
+    // phones: the sticky "Cast a net" shows only after scrolling past the deck, above the bottom edge; a tap is the real button's
+    // single cast (scrolled back to the deck, the wallet steps under it)
+    const phone = viewport.width < 640;
+    if (phone) {
+      assert.ok(!(await p.$eval('#castbar', (e) => e.classList.contains('on'))), 'no sticky bar on load');
+      await p.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+      await p.waitForFunction(() => document.getElementById('castbar').classList.contains('on'), { timeout: 5000 }); await sleep(450);
+      const cb = await box(p, '#castbar');
+      assert.ok(cb.top > 0 && cb.bottom <= viewport.height - 12 + 0.5, `the sticky bar above the bottom edge (${JSON.stringify(cb)})`);
+      assert.equal(await txt(p, '#castgo'), 'Cast a net');
+      await noHScroll('sticky bar'); await shot('1b-sticky');
+    }
     await watchMsgs(p);
-    await p.click('#act');
+    await p.click(phone ? '#castgo' : '#act');
     await p.waitForFunction(() => !document.getElementById('nftbox').hidden, { timeout: 30000 });
+    if (phone) {
+      assert.ok(await visible(p, '#nftbox', viewport.height), 'the sticky tap went back to the deck: the net\'s card on screen');
+      assert.ok(!(await p.$eval('#castbar', (e) => e.classList.contains('on'))), 'cast: the bar is gone');
+    }
     const want = QC.netId(N5, account), st = await stored(p), n = st.nets['2026-11-05'];
     assert.deepEqual([n.drop, n.spot, n.seen], [true, null, false], 'a drop: its hamster is unknown until the chip has dropped and the night is posted');
     assert.equal(n.nft.tokenId, want, 'token id = (night << 160) | wallet, from the NetCast log');
@@ -440,12 +460,12 @@ async function nftCastScenario(chain, name, viewport, account) {
       assert.ok(msgs.includes(m), `the step "${m}" (${JSON.stringify(msgs)})`);
     assert.ok(!msgs.some((m) => /approve/i.test(m)), 'no approve step');
     assert.match(await p.$eval('#nftimg', (e) => e.src), /^data:image\/svg\+xml;base64,/);
-    assert.equal(await txt(p, '#nfttext'), 'Your net is in: a test NFT on Sepolia (no money value), night of Thu 5 Nov. It shows your catch (or "got away") once the chip\'s result is posted.');
-    assert.ok(await hidden(p, '#act') && await hidden(p, '#nfthint'), 'nothing more to press for this net');
+    assert.match(await txt(p, '#nfttext'), /^✓ Your net is inResult tomorrow at 13:00in \d+ h \d+ min$/, 'the approved card: thumb, ✓ Your net is in, the result\'s time, a countdown');
+    assert.ok(await hidden(p, '#act'), 'nothing more to press for this net');
     assert.ok(await p.$eval('#nftbox', (e) => !!e.closest('#actions')), 'the minted net sits where the button was');
-    assert.match(await txt(p, '#prompt'), /^Tomorrow 13:00 the quantum computer decides\.Nets close at 22:00 your time \(in 3 h \d\d min\)\. He usually starts between 22:10 and 22:40\. His night ends Fri 13:00 your time, then IBM's chip drops 4,000 times: one drop is yours\.$/);
-    assert.deepEqual([await txt(p, '#stamp'), await txt(p, '#platek'), await txt(p, '#platen')], ['Your net is in', 'Your catch', '?'], 'the stage: your net is in, the mystery hamster');
-    assert.deepEqual(await items(p, '#platew li'), ['decided', 'tomorrow 13:00']);
+    assert.ok(await hidden(p, '#status'), 'nothing under the card (owner: "nothing else")');
+    assert.deepEqual([await txt(p, '#stamp'), await txt(p, '#platek'), await txt(p, '#platen')], ['', 'Your catch', '?'], 'the stage: the mystery hamster, no stamp');
+    assert.deepEqual(await items(p, '#platew li'), []);
     assert.ok(await rosterHidden(p), 'waiting for the chip: still no tiles');
     assert.equal(await txt(p, '#tnstate'), 'Your net is in: tomorrow 13:00 the quantum computer decides which hamster it catches. A test NFT on Sepolia.');
     await sqkRead(p, () => QCP.sqk.balance === '40000000000000000');      // read again after the cast: 0.01 less
@@ -456,11 +476,11 @@ async function nftCastScenario(chain, name, viewport, account) {
     // remembered after a reload; and when this browser forgot it, the chain gives it back (still a drop: unknown hamster)
     await p.reload({ waitUntil: 'load' }); await p.waitForFunction(() => window.QCP, { timeout: 15000 }); await sleep(400);
     assert.equal(await p.evaluate(() => QCP.stage), 'tonight');
-    assert.match(await txt(p, '#prompt'), /^Tomorrow 13:00 the quantum computer decides\./);
+    assert.match(await txt(p, '#nfttext'), /^✓ Your net is inResult tomorrow at 13:00/);
     assert.equal(await p.$eval('#mycountn', (e) => e.textContent), '1', 'the practice catch (a net is not a catch yet)');
     await p.evaluate(() => localStorage.clear());
     await p.reload({ waitUntil: 'load' }); await p.waitForFunction(() => window.QCP, { timeout: 15000 });
-    await p.waitForFunction(() => /^Tomorrow 13:00 the quantum computer decides/.test(document.getElementById('prompt').textContent), { timeout: 15000 });
+    await p.waitForFunction(() => !document.getElementById('nftbox').hidden && /^✓ Your net is in/.test(document.getElementById('nfttext').textContent), { timeout: 15000 });
     const back = (await stored(p)).nets['2026-11-05'];
     assert.deepEqual([back.drop, back.spot, back.nft.tokenId], [true, null, want], 'read back from the chain (QuantumCatch result + tokenURI): not posted, so no hamster yet');
     assert.ok(!(await hidden(p, '#nftbox')), 'with its picture');
@@ -509,7 +529,9 @@ async function nftErrorScenario(chain, name, viewport, account) {
   await scenario('phone-light', { width: 360, height: 740, scheme: 'light', fast: false, random: EPIC4.random }, async (p, { shot, noHScroll }) => {
     await noHScroll('start');
     await p.waitForFunction(() => !document.getElementById('live').hidden, { timeout: 10000 });
-    assert.match(await txt(p, '#live'), /LIVE · RUNNING/);
+    assert.equal(await txt(p, '#live'), 'Squeektoshi is running right now', 'ALIVE: his wheel right now (no turns read: the RPC is blocked here)');
+    assert.ok(!(await hidden(p, '#alive')) && await hidden(p, '#netsn'), 'the nets counter hidden when the RPC cannot be read');
+    assert.ok(await p.$eval('#stage', (e) => e.classList.contains('run')), 'the wheel spins faster while he runs');
     assert.equal(await p.title(), 'Quantum Catch');
     assert.equal(await txt(p, '.hero h1'), 'Quantum Catch');
     assert.equal(await txt(p, '.lede'), "Squeektoshi's run programs a real quantum computer. Catch the hamster it lands on.");
@@ -522,17 +544,16 @@ async function nftErrorScenario(chain, name, viewport, account) {
     assert.equal(await txt(p, '#stageh'), "Tonight's net", 'the section\'s (hidden) heading');
     assert.ok(await rosterHidden(p), 'no tiles tonight: nothing is known about tonight\'s 16 hamsters');
     assert.ok(await hidden(p, '#srcbadge'), 'no badge tonight');
-    assert.match(await txt(p, '#prompt'), /^Nets close 22:00 tonight · result tomorrow after 13:00He usually starts 22:10–22:40 · closes in 3 h (29|30) min$/, 'R9: the clock line');
+    assert.equal(await txt(p, '#prompt'), 'Nets close 22:00 · result tomorrow 13:00', 'the ONE line under the button (owner, 6 Nov)');
     assert.ok(!BANNED_FIRST.test(await firstScreenText(p)), 'no math words on the first screen');
     await watchMode(p);                                        // the real build has the contract (and a net costs test SQK); no wallet here
     assert.ok(await hidden(p, '#reveal'));
     assert.equal(await p.$$eval('.spot[aria-pressed], .spot.sel, .spot.net', (e) => e.length), 0, 'no picker');
     assert.deepEqual([await txt(p, '#platek'), await txt(p, '#platen'), await p.evaluate(() => document.getElementById('ham').dataset.spot)], ['Your catch', '?', ''], 'the mystery hamster');
     assert.ok(await p.$eval('#platen', (e) => e.previousElementSibling.hidden), 'no "No." before the \'?\': nothing to choose');
-    assert.deepEqual(await items(p, '#platew li'), ['decided', 'tomorrow 13:00']);
-    assert.equal(await txt(p, '#plateb'), 'Nets close 22:00 tonightOne net per wallet');
-    assert.deepEqual([await txt(p, '#lcdn'), await txt(p, '#lcdk'), await txt(p, '#lcd2')], ['4,000', 'drops', 'tomorrow 13:00 · 1 is yours'], 'LCD: 4,000 DROPS · TOMORROW 13:00 · 1 IS YOURS');
-    assert.equal(await txt(p, '#chipline'), `Last night's chip: ${DATA.chips[NEWEST].backend}`);
+    assert.deepEqual(await items(p, '#platew li'), []);
+    assert.equal(await txt(p, '#plateb'), '', 'the plate: YOUR CATCH and the \'?\' only');
+    for (const id of ['#lcd', '#chipline', '#nfthint', '#deckrow']) assert.equal(await p.$(id), null, `${id} is gone (owner: "make it simple")`);
     assert.equal(await p.$eval('#mycountn', (e) => e.textContent), '0');
     // the prizes: the five skins with last night's chance of each (a tier's share of the drops)
     const by = [0, 0, 0, 0, 0]; ref4.tiers.forEach((t, s) => { if (t) by[t - 1] += ref4.counts[s]; });
@@ -543,7 +564,7 @@ async function nftErrorScenario(chain, name, viewport, account) {
     assert.deepEqual(await items(p, '.prz .po'), [...by.slice(0, 4).map((x) => QW.pctText(x / 4000)), inN < 1000 ? `~1 in ${inN.toLocaleString('en-US')}` : 'rare']);
     assert.ok(!(await items(p, '.prz .po')).includes('0%'), 'no prize reads 0%');
     const noise4 = ref4.counts.reduce((a, c, s) => a + (ref4.tiers[s] ? 0 : c), 0);
-    assert.equal(await txt(p, '#podds'), `Chance = share of the drops last night (${short(NEWEST)}). Legendary = the Epic hamster when the chip's very first drop lands on it too. Got away (chip noise): ${QW.pctText(noise4 / 4000)}`);
+    assert.equal(await txt(p, '#podds'), 'Chances from last night.');
     // without a wallet: the watch line in the action's place, then the row of prizes (as with a wallet, R53: at 360x740 the
     // odds line with the Legendary rule is just below the fold; the owner's 390x844 below shows all of it)
     await fits(p, 740, '#watch', '#prow');
@@ -556,14 +577,14 @@ async function nftErrorScenario(chain, name, viewport, account) {
     // out-of-reach half greyed
     await openPractice(p);
     assert.ok(!(await rosterHidden(p)), 'a night with data: the 16 tiles');
-    assert.equal(await txt(p, '#stageh'), `Practice · night of ${dl(NEWEST)}`);
-    assert.equal(await txt(p, '#srcbadge'), 'practice');
-    assert.match(await txt(p, '#prompt'), /^Try a free practice net on this night\.IBM's chip already dropped 4,000 times here\. Your practice net gets one of those drops at random, like a real net: one free try\.$/);
+    assert.equal(await txt(p, '#stageh'), `Practice · ${dl(NEWEST)}`);
+    assert.ok(await hidden(p, '#srcbadge'), 'no badge: one line per state');
+    assert.equal(await txt(p, '#prompt'), 'One free try on a night that already ran.');
     assert.equal(await p.$$eval('.spot.out', (e) => e.length), 8);
-    assert.deepEqual(await p.$eval('#act', (e) => [e.textContent, e.dataset.sub]), ['Cast a practice net · free', 'Practice: one free try']);
+    assert.deepEqual(await p.$eval('#act', (e) => [e.textContent, e.dataset.sub]), ['Cast a practice net · free', null], 'no small print under the practice button');
     assert.ok(await visible(p, '#act', 740), `the one action is on screen (${Math.round((await box(p, '#act')).bottom)})`);
     await p.click('.spot[data-spot="0"]'); await sleep(120);
-    assert.match(await txt(p, '#caption'), /^Nobody picks: tap Cast a practice net and one of the chip's drops is yours\.$/);
+    assert.equal(await txt(p, '#caption'), "Tap Cast a practice net: one of the chip's drops is yours.");
     assert.equal((await stored(p)), null, 'nothing stored before the cast');
     await shot('1c-practice-ready');
     await p.click('#act'); await sleep(2600);
@@ -577,9 +598,9 @@ async function nftErrorScenario(chain, name, viewport, account) {
     const st = await stored(p); assert.deepEqual([st.practice.day, st.practice.spot, st.practice.seen, st.practice.drop], [NEWEST, 11, true, true], 'the drawn drop: the Epic of 4 Nov');
     assert.equal(EPIC4.spot, 11);
     assert.equal(await txt(p, '#revt'), 'An Epic Crystal hamster!');
-    assert.match(await txt(p, '#prompt'), /^You caught an Epic!That was your practice net\./);
-    assert.match(await txt(p, '#revs'), /^practice ?Your drop landed on No\. 11 \(.*\), one of the chip's 289 drops there \(7\.2% of 4,000\)\. The rarest catch of the night\.$/);
-    assert.equal(await txt(p, '#revq'), 'That night the chip kept the quantum pattern.');
+    assert.equal(await txt(p, '#prompt'), 'That was practice. Real nets are cast before he runs.');
+    assert.match(await txt(p, '#revs'), /^practice ?289 of the 4,000 drops landed on No\. 11\. The rarest catch of the night\.$/);
+    assert.ok(await hidden(p, '#revq'), 'the result card: the catch and one line (the night\'s quantumness is in How it works)');
     assert.ok(!BANNED_REVEAL.test(await txt(p, '#reveal')), `no math or jargon on the result card: ${await txt(p, '#reveal')}`);
     assert.equal(await p.$eval('#mycountn', (e) => e.textContent), '1');
     assert.deepEqual(await p.$$eval('.spot.net', (e) => e.map((b) => [b.dataset.spot, b.classList.contains('drop')])), [['11', true]], 'your drop\'s tile, highlighted after the replay');
@@ -589,9 +610,9 @@ async function nftErrorScenario(chain, name, viewport, account) {
     const tagBox = await p.$$eval('.spot .lnd b', (e) => e.map((t) => { const r = t.getBoundingClientRect(), b = t.closest('.spot').getBoundingClientRect(); return [r.left, r.right, b.left, b.right]; }));
     tagBox.forEach(([l, r, bl, br], i) => assert.ok(l >= bl && r <= br + 0.5, `word ${i} inside its tile (${l}-${r} in ${bl}-${br})`));
     await p.click('.spot[data-spot="11"]'); await sleep(100);
-    assert.match(await txt(p, '#caption'), /^No\. 11: Epic, 7\.2% of the chip's drops landed here\. The rarest catch of the night\./);
+    assert.equal(await txt(p, '#caption'), 'No. 11: Epic · 7.2% of the drops.');
     await p.click('.spot[data-spot="15"]'); await sleep(100);
-    assert.match(await txt(p, '#caption'), /^No\. 15: Common, .* The chip's very first drop landed here\./);
+    assert.match(await txt(p, '#caption'), /^No\. 15: Common · .* The chip's very first drop landed here\.$/);
     assert.equal(await txt(p, '#act'), "See tonight's net", 'no wallet: the next step only shows tonight (casting needs a wallet)');
     await noHScroll('practice result'); await shot('2-practice-result');
     // tonight's net: closes 21:00 UTC = 22:00 in Ljubljana, 3 h 30 min from 17:30 UTC; without a wallet nothing can be cast
@@ -599,7 +620,7 @@ async function nftErrorScenario(chain, name, viewport, account) {
     assert.equal(await p.evaluate(() => QCP.stage), 'tonight');
     assert.equal(await txt(p, '#stageh'), "Tonight's net");
     assert.ok(await rosterHidden(p), 'back on tonight: the tiles go again');
-    assert.match(await txt(p, '#prompt'), /^Nets close 22:00 tonight · result tomorrow after 13:00He usually starts 22:10–22:40 · closes in 3 h (29|30) min$/);
+    assert.equal(await txt(p, '#prompt'), 'Nets close 22:00 · result tomorrow 13:00');
     await watchMode(p);
     assert.equal((await stored(p)).nets['2026-11-05'], undefined, 'no local-only nets (R6\')');
     assert.match(await txt(p, '#tnclose'), /^Nets close at 22:00 your time · in 3 h (29|30) min\. He usually starts between 22:10 and 22:40\.$/);
@@ -607,10 +628,12 @@ async function nftErrorScenario(chain, name, viewport, account) {
     await p.evaluate(() => document.getElementById('play').scrollIntoView({ block: 'start' })); await sleep(200);
     await shot('3-tonight-watch');
     // How it works: the 4 claw-machine steps, last night's odds, then the night and the per-night quantumness, honestly
-    await p.click('#how > summary'); await sleep(200);
+    await openDetails(p, 'how');
     assert.deepEqual(await items(p, '#howsteps > li > b'), ['Cast a net.', 'He runs.', 'The chip drops 4,000 times.', 'One drop is yours.']);
-    assert.match(await txt(p, '#howsteps'), new RegExp(`Before nets close at 21:00 UTC \\(22:00 your time\\)\\. A net costs 0\\.01 Squeekchain test SQK, which gets burned${REAL_FAUCET ? " \\(free from this page, once a day\\)" : ""}, and is a test NFT on Sepolia\\. One net per wallet per night\\. Nobody picks a hamster\\.`), 'the build says a net costs test SQK (no wallet: the config\'s label and its faucet)');
-    assert.match(await txt(p, '#howsteps'), /After his night ends \(12:00 UTC, 13:00 your time\) a real IBM quantum computer runs his program 4,000 times\./);
+    assert.match(await txt(p, '#howsteps'), new RegExp(`Before 22:00 your time\\. It costs 0\\.01 test SQK \\(burned${REAL_FAUCET ? '; free here once per night' : ''}\\) and is a test NFT on Sepolia\\. One net per wallet per night\\. Nobody picks a hamster\\.`), 'the build says a net costs test SQK (no wallet: the config\'s label and its faucet)');
+    assert.match(await txt(p, '#howsteps'), /He usually starts between 22:10 and 22:40\./);
+    assert.match(await txt(p, '#howsteps'), /After his night ends \(13:00 your time\) a real IBM quantum computer runs his program 4,000 times\./);
+    assert.deepEqual(await items(p, '#faq dt'), ['Why 16 hamsters?', 'Why 4,000 drops?', 'Which drop is mine?'], "the owner's plain answers");
     assert.deepEqual(await p.$$eval('#oddsrows tr', (e) => e.map((r) => [...r.children].map((c) => c.textContent))), [
       ['Legendary', 'none: the first drop was not on the Epic', '0', '0%'], ...[3, 2, 1, 0].map((t) => { const sp = NUMS.filter((s) => ref4.tiers[+s] === t + 1); return [QW.TIER_NAMES[t], sp.map((s) => 'No. ' + s).join(', '), by[t].toLocaleString('en-US'), QW.pctText(by[t] / 4000)]; }),
       ['Got away (chip noise)', NUMS.filter((s) => !ref4.tiers[+s]).map((s) => 'No. ' + s).join(', '), noise4.toLocaleString('en-US'), QW.pctText(noise4 / 4000)]], 'last night\'s odds, from DATA');
@@ -622,7 +645,9 @@ async function nftErrorScenario(chain, name, viewport, account) {
     assert.match(await txt(p, '#qnote'), /^The chip does not beat noise every night\. On 4 of the 7 first nights \(recipe v1\.1, up to 16 steps\) noise won.*Newer nights use a shorter program \(recipe v1\.2: at most 10 steps, plus noise protection\) to keep the quantum pattern\./);
     assert.match(await txt(p, '#cmptext'), /^The chip kept the quantum pattern that night: its landings were 2\.7× closer to the perfect quantum ghost than to a normal hamster\./, 'how much closer: in How it works');
     assert.match(await txt(p, '#checkkv'), /ran on IBM on 5 Nov 2026/, 'the run date of the chip job');
-    assert.match(await txt(p, '#howrules'), new RegExp(`^One net per wallet per night, cast before he runs: nets close at 21:00 UTC \\(22:00 your time\\).*Each net costs 0\\.01 Squeekchain test SQK, burned when you cast${REAL_FAUCET ? " \\(this page's faucet gives 0\\.01 per wallet per day\\)" : ''}, and is an NFT on the Sepolia test network`));
+    assert.equal(await txt(p, '#howrules'), 'Free practice: one net on the newest night, under Past nights.');
+    assert.match(await txt(p, '#needs'), /^What you need: a crypto wallet on the Sepolia test network, 0\.01 test SQK.*One net per wallet per night\.$/);
+    assert.match(await txt(p, '#needs'), REAL_FAUCET ? /once per night/ : /test SQK/, 'the faucet: once per NIGHT');
     assert.match(await txt(p, '#contract'), /^Each net is a test NFT: QuantumCatch contract 0x[0-9a-f]{40} on Sepolia \(no money value; one net per wallet per night; its catch is drawn on-chain from the night's drops\)\.$/);
     await scrollTo(p, '#how'); await sleep(200); await shot('4-how-it-works');
     assert.equal(await p.$eval('#ghlink', (e) => e.href), DATA.config.repoUrl);
@@ -630,7 +655,8 @@ async function nftErrorScenario(chain, name, viewport, account) {
     // remembered after a reload: practice used: the stage opens on tonight's net
     await p.reload({ waitUntil: 'load' }); await p.waitForFunction(() => window.QCP, { timeout: 15000 }); await sleep(400);
     assert.equal(await p.evaluate(() => QCP.stage), 'tonight');
-    assert.match(await txt(p, '#prompt'), /^Nets close 22:00 tonight/);
+    assert.match(await txt(p, '#prompt'), /^Nets close 22:00 · /);
+    assert.equal(await p.evaluate(() => QCP.route), 'details', 'a reload keeps the Details hash');
     assert.equal(await p.$eval('#mycountn', (e) => e.textContent), '1');
   });
 
@@ -659,6 +685,7 @@ async function nftErrorScenario(chain, name, viewport, account) {
     await ctx.shot('0-1280x860');
     await vp(p, 1280, 800); await sleep(250);
     await tour(p, ctx);
+    await openDetails(p, 'past');
     await p.click('#nights button[data-day="' + NEWEST + '"]'); await sleep(200);
     assert.equal(await p.evaluate(() => QCP.stage), NEWEST);
     await rosterIs(p, ref4, 'desktop 4 Nov');
@@ -667,7 +694,7 @@ async function nftErrorScenario(chain, name, viewport, account) {
     await p.evaluate(() => window.scrollTo(0, 0)); await sleep(150); await ctx.shot('5-revealed-night');
     const W = (x, y, ab) => ((+ab[0] ^ +ab[1]) === (x & y)) ? 1 : 0, C = ['FUR', 'HAT'];
     const chip100 = DATA.twin.pairs.reduce((a, q) => a + q.first.reduce((b, ab) => b + W(C.indexOf(q.a_card), C.indexOf(q.b_card), ab), 0), 0);
-    await p.click('#check > summary'); await sleep(150); await scrollTo(p, '#check'); await p.click('#tlab summary'); await sleep(150);
+    await openDetails(p, 'check'); await scrollTo(p, '#check'); await p.click('#tlab summary'); await sleep(150);
     await p.click('#tplan button[data-t="A"][data-c="1"]');
     assert.equal(await p.$eval('#tplan button[data-t="A"][data-c="1"]', (e) => e.textContent), '1', 'tap flips an answer');
     await p.click('#tplay');
@@ -676,6 +703,7 @@ async function nftErrorScenario(chain, name, viewport, account) {
     assert.match(await txt(p, '#tcres'), new RegExp(`won ${chip100} of 100`));
     assert.match(await txt(p, '#twinhealth'), /under 79% is thrown out and redone/);
     await sleep(150); await ctx.shot('6-check-it-yourself');
+    await backToMain(p);
     // narrower PC windows (iPad landscape, small laptops): no sideways scroll, the header (with the sound switch) inside the window
     for (const [w, h] of [[1024, 768], [1100, 800]]) {
       await vp(p, w, h); await p.evaluate(() => window.scrollTo(0, 0)); await sleep(300);
@@ -686,8 +714,51 @@ async function nftErrorScenario(chain, name, viewport, account) {
     }
   });
 
+  // 3b. the Details view (owner, 6 Nov: "too much text ... could be somewhere separated"): a hash in the same page, a Back
+  //     link, the browser's back button; My catches and Past nights open it; a night from it goes back to the game. The
+  //     main view ends with the art band ("Hamster battles", coming soon) and the 12-card Season 2 gallery
+  await scenario('details', { width: 360, height: 740, hash: 'how' }, async (p, { shot, noHScroll }) => {
+    assert.deepEqual(await p.evaluate(() => [QCP.route, document.getElementById('game').hidden, document.getElementById('details').hidden, document.getElementById('how').open]), ['details', true, false, true], '#how on load: Details, How it works open');
+    assert.ok((await box(p, '#how')).top < 120, 'How it works at the top');
+    await noHScroll('details'); await shot('details-how');
+    await backToMain(p);
+    assert.equal(await p.evaluate(() => window.scrollY), 0, 'Back: the game from the top');
+    assert.ok(!(await hidden(p, '#watch')), 'the game view: the watch line');
+    // its one button, "What you need": Details, the requirements on the first screen (first in How it works)
+    await p.click('#needlink'); await p.waitForFunction(() => QCP.route === 'details', { timeout: 5000 }); await sleep(200);
+    assert.equal(await p.evaluate(() => location.hash), '#how');
+    { const b = await box(p, '#needs'); assert.ok(b.top >= 0 && b.bottom <= 740, `What you need on the first screen (${Math.round(b.top)}-${Math.round(b.bottom)} in 740)`); }
+    await backToMain(p);
+    await p.goBack(); await p.waitForFunction(() => QCP.route === 'details', { timeout: 5000 });
+    assert.equal(await p.evaluate(() => location.hash), '#how', "the browser's back button: Details again");
+    await backToMain(p);
+    await p.click('#mycount'); await p.waitForFunction(() => QCP.route === 'details', { timeout: 5000 }); await sleep(200);
+    assert.equal(await p.evaluate(() => location.hash), '#mine');
+    assert.ok(Math.abs((await box(p, '#mine')).top) < 40, 'My catches at the top');
+    await p.click(`#nights button[data-day="${NEWEST}"]`); await p.waitForFunction(() => QCP.route === 'main', { timeout: 5000 }); await sleep(300);
+    assert.equal(await p.evaluate(() => QCP.stage), NEWEST);
+    assert.ok(!(await rosterHidden(p)), 'a night with data: the 16 tiles');
+    assert.ok(await visible(p, '#act', 740), 'the practice button on screen');
+    await noHScroll('practice night');
+    // the art band and the gallery: 12 cards, their pictures in once the band comes near; names drawn by JS
+    await scrollTo(p, '#soon'); await sleep(500);
+    assert.equal(await p.$$eval('#gallery .gcard', (e) => e.length), 12);
+    assert.ok(await p.$$eval('#gallery .gcard img', (e) => e.every((i) => /^data:image\/webp;base64,/.test(i.getAttribute('src') || ''))), 'every card has its picture');
+    assert.match(await p.$eval('#teaser', (e) => e.getAttribute('src') || ''), /^data:image\/webp;base64,/);
+    assert.equal(await txt(p, '#soonh'), 'Hamster battles');
+    assert.ok(await p.$eval('#gallery', (e) => getComputedStyle(e).scrollSnapType.startsWith('x')), 'phones: the gallery snaps sideways');
+    assert.ok(!BANNED_FIRST.test(await firstScreenText(p)), 'no math on the first screen');
+    await noHScroll('main with the gallery'); await shot('soon');
+    await p.evaluate(() => window.scrollTo(0, 0)); await sleep(200); await shot('main-full', true);
+  });
+
   // 4. desktop, dark: the first screen
-  await scenario('desktop-dark', { width: 1280, height: 800, scheme: 'dark' }, async (p, { shot, noHScroll }) => { await noHScroll('desktop dark'); await shot('1-first-screen'); });
+  await scenario('desktop-dark', { width: 1280, height: 800, scheme: 'dark' }, async (p, { shot, noHScroll }) => {
+    await noHScroll('desktop dark'); await shot('1-first-screen');
+    // the Season 2 grid: every trait line takes the same two lines, so every name sits on one baseline
+    const tl = await p.$$eval('#gallery .gcard figcaption span', (e) => e.map((s) => Math.round(s.getBoundingClientRect().height)));
+    assert.ok(tl.length === 12 && tl.every((h) => h === tl[0]), `the trait lines share one height (${tl})`);
+  });
 
   // 6. OLD picked nets (cast before 6 Nov) still render and resolve as before, labelled "old net (picked)": a net resolves when its
   //    night's chip result arrives in results.json next to the page (no rebuild); a tampered file is refused
@@ -696,7 +767,7 @@ async function nftErrorScenario(chain, name, viewport, account) {
   const OLDNET = (spot) => ({ practice: { day: NEWEST, spot: 15, at: 1, seen: true }, nets: { '2026-11-05': { spot, at: 1 } } });
   await scenario('resolve', { width: 375, height: 667, at: Date.parse('2026-11-06T13:00:00Z'), results: NX.body, storage: OLDNET(S5) }, async (p, { shot }) => {
     await p.waitForFunction(() => QCP.stage === '2026-11-05' && !!QCP.data.chips['2026-11-05'], { timeout: 10000 }); await sleep(300);
-    assert.equal(await txt(p, '#stageh'), 'Your net · night of Thu 5 Nov');
+    assert.equal(await txt(p, '#stageh'), 'Your net · Thu 5 Nov');
     assert.match(await txt(p, '#prompt'), new RegExp(`^Your old net \\(picked\\) is on No\\. ${S5}\\. Did the chip find him there\\?`));
     assert.equal(await txt(p, '#act'), 'See if you caught him');
     assert.deepEqual([await txt(p, '#platek'), await txt(p, '#platen')], ['Old net (picked)', String(S5)]);
@@ -712,7 +783,8 @@ async function nftErrorScenario(chain, name, viewport, account) {
     assert.match(await txt(p, '#revs'), new RegExp(`^old net \\(picked\\) ?Spot ${S5} \\(.*\\): the chip found him there in`));
     await rosterIs(p, REFX, 'resolved 5 Nov');
     assert.equal(await p.$eval('.spot[data-spot="7"] .lnd b', (e) => e.textContent), 'Epic', 'its first shot landed on spot 3: the Epic spot 7 stays Epic');
-    assert.equal(await txt(p, '#revq'), 'That night the chip kept the quantum pattern.', 'the v1.2 night kept the pattern');
+    assert.ok(await hidden(p, '#revq'), 'one line on the result card');
+    assert.equal(await p.$eval('#revq', (e) => e.textContent), 'That night the chip kept the quantum pattern.', 'the v1.2 night kept the pattern (kept for How it works)');
     assert.equal(await p.$$eval('.spot.out', (e) => e.length), 8, 'after the replay the out-of-reach half is shown');
     assert.equal((await stored(p)).nets['2026-11-05'].seen, true);
     assert.equal(await p.$eval('#mycountn', (e) => e.textContent), '2', 'practice + the real catch');
@@ -755,28 +827,32 @@ async function nftErrorScenario(chain, name, viewport, account) {
   await scenario('sofar', { width: 360, height: 740, at: Date.parse('2026-11-05T22:30:00Z'), rpc: fakeCore, storage: PRESET() }, async (p, { shot, rpcLog }) => {
     await p.waitForFunction(() => !document.getElementById('sofar').hidden, { timeout: 10000 });
     assert.match(await txt(p, '#sofar'), /^Tonight so far: 3 rounds, 870 turns \(his night of Thu 5 Nov, settled on-chain up to 23:20 your time\)$/);
-    assert.deepEqual(rpcLog, [QC.enc.state(), QC.enc.roundPage(241, 303, 16)], 'only settled rounds are asked for');
+    assert.deepEqual(rpcLog.filter((x) => x.startsWith('0x')), [QC.enc.state(), QC.enc.roundPage(241, 303, 16)], 'only settled rounds are asked for');
     assert.equal(await txt(p, '#stageh'), "Tomorrow's net");
     assert.ok(await rosterHidden(p), 'tomorrow\'s net: no tiles');
     assert.equal(await txt(p, '#tnk'), "Tomorrow's net");
-    assert.match(await txt(p, '#prompt'), /^Nets close 22:00 tomorrow · result Sat after 13:00/);
-    assert.equal(await txt(p, '#lcd2'), 'Sat 13:00 · 1 is yours');
-    await scrollTo(p, '#tonight'); await sleep(150); await shot('1-tonight-so-far');
+    assert.equal(await txt(p, '#prompt'), 'Nets close 22:00 tomorrow · result Sat 13:00');
+    assert.equal(await txt(p, '#live'), 'Squeektoshi is running right now · 870 turns', 'ALIVE: his turns tonight (settled rounds)');
+    await openDetails(p, 'tonight'); await shot('1-tonight-so-far');
   });
 
   // 7b. the viewer's net between the 21:00 UTC lock and the chip (a drop, and an old picked one): his run so far next to the
   //     net, tomorrow's net one tap away
   await scenario('running', { width: 360, height: 740, at: Date.parse('2026-11-05T22:30:00Z'), rpc: fakeCore, storage: PRESET({ '2026-11-05': DROP5() }) }, async (p, { shot }) => {
     assert.equal(await p.evaluate(() => QCP.stage), '2026-11-05', 'the running night with the viewer\'s net is the first screen');
-    await p.waitForFunction(() => /Tonight so far/.test(document.getElementById('prompt').textContent), { timeout: 10000 });
-    assert.equal(await txt(p, '#stageh'), 'Your net · night of Thu 5 Nov');
-    assert.equal(await txt(p, '#srcbadge'), 'his night is on');
-    assert.match(await txt(p, '#prompt'), /^Your net is in\.Tonight so far: 3 rounds, 870 turns \(settled on-chain up to 23:20 your time\)\. It ends Fri 13:00 your time, then IBM's chip drops 4,000 times: one drop is yours\.$/);
-    assert.deepEqual([await txt(p, '#stamp'), await txt(p, '#platen'), await txt(p, '#lcdn')], ['Your net is in', '?', '#??'], 'the mystery hamster');
+    await p.waitForFunction(() => !document.getElementById('sofar').hidden, { timeout: 10000 }); await sleep(200);
+    assert.equal(await txt(p, '#stageh'), 'Your net · Thu 5 Nov');
+    assert.ok(await hidden(p, '#srcbadge'));
+    assert.match(await txt(p, '#nfttext'), /^✓ Your net is inResult tomorrow at 13:00in \d+ h \d+ min$/, 'the net\'s card: the result tomorrow 13:00, a countdown');
+    assert.ok(await hidden(p, '#status'), 'nothing under the card');
+    assert.equal(await txt(p, '#live'), 'Squeektoshi is running right now · 870 turns', 'his turns tonight go to the ALIVE line, never the deck');
+    assert.deepEqual([await txt(p, '#stamp'), await txt(p, '#platen')], ['', '?'], 'the mystery hamster');
     assert.equal(await txt(p, '#alt'), "See tomorrow's net", 'no wallet: tomorrow\'s net can be seen, not cast'); assert.ok(await hidden(p, '#act'));
     assert.deepEqual(await p.$$eval('#nights button', (e) => e.map((b) => b.dataset.day)).then((x) => x.slice(-2)), ['2026-11-05', 'tonight'], 'a strip button for the running night');
     assert.match(await txt(p, '#sofar'), /^Tonight so far: 3 rounds, 870 turns \(his night of Thu 5 Nov, settled on-chain up to 23:20 your time\) · your net is in$/);
+    await openDetails(p, 'tonight');
     assert.ok((await box(p, '#sofar')).top < (await box(p, '#tnh')).top, 'his run so far sits above the next night\'s heading');
+    await backToMain(p);
     assert.ok(await rosterHidden(p), 'his night is on (not in the page yet): no tiles');
     assert.equal(await p.$$eval('.spot.out, .spot.net', (e) => e.length), 0);
     assert.match(await txt(p, '#waiting'), /Thu 5 Nov: your net, waiting for the chip\./);
@@ -796,8 +872,9 @@ async function nftErrorScenario(chain, name, viewport, account) {
   });
   await scenario('over-stale', { width: 360, height: 740, at: Date.parse('2026-11-07T19:00:00Z'), storage: PRESET({ '2026-11-05': DROP5() }) }, async (p, { shot }) => {
     assert.equal(await p.evaluate(() => QCP.stage), '2026-11-05');
-    assert.equal(await txt(p, '#srcbadge'), 'waiting for the chip');
-    assert.match(await txt(p, '#prompt'), /^Your net is in\.His night is over\. IBM's chip has not looked at a night since Wed 4 Nov: nets wait until it does\.$/, 'stale: no "come back later" promise');
+    assert.ok(await hidden(p, '#srcbadge'));
+    assert.equal(await txt(p, '#prompt'), "IBM's chip has not looked at a night since Wed 4 Nov: nets wait until it does.", 'stale: no "come back later" promise');
+    assert.equal(await txt(p, '#nfttext'), '✓ Your net is inWaiting for the quantum computer…', 'his night is over: no countdown');
     assert.match(await txt(p, '#waiting'), /IBM's chip has not looked at a night since Wed 4 Nov/);
     await shot('1-over-stale');
   });
@@ -872,9 +949,9 @@ async function nftErrorScenario(chain, name, viewport, account) {
 
       // 9. no test SQK: today's free 0.01 from the faucet (ONE transaction), then the cast (ONE permit + ONE transaction)
       await scenario('sqk-faucet', { width: 360, height: 740, page: chain.html, storage: PRESET(), wallet: { account: acc[11], rpc: chain.url } }, async (p, { shot }) => {
-        await p.waitForFunction(() => /^Get today's free/.test(document.getElementById('act').textContent), { timeout: 15000 });
-        assert.deepEqual(await p.$eval('#act', (e) => [e.textContent, e.dataset.sub]), ["Get today's free 0.01 test SQK", 'one transaction · Sepolia test network']);
-        assert.equal(await txt(p, '#nfthint'), FAUCET_HINT);
+        await p.waitForFunction(() => /^Get free test SQK$/.test(document.getElementById('act').textContent), { timeout: 15000 });
+        assert.deepEqual(await p.$eval('#act', (e) => [e.textContent, e.dataset.sub]), ['Get free test SQK', 'enough for one net']);
+        assert.equal(await txt(p, '#prompt'), 'Nets close 22:00 · result tomorrow 13:00');
         await fits(p, 740, '#act', '#prow');
         await shot('1-faucet');
         const left0 = await chain.sqkOf(chain.faucet);
@@ -897,9 +974,8 @@ async function nftErrorScenario(chain, name, viewport, account) {
       await scenario('sqk-claimed', { width: 360, height: 740, page: chain.html, storage: PRESET(), wallet: { account: acc[13], rpc: chain.url } }, async (p, { shot }) => {
         await p.waitForFunction(() => !document.getElementById('sqkout').hidden, { timeout: 15000 });
         assert.deepEqual(await p.evaluate(() => [QCP.sqk.balance, QCP.sqk.claimed]), ['0', true], 'the chain: no test SQK, today claimed');
-        assert.ok(await hidden(p, '#act') && await hidden(p, '#nfthint') && await hidden(p, '#watch'), 'nothing to press today');
-        assert.equal(await txt(p, '#sqkout'), "A net costs 0.01 test SQK and this wallet has none. Today's free 0.01 is already claimed: come back tomorrow.");
-        assert.ok(!(await p.$eval('#deckrow', (e) => e.classList.contains('solo'))));
+        assert.ok(await hidden(p, '#act') && await hidden(p, '#watch'), 'nothing to press until the next net night');
+        assert.equal(await txt(p, '#sqkout'), 'Free test SQK already used. Next one from 22:00 tonight.', 'the faucet resets per NET NIGHT (at the 22:00 close)');
         await fits(p, 740, '#sqkout', '#prow');
         assert.deepEqual(await asked(p), []);
         await shot('1-come-back-tomorrow');
@@ -912,7 +988,7 @@ async function nftErrorScenario(chain, name, viewport, account) {
         assert.equal(await txt(p, '#act'), CAST_BTN[0]);
         await p.click('#act');
         await p.waitForFunction(() => !document.getElementById('nftmsg').hidden && /test SQK/.test(document.getElementById('nftmsg').textContent), { timeout: 30000 });
-        await p.waitForFunction(() => /^Get today's free/.test(document.getElementById('act').textContent), { timeout: 15000 });
+        await p.waitForFunction(() => /^Get free test SQK$/.test(document.getElementById('act').textContent), { timeout: 15000 });
         assert.equal(await txt(p, '#nftmsg'), NO_SQK_WORDS);
         assert.ok(!(await p.$eval('#nftmsg', (e) => e.classList.contains('err'))), 'an expected step: not a red error');
         assert.equal((await stored(p)).nets['2026-11-05'], undefined, 'nothing cast');
@@ -941,7 +1017,7 @@ async function nftErrorScenario(chain, name, viewport, account) {
         await p.waitForFunction(() => !document.getElementById('sqkout').hidden, { timeout: 15000 });
         assert.equal(await p.evaluate(() => QCP.sqk.cost), '0', 'the contract: free nets');
         assert.equal(await txt(p, '#sqkout'), NOT_WIRED);
-        assert.ok(await hidden(p, '#act') && await hidden(p, '#nfthint'));
+        assert.ok(await hidden(p, '#act'));
         assert.deepEqual(await asked(p), []);
         await shot('1-not-wired');
       });
@@ -954,7 +1030,6 @@ async function nftErrorScenario(chain, name, viewport, account) {
           await p.waitForFunction(() => document.getElementById('act').textContent === 'Cast a net · 0.01 test SQK', { timeout: 15000 });
           assert.ok((await box(p, '#ham')).bottom <= h && (await box(p, '#core')).top >= 0, 'the computer and the mystery hamster on the first screen');
           assert.ok(await rosterHidden(p));
-          await scrollTo(p, '#past'); await sleep(100);
           await openPractice(p);
           assert.equal(await txt(p, '#act'), 'Cast a practice net · free');
           assert.ok(await visible(p, '#act', h), `practice: the button on screen after the jump (${JSON.stringify(await box(p, '#act'))})`);
@@ -978,8 +1053,7 @@ async function nftErrorScenario(chain, name, viewport, account) {
         assert.match(await txt(p, '#prompt'), /^Your old net \(picked\) is on No\. 6\./, 'the old local net still shows');
         assert.deepEqual([await txt(p, '#platek'), await txt(p, '#platen')], ['Old net (picked)', '6'], 'on the plate (no tiles tonight)');
         assert.ok(await rosterHidden(p));
-        for (const q of ['#act', '#watch', '#nftbox', '#nfthint', '#sqkout']) assert.ok(await hidden(p, q), `${q}: no second net, no "make it an NFT" step`);
-        assert.ok(await p.$eval('#deckrow', (e) => e.classList.contains('solo')), 'the LCD takes the whole row');
+        for (const q of ['#act', '#watch', '#nftbox', '#sqkout']) assert.ok(await hidden(p, q), `${q}: no second net, no "make it an NFT" step`);
         assert.equal(await txt(p, '#tnstate'), 'Your old net (picked): No. 6 (glasses + scarf, calm face).');
         assert.deepEqual(await asked(p), [], 'nothing asked');
         await noHScroll('old net'); await shot('1-old-local-net');
@@ -1004,8 +1078,9 @@ async function nftErrorScenario(chain, name, viewport, account) {
         assert.ok(await hidden(p, '#act'), 'cast: nothing more to press');
         await p.waitForFunction(() => QCP.win().day === '2026-11-06', { timeout: 15000 }); await sleep(1300);
         assert.equal(await p.evaluate(() => QCP.stage), '2026-11-05', 'after 21:00 UTC the net just locked stays on the first screen');
-        assert.equal(await txt(p, '#stageh'), 'Your net · night of Thu 5 Nov');
-        assert.match(await txt(p, '#prompt'), /^Your net is in\.Nets are closed\. He usually starts between 22:10 and 22:40 your time\. It ends Fri 13:00 your time, then IBM's chip drops 4,000 times: one drop is yours\.$/);
+        assert.equal(await txt(p, '#stageh'), 'Your net · Thu 5 Nov');
+        assert.match(await txt(p, '#nfttext'), /^✓ Your net is inResult (today|tomorrow) at 13:00in /, 'the locked net\'s card: the result and a countdown');
+        assert.ok(await hidden(p, '#status'));
         assert.equal(await p.$eval('#nights button[aria-pressed="true"]', (e) => e.dataset.day), '2026-11-05', 'a strip button for the net\'s night (not in the page yet)');
         assert.ok(await rosterHidden(p), 'waiting for his night: no tiles');
         assert.match(await txt(p, '#waiting'), /Thu 5 Nov: your net, waiting for the chip\./);
@@ -1014,7 +1089,7 @@ async function nftErrorScenario(chain, name, viewport, account) {
         assert.equal(await txt(p, '#alt'), "Cast tomorrow's net");
         await p.click('#alt'); await sleep(200);
         assert.equal(await txt(p, '#stageh'), "Tomorrow's net", 'tomorrow\'s net behind the secondary button');
-        assert.match(await txt(p, '#prompt'), /^Nets close 22:00 tomorrow · result Sat after 13:00He usually starts 22:10–22:40 · closes in 23 h 59 min$/);
+        assert.equal(await txt(p, '#prompt'), 'Nets close 22:00 tomorrow · result Sat 13:00');
         await chain.at(Date.parse('2026-11-05T21:00:30Z'));
         await castNft(p, '2026-11-06');
         const st = await stored(p); assert.ok(st.nets['2026-11-05'].drop && st.nets['2026-11-06'].drop);
@@ -1037,8 +1112,8 @@ async function nftErrorScenario(chain, name, viewport, account) {
         assert.ok(rpcLog.includes(want), 'result(the net) asked on the public RPC');
         await sleep(400);
         assert.equal(await p.evaluate(() => QCP.stage), '2026-11-05');
-        assert.match(await txt(p, '#prompt'), /^The chip has dropped\. Your drop is posted soon\.Your net gets one of its 4,000 drops when the night's result is posted on Sepolia: come back a little later\.$/);
-        assert.equal(await txt(p, '#stamp'), 'Drop posted soon');
+        assert.equal(await txt(p, '#prompt'), 'Your result is posted soon.');
+        assert.equal(await txt(p, '#stamp'), '', 'no stamp: one line per state');
         const st = await p.evaluate(() => { const a = document.getElementById('stamp').getBoundingClientRect(), b = document.querySelector('.stage').getBoundingClientRect(); return [a.left - b.left, b.right - a.right]; });
         assert.ok(st[0] >= 0 && st[1] >= 0, `the stamp inside the stage (${st})`);
         assert.equal(await txt(p, '#alt'), '▶ Watch his night');
@@ -1046,7 +1121,8 @@ async function nftErrorScenario(chain, name, viewport, account) {
         assert.match(await txt(p, '#mygrid'), /Soon.*your drop is posted soon/);
         await shot('1-posting');
         await p.click('#alt'); await revealed(p);
-        assert.match(await txt(p, '#revs'), /Your own drop is shown once the result is posted on Sepolia\.$/);
+        assert.equal(await txt(p, '#revs'), 'Brighter = more drops. Your own drop is shown once the result is posted.');
+        assert.equal(await txt(p, '#revt'), 'Where the drops landed · Thu 5 Nov');
         assert.equal((await stored(p)).nets['2026-11-05'].seen, false, 'watched, not seen: the drop comes later');
         assert.equal(await p.$$eval('.spot.net', (e) => e.length), 0);
       });
@@ -1068,8 +1144,8 @@ async function nftErrorScenario(chain, name, viewport, account) {
       await scenario('drop-caught', { width: 360, height: 740, at: Date.parse('2026-11-06T13:00:00Z'), page: chain.html, results: NX.body, storage: PRESET({ '2026-11-05': DROP('2026-11-05', E5) }), rpcUrl: chain.url }, async (p, { shot, noHScroll, rpcLog }) => {
         await p.waitForFunction(() => QCP.stage === '2026-11-05' && QCP.store().nets['2026-11-05'].spot === 7, { timeout: 15000 }); await sleep(300);
         assert.ok(rpcLog.includes(QC.enc.result(QC.netId(N5, E5))), 'the drop read from the contract by its token id (no wallet: the public RPC)');
-        assert.equal(await txt(p, '#stageh'), 'Your net · night of Thu 5 Nov');
-        assert.match(await txt(p, '#prompt'), /^Your net is in\. Which hamster did your drop land on\?IBM's chip dropped 4,000 times: one drop is yours\. Watch his night to find out\.$/);
+        assert.equal(await txt(p, '#stageh'), 'Your net · Thu 5 Nov');
+        assert.equal(await txt(p, '#prompt'), 'Your result is ready.');
         assert.equal(await txt(p, '#act'), 'See what you caught');
         assert.ok(await visible(p, '#act', 740), 'on screen at 360x740');
         assert.ok(!(await rosterHidden(p)), 'a night with its result: the 16 tiles');
@@ -1080,8 +1156,8 @@ async function nftErrorScenario(chain, name, viewport, account) {
         await p.click('#act'); await revealed(p);
         assert.deepEqual(await p.$$eval('.spot.net', (e) => e.map((b) => [b.dataset.spot, b.classList.contains('drop')])), [['7', true]], 'YOUR drop\'s tile');
         assert.equal(await txt(p, '#revt'), 'An Epic Crystal hamster!');
-        assert.match(await txt(p, '#prompt'), /^You caught an Epic!Your net, night of Thu 5 Nov\.$/);
-        assert.match(await txt(p, '#revs'), new RegExp(`^Your drop landed on No\\. 7 \\(.*\\), one of the chip's ${NX.perSpot[7]} drops there \\(${QW.pctText(NX.perSpot[7] / 4000).replace('.', '\\.')} of 4,000\\)\\. The rarest catch of the night\\.$`));
+        assert.ok(await hidden(p, '#status'), 'the result card says it: no line under it');
+        assert.equal(await txt(p, '#revs'), `${NX.perSpot[7]} of the 4,000 drops landed on No. 7. The rarest catch of the night.`);
         assert.deepEqual([await txt(p, '#platen'), await p.evaluate(() => [document.getElementById('ham').dataset.spot, document.getElementById('ham').dataset.tier])], ['7', ['7', '3']], 'the catch on the podium in its Epic skin');
         await rosterIs(p, REFX, 'drop 5 Nov');
         assert.equal(await p.$eval('#mycountn', (e) => e.textContent), '2', 'practice + the catch');
@@ -1092,12 +1168,12 @@ async function nftErrorScenario(chain, name, viewport, account) {
       await scenario('drop-away', { width: 360, height: 740, at: Date.parse('2026-11-06T13:00:00Z'), page: chain.html, results: NX.body, storage: PRESET({ '2026-11-05': DROP('2026-11-05', A5) }), wallet: { account: A5, rpc: chain.url } }, async (p, { shot }) => {
         await p.waitForFunction(() => QCP.store().nets['2026-11-05'].spot === 2, { timeout: 15000 }); await sleep(300);
         await p.click('#act'); await revealed(p);
-        assert.match(await txt(p, '#prompt'), /^Your hamster got away \(chip noise\)\./);
-        assert.equal(await txt(p, '#revt'), 'Your hamster got away (chip noise).');
-        assert.equal(await txt(p, '#revs'), 'Your drop landed on No. 2, a spot he could not reach that night: only the chip\'s noise lands there (55 of 4,000 drops).');
+        assert.ok(await hidden(p, '#status'), 'the result card says it');
+        assert.equal(await txt(p, '#revt'), 'Your hamster got away.');
+        assert.equal(await txt(p, '#revs'), 'Your drop hit No. 2, a spot he could not reach: chip noise.');
         assert.deepEqual(await p.$$eval('.spot.net', (e) => e.map((b) => b.dataset.spot)), ['2']);
         assert.ok(await p.$eval('#ham', (e) => e.classList.contains('away')), 'a shadow on the podium');
-        assert.deepEqual([await txt(p, '#platek'), await txt(p, '#platen'), await txt(p, '#plateb')], ['Your drop', '2', 'Night of 5 Novgot away · chip noise']);
+        assert.deepEqual([await txt(p, '#platek'), await txt(p, '#platen'), await txt(p, '#plateb')], ['Your drop', '2', '5 Nov · got away']);
         assert.equal(await p.$eval('#mycountn', (e) => e.textContent), '1', 'only the practice catch counts');
         assert.match(await txt(p, '#mygrid'), /Got away.*chip noise/);
         await p.waitForFunction(() => !document.getElementById('nftnets').hidden, { timeout: 15000 });
@@ -1110,7 +1186,7 @@ async function nftErrorScenario(chain, name, viewport, account) {
         assert.equal((await stored(p)).nets['2026-11-06'].nft.tokenId, QC.netId(N6, L6), 'this browser knew nothing: the chain is the record');
         await p.click('#act'); await revealed(p);
         assert.equal(await txt(p, '#revt'), 'A Legendary Gold hamster!');
-        assert.match(await txt(p, '#prompt'), /^You caught a Legendary!/);
+        assert.ok(await hidden(p, '#status'), 'the result card says it');
         assert.match(await txt(p, '#revs'), /The rarest catch of the night, and the chip's very first drop landed there\.$/);
         assert.deepEqual(await p.$eval('.spot[data-spot="7"]', (e) => [e.className.includes('net drop'), e.querySelector('.lnd b').textContent, getComputedStyle(e.querySelector('.lnd b')).backgroundColor]), [true, 'Legendary', 'rgb(255, 214, 107)']);
         assert.match(await txt(p, '#mystats'), /rarest: Legendary/);
@@ -1126,7 +1202,7 @@ async function nftErrorScenario(chain, name, viewport, account) {
         await p.waitForFunction(() => !!QCP.store().nets['2026-11-07'] && !!QCP.data.nights['2026-11-07'], { timeout: 15000 }); await sleep(300);
         assert.equal(await p.evaluate(() => QCP.netResult('2026-11-07', null).status), 'slept');
         await p.evaluate(() => QCP.select('2026-11-07')); await sleep(200);
-        assert.match(await txt(p, '#prompt'), /^He slept: no catch that night\.No run, nothing to catch\.$/);
+        assert.equal(await txt(p, '#prompt'), 'He slept: no catch that night.');
         assert.equal(await txt(p, '#stamp'), 'He slept');
         assert.match(await txt(p, '#mygrid'), /He slept.*no catch/);
         assert.match(await txt(p, '#nftgrid'), /he slept/, 'the chain: he slept');
@@ -1139,19 +1215,20 @@ async function nftErrorScenario(chain, name, viewport, account) {
   //     its drop is chip noise: got away), nothing live is shown
   await scenario('blocked', { width: 360, height: 740, scheme: 'light', api: 'abort', noStorage: true, results: null, random: NOISE4.random }, async (p, { shot, noHScroll }) => {
     await sleep(1200);
-    assert.ok(await hidden(p, '#live'), 'LIVE badge hidden'); assert.ok(await hidden(p, '#sofar'), 'no live rounds');
+    assert.ok(await hidden(p, '#live'), 'ALIVE: his wheel hidden'); assert.ok(await hidden(p, '#sofar'), 'no live rounds');
+    assert.ok(await hidden(p, '#netsn') && await hidden(p, '#alive'), 'no nets count, no ALIVE line at all');
     assert.equal(await p.evaluate(() => QCP.stage), 'tonight');
     await watchMode(p);
     await openPractice(p);
     const s = await practice(p);
     assert.equal(s, NOISE4.spot);
-    assert.equal(await txt(p, '#revt'), 'Your hamster got away (chip noise).');
-    assert.match(await txt(p, '#revs'), new RegExp(`^practice ?Your drop landed on No\\. ${s}, a spot he could not reach that night: only the chip's noise lands there \\(${ref4.counts[s]} of 4,000 drops\\)\\.$`));
+    assert.equal(await txt(p, '#revt'), 'Your hamster got away.');
+    assert.match(await txt(p, '#revs'), new RegExp(`^practice ?Your drop hit No\\. ${s}, a spot he could not reach: chip noise\\.$`));
     assert.equal(await p.$eval('#mycountn', (e) => e.textContent), '0', 'got away: no catch (and no storage needed)');
     assert.equal(await txt(p, '#act'), "See tonight's net");
     await p.click('#act'); await sleep(200);
     await watchMode(p);
-    assert.match(await txt(p, '#prompt'), /^Nets close 22:00 tonight/);
+    assert.match(await txt(p, '#prompt'), /^Nets close 22:00 · /);
     await noHScroll('blocked'); await shot('1-blocked');
   });
 
