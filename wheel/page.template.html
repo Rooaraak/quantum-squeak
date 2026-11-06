@@ -1,0 +1,1737 @@
+<meta charset="utf-8">
+<title>Quantum Catch</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap">
+<style>
+/* Quantum Catch: his real night (from the chain) programs a quantum walk on a ring of 16 spots; after his night IBM's chip
+   runs it and looks 4,000 times. Put your net on a spot: if that spot is in reach that night and the chip finds him there in
+   1 % of its looks or more, you catch that spot's hamster. Rarity is the spot's rank among the night's catches (the fewest
+   looks: Epic; Legendary if the chip's very first look landed there). Look: cobalt, ink, cherry and cyan, Anton + Space Mono:
+   the quantum computer hangs over a stage like a claw, the 16 hamsters wait in a roster. Colours are tokens (light + dark). */
+:root {
+  color-scheme: dark;
+  --bg: #1e3cc8; --bg2: #142b94; --card: #0b1238; --card2: #050a22; --ink: #fff4dc; --muted: #c9d3ff; --line: #2d4ddb; --line2: #3b5be0;
+  --accent: #d81e3a; --accent-d: #9c1229; --accent-dd: #5e0a18; --accent2: #7debff; --accent-ink: #fff4dc; --violet: #b9a6ff; --cyan: #7debff; --good: #84ecc4; --bad: #ff9a8a;
+  --cream: #fff4dc; --navy: #0b1238; --paper2: #b9ae93; --tile: #142b94; --tile-line: #3b5be0; --bar: #26357f; --outw: #aeb8ea; --edge: #0b1238;
+  --t0: #d6dce8; --t1: #9ee6b5; --t2: #8fb3ff; --t3: #c49bff; --t4: #ffd66b;
+  --stage-a: #070c2b; --stage-ink: #fff4dc; --stage-muted: #c9d3ff; --stage-line: rgba(201, 211, 255, .28); --stage-card: #050a22;
+  --r0: #d6dce8; --r1: #9ee6b5; --r2: #8fb3ff; --r3: #c49bff; --r4: #ffd66b;
+  --ghost: #b48cff; --ghost2: #7ef2ff; --plain: #fff0c8; --chipc: #ffd66b; --mint: #84ecc4;
+  --display: "Anton", Impact, "Haettenschweiler", "Arial Narrow", "Liberation Sans Narrow", "Roboto Condensed", sans-serif;
+  --body: "Space Mono", ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --mono: "Space Mono", ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #070b1a; --bg2: #050815; --card: #0c1433; --card2: #050a22; --ink: #fff4dc; --muted: #b9c3ea; --line: #22348f; --line2: #2d4ddb;
+    --accent: #d81e3a; --accent2: #7debff; --violet: #b9a6ff; --good: #84ecc4; --bad: #ff9a8a;
+    --tile: #101c5c; --tile-line: #2d4ddb; --bar: #1f2c6b; --edge: #000000;
+    --t0: #d6dce8; --t4: #ffd66b;
+    --stage-a: #050920;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #070b1a; --bg2: #050815; --card: #0c1433; --card2: #050a22; --ink: #fff4dc; --muted: #b9c3ea; --line: #22348f; --line2: #2d4ddb;
+  --accent: #d81e3a; --accent2: #7debff; --violet: #b9a6ff; --good: #84ecc4; --bad: #ff9a8a;
+  --tile: #101c5c; --tile-line: #2d4ddb; --bar: #1f2c6b; --edge: #000000;
+  --t0: #d6dce8; --t4: #ffd66b;
+  --stage-a: #050920;
+  color-scheme: dark;
+}
+* { box-sizing: border-box }
+html { -webkit-text-size-adjust: 100% }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.55 var(--body); -webkit-tap-highlight-color: transparent; overflow-x: hidden }
+button { font: inherit; color: inherit; cursor: pointer }
+button:disabled { cursor: default }
+:focus-visible { outline: 3px solid var(--cyan); outline-offset: 3px }
+a { color: var(--cyan); text-underline-offset: 3px }
+a:hover { color: var(--ink) }
+.mono { font-family: var(--mono) }
+[hidden] { display: none !important }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap }
+.page { max-width: 1280px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 0 0 }
+
+/* ---------- header: the wordmark, two links, the sound switch, Powered by ---------- */
+.hero { position: relative; z-index: 3; padding: 4px 0 0 }
+.top { position: relative; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px }
+.hero h1 { margin: 0; font: 400 20px/1 var(--display); letter-spacing: .04em; text-transform: uppercase; white-space: nowrap }
+.nav { display: flex; align-items: center; gap: 6px }
+.navl { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-width: 44px; min-height: 44px; margin: 0; padding: 0; border: 0; background: none; color: var(--ink);
+  font: 700 13px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; text-decoration: none; transition: color .15s, transform .15s }
+.navl:hover { color: var(--cyan) }
+.navl svg { width: 20px; height: 20px; flex: none }
+.navl .navt { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 5px }
+.navl b { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 11px; background: var(--cyan); color: var(--navy); font: 700 12px/1 var(--mono); letter-spacing: 0 }
+.navl.help, .navl.snd { width: 44px; border: 2px solid var(--muted); border-radius: 50% }
+.navl.snd[aria-pressed="true"] { border-color: var(--cyan); color: var(--cyan) }
+.navl .myshort { display: inline }
+.navl .navt { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap }
+.brand { position: relative; z-index: 1; display: inline-flex; align-items: center; min-height: 44px; margin: -14px 0 -12px; font: 400 10px/1.3 var(--mono); white-space: nowrap; color: var(--muted); text-decoration: none }
+.brand b { color: var(--ink); font-weight: 700 }
+.brand:hover span { text-decoration: underline }
+.bump { animation: bump .7s ease-out }
+@keyframes bump { 40% { transform: scale(1.15) } }
+
+/* ---------- the first screen: stage (the machine), headline, roster, control deck ---------- */
+.card { background: var(--card); color: var(--ink); border: 3px solid var(--cream); border-radius: 18px; padding: 16px; box-shadow: 0 6px 0 var(--edge); min-width: 0 }
+.card.play { background: none; border: 0; border-radius: 0; padding: 0; box-shadow: none; position: relative; display: grid; grid-template-columns: minmax(0, 42fr) minmax(0, 58fr);
+  grid-template-rows: auto auto auto auto auto; column-gap: 10px; margin-top: 4px }
+.stage { grid-column: 1 / -1; grid-row: 1 / 4; position: relative; overflow: hidden; container-type: inline-size; min-height: 280px; margin-inline: -8px;
+  background: var(--stage-a); color: var(--stage-ink); border: 4px solid var(--cream); border-top: 0; border-radius: 0 0 20px 20px; box-shadow: 0 6px 0 var(--edge) }
+.stage > * { position: absolute; pointer-events: none }
+.stage .rail { left: 0; right: 0; top: 0; height: 8px; background: var(--cream); border-bottom: 2px solid var(--paper2); z-index: 4 }
+.stage .wimg { left: -6cqw; bottom: 6px; width: 64cqw; height: 64cqw; opacity: .2; will-change: transform }
+.stage .beam { left: 6cqw; width: 36cqw; top: 36cqw; bottom: 16px; background: rgba(125, 235, 255, .12); clip-path: polygon(46% 0, 54% 0, 100% 100%, 0 100%) }
+.stage .beam.b2 { background: rgba(125, 235, 255, .16); clip-path: polygon(48.5% 0, 51.5% 0, 72% 100%, 28% 100%) }
+.stage .streak { left: 80cqw; top: -40px; width: 26px; height: 140%; background: rgba(255, 255, 255, .035); transform: rotate(16deg) }
+.stage .streak.s2 { left: 91cqw; width: 8px; background: rgba(255, 255, 255, .03) }
+.stage .core { left: 9cqw; top: 8px; width: 29cqw; height: 38.7cqw; filter: drop-shadow(0 0 18px rgba(125, 235, 255, .6)); z-index: 2 }
+.stage .mount { left: calc(23.5cqw - 18px); top: 0; width: 36px; height: 18px; background: #c9d3ff; border: 2px solid var(--navy); border-top: 0; border-radius: 0 0 6px 6px; z-index: 5 }
+.stage .dash { left: 35cqw; top: 40px; width: calc(7cqw + 14px); border-top: 2px dashed var(--cyan); z-index: 2 }
+.stage .vline { display: none }
+.podium { left: 3cqw; width: 42cqw; bottom: 2px; height: 34px; z-index: 1 }
+.podium i { position: absolute; border-radius: 50% }
+.podium .sh { left: 0; right: 0; bottom: 0; height: 24px; background: #02040f }
+.podium .tp { left: 0; right: 0; bottom: 10px; height: 24px; background: var(--bg); border: 2px solid var(--cream) }
+.podium .rg { left: 19%; right: 19%; bottom: 16px; height: 12px; border: 2px solid var(--accent) }
+.podium .gl { left: 28%; right: 28%; bottom: 18px; height: 8px; background: rgba(125, 235, 255, .5); box-shadow: 0 0 18px 5px rgba(125, 235, 255, .4) }
+.stage .ham { left: 6.5cqw; bottom: 18px; width: 34cqw; height: auto; aspect-ratio: 448 / 612; z-index: 3; transition: filter .4s }
+.stage .ham.away { filter: grayscale(.85) brightness(.5) }
+.stage .stamp { left: 24cqw; bottom: 30%; translate: -50% 0; rotate: -8deg; z-index: 4; font: 700 11px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--cyan);
+  border: 2px solid var(--cyan); padding: 6px 9px; border-radius: 6px; background: rgba(5, 10, 34, .85); opacity: 0; transition: opacity .3s; white-space: nowrap }
+.stage .stamp.on { opacity: 1 }
+#play.playing .ham { animation: hop .45s ease-in-out infinite }
+@keyframes hop { 50% { transform: translateY(-3%) } }
+.qc-beam { animation: qcbeam 2.6s ease-in-out infinite }
+@keyframes qcbeam { 0%, 100% { opacity: .7 } 50% { opacity: 1 } }
+.qc-idle { animation: qcidle 3.4s ease-in-out infinite }
+@keyframes qcidle { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-4px) } }
+
+.chiptag { grid-column: 2; grid-row: 1; z-index: 2; justify-self: start; align-self: start; margin: 10px 8px 0 0; padding: 4px 8px; background: var(--card2); border: 2px solid var(--cyan); border-radius: 5px; color: var(--cyan); min-width: 0 }
+.chiptag b { display: block; font: 700 10.5px/1.3 var(--mono); text-transform: uppercase; white-space: nowrap }
+.chiptag span { display: none; font: 400 11px/1.4 var(--mono); color: var(--muted) }
+.hl { grid-column: 2; grid-row: 2; z-index: 2; padding: 6px 8px 6px 0; min-width: 0 }
+.headline { margin: 0; font: 400 19px/1.02 var(--display); letter-spacing: .01em; text-transform: uppercase; color: var(--ink) }
+.headline em { font-style: normal; color: var(--cyan) }
+.hl .lede { margin: 6px 0 0; font: 400 10px/1.35 var(--mono); color: var(--muted) }
+
+/* the name plate: YOUR PICK, No. N, what it wears, last night's result */
+.plate { grid-column: 2; grid-row: 3; z-index: 2; align-self: end; justify-self: start; width: min(100%, 196px); margin: 4px 8px 8px 0 }
+.plate .pk { display: inline-block; margin-left: 10px; padding: 3px 8px; background: var(--accent); transform: skewX(-10deg) }
+.plate .pk span { display: block; transform: skewX(10deg); font: 700 9.5px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--cream) }
+.plate .pc { background: var(--cream); color: var(--navy); transform: skewX(-10deg); box-shadow: 5px 5px 0 var(--bg) }
+.plate .pci { display: flex; align-items: center; gap: 8px; padding: 4px 12px 5px; transform: skewX(10deg) }
+.plate .pn { margin: 0; display: flex; align-items: baseline; gap: 3px; font-family: var(--display); font-weight: 400; line-height: .86; white-space: nowrap }
+.plate .pn span { font-size: 16px }
+.plate .pn b { font-size: 44px; font-weight: 400 }
+.plate .pw { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 1px; font: 700 9px/1.2 var(--mono); letter-spacing: .03em; text-transform: uppercase; min-width: 0 }
+.plate .pb { background: var(--navy); padding: 4px 12px }
+.plate .pb p { margin: 0; transform: skewX(10deg); font: 700 9.5px/1.3 var(--mono); color: var(--cyan); text-transform: uppercase }
+
+/* the roster: 16 hamsters (the ring of 16 spots, laid out as a grid) */
+.pick { grid-column: 1 / -1; grid-row: 4; margin-top: 12px; min-width: 0; position: relative }
+.pickhead { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px }
+.pickhead h2 { margin: 0; font: 400 17px/1.05 var(--display); letter-spacing: .03em; text-transform: uppercase }
+.src { font: 700 9.5px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; padding: 3px 6px; border: 1.5px solid currentColor; border-radius: 4px; color: var(--muted); white-space: nowrap }
+.src:empty { display: none }
+.src.chip { color: var(--chipc) }
+.src.wait { color: var(--cyan) }
+.src.practice { color: var(--good) }
+.legend { flex-basis: 100%; margin: 0; display: flex; align-items: center; gap: 6px; font: 400 10px/1.2 var(--mono); color: var(--muted) }
+.legend::before { content: ""; flex: none; width: 16px; height: 3px; background: var(--cyan) }
+.legend:empty { display: none }
+.ring { position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-top: 7px; container-type: inline-size; touch-action: manipulation }
+.spot { position: relative; height: 44px; min-width: 0; padding: 0; border: 2px solid var(--tile-line); border-radius: 7px; background: var(--tile); overflow: hidden; color: var(--ink); text-align: left;
+  --g: 0; --gc: var(--ghost); transition: transform .15s, border-color .2s, background-color .2s, box-shadow .2s }
+.spot .pic { position: absolute; left: -1px; top: -1px; width: 58%; pointer-events: none }
+.spot canvas { display: block; width: 100%; height: auto }
+.spot .glow { position: absolute; inset: 0; z-index: 1; background: radial-gradient(circle at 50% 45%, var(--gc) 0%, color-mix(in srgb, var(--gc) 40%, transparent) 38%, transparent 75%);
+  opacity: var(--g); transition: opacity .42s ease-out; pointer-events: none }
+.spot .tag { position: absolute; z-index: 3; right: 4px; top: 3px; font: 400 17px/1 var(--display); color: var(--ink); white-space: nowrap; pointer-events: none; border-radius: 3px }
+.spot .tag i { font-style: normal }
+.spot.d1 .tag i::before { content: "0" }
+.spot .tag .w { font: 700 9px/1 var(--mono); letter-spacing: 0; vertical-align: 2px }
+.spot .lnd { position: absolute; z-index: 2; right: 4px; bottom: 3px; width: 36%; text-align: right; pointer-events: none }
+.spot .lnd b { display: block; font: 700 10px/1 var(--mono); color: var(--cyan) }
+.spot .lnd.out b { color: var(--outw) }
+.spot .lnd .bar { display: block; height: 3px; margin-top: 3px; background: var(--bar) }
+.spot .lnd .bar i { display: block; height: 100%; width: var(--w, 0%); background: var(--cyan) }
+.spot .lnd:empty { display: none }
+.spot:hover { border-color: var(--cream) }
+.ring:not(.pickable) .spot:hover { border-color: var(--tile-line) }
+.ndot { position: absolute; z-index: 2; left: 29%; top: 46%; width: 9px; height: 9px; translate: -50% -50%; border-radius: 50%; background: var(--plain); box-shadow: 0 0 8px var(--plain);
+  --g: 0; opacity: calc(var(--g) * 1.1); transform: scale(calc(.3 + var(--g) * .9)); transition: opacity .42s, transform .42s; pointer-events: none }
+.ring:not(.playing) .ndot { opacity: 0 }
+.ring[data-kind="chip"] .spot { --gc: var(--chipc) }
+/* out of reach on a known night: dimmed, and a practice net cannot go there */
+.ring:not(.revealed) .spot.out canvas { filter: grayscale(1) brightness(.45) }
+.ring:not(.revealed) .spot.out .tag { color: var(--outw) }
+.ring.pickable .spot.out { cursor: not-allowed }
+.ring.pickable .spot.out:hover { border-color: var(--tile-line) }
+/* his start that night: a dashed frame */
+.spot.start::before { content: ""; position: absolute; z-index: 2; inset: 2px; border: 2px dashed rgba(255, 236, 190, .85); border-radius: 4px; pointer-events: none }
+.spot.focus { border-color: var(--cream); box-shadow: 0 0 0 2px var(--cream) }
+/* the pick and the net: cream tile, cherry frame, YOU / NET in the corner */
+.spot.sel, .spot.net { background: var(--cream); color: var(--navy); border: 3px solid var(--accent); box-shadow: 0 0 0 2px var(--cream); z-index: 2 }
+.spot.sel .tag, .spot.net .tag { color: var(--navy) }
+.spot.sel .lnd b, .spot.net .lnd b { color: var(--navy) }
+.spot.sel .lnd .bar, .spot.net .lnd .bar { background: #e5d9bc }
+.spot.sel .lnd .bar i, .spot.net .lnd .bar i { background: var(--navy) }
+.spot.sel::after, .spot.net::after { content: "YOU"; position: absolute; z-index: 5; left: 0; bottom: 0; padding: 2px 4px; background: var(--accent); color: var(--cream); font: 700 9.5px/1 var(--mono); letter-spacing: .06em }
+.spot.net::after { content: "NET" }
+/* after the reveal each catch shows its tier on the roster; the Legendary tag is gold. On a narrow roster an out-of-reach spot
+   keeps only its number (it is dimmed already), so the tier names have room */
+.ring.revealed .spot.net .tag, .ring.revealed .spot.sel .tag { background: var(--navy); color: var(--ink); padding: 1px 3px }
+.ring.revealed .spot[data-tier="0"] .tag { color: var(--r0) }
+.ring.revealed .spot[data-tier="1"] .tag { color: var(--r1) }
+.ring.revealed .spot[data-tier="2"] .tag { color: var(--r2) }
+.ring.revealed .spot[data-tier="3"] .tag { color: var(--r3) }
+.ring.revealed .spot[data-tier="4"] .tag { background: var(--r4); color: #2a1a00; padding: 1px 3px }
+.ring.revealed .spot[data-tier="4"] .tag i { color: #2a1a00 }
+.ring.revealed .spot[data-tier="0"] { border-color: color-mix(in srgb, var(--r0) 55%, var(--tile)) }
+.ring.revealed .spot[data-tier="1"] { border-color: var(--r1) }
+.ring.revealed .spot[data-tier="2"] { border-color: var(--r2) }
+.ring.revealed .spot[data-tier="3"] { border-color: var(--r3); box-shadow: 0 0 10px var(--r3) }
+.ring.revealed .spot[data-tier="4"] { border-color: var(--r4); box-shadow: 0 0 14px var(--r4) }
+.ring.revealed .spot.out[data-tier="-1"] { border-style: dashed; border-color: rgba(160, 175, 220, .4) }
+.ring.revealed .spot.out .tag { color: var(--outw) }
+.ring.revealed .spot.net, .ring.revealed .spot.sel { border-color: var(--accent) }
+.ring.revealed .spot.net[data-tier="4"] .tag { background: var(--r4) }
+/* a phone tile after the reveal: the hamster on the left half, the number over the tier word on the right half (the word
+   wraps under the number: a soft wrap, the tag's text stays "7 Epic"); the strip already says "out", so the tag shows the number */
+@media (max-width: 639px) {
+  .ring.revealed .spot .pic { width: 50% }
+  .ring.revealed .spot .tag, .ring.revealed .spot[data-tier="4"] .tag, .ring.revealed .spot.net .tag, .ring.revealed .spot.sel .tag { left: 49%; right: 3px; top: 1px; padding: 0 2px; text-align: right; white-space: normal; font-size: 13px; line-height: .95 }
+  .ring.revealed .spot .lnd b { font-size: 9px }
+  .ring.revealed .spot .tag .w { font-size: 7.5px; letter-spacing: -.3px; line-height: 1.1; vertical-align: 0 }
+  .ring.revealed .spot.sel::after, .ring.revealed .spot.net::after { padding: 1px 3px; font-size: 8px }
+}
+@container (max-width: 380px) { .ring.revealed .spot.out .tag .w { display: none } }
+@container (min-width: 381px) { .ring.revealed .spot .lnd.out b { visibility: hidden } }
+.spot.pop { animation: pop .55s cubic-bezier(.3, 1.6, .5, 1) }
+@keyframes pop { 0% { transform: scale(.82) } 100% { transform: scale(1) } }
+.fx { position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 8; pointer-events: none }
+.caption { min-height: 1.4em; margin: 8px 0 0; font: 400 12.5px/1.45 var(--mono); color: var(--ink) }
+.caption:empty { min-height: 0; margin: 0 }
+.caption b { color: var(--cyan) }
+
+/* the control deck: LCD, the ONE action (casting = minting the free test NFT, R6'), the night's clock. On a phone the LCD is
+   a one-line strip over a full-width button; from 640 px they sit side by side. The action slot always has content: the
+   cast button, the watch line (no wallet), the minted net, or the LCD alone */
+.deck { grid-column: 1 / -1; grid-row: 5; margin: 8px -8px 0; padding: 7px 10px 4px; background: var(--card); color: var(--ink); border: 3px solid var(--cream); border-radius: 18px; box-shadow: 0 6px 0 var(--edge); min-width: 0 }
+.deckrow { display: flex; flex-direction: column; gap: 6px; align-items: stretch }
+.lcd { flex: none; min-height: 0; margin: 0; padding: 3px 10px; background: var(--card2); border: 3px solid var(--line); border-radius: 10px; color: var(--cyan);
+  display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 2px 10px; min-width: 0 }
+.lcd p { margin: 0 }
+.lcd .l1 { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 7px; font: 700 10px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; white-space: nowrap }
+.lcd .l1 b { font-size: 15px; letter-spacing: .02em }
+.lcd .l2 { min-width: 0; font: 400 9px/1.25 var(--mono); letter-spacing: .02em; text-transform: uppercase; text-align: right }
+.actions { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0 }
+.deckrow.solo .actions { display: none }
+.btn { flex: none; min-height: 54px; max-width: 100%; margin: 0; padding: 6px 12px; border: 0; border-radius: 14px; font: 400 19px/1.05 var(--display); letter-spacing: .02em; text-transform: uppercase;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; text-align: center; transition: transform .12s, box-shadow .12s, background-color .15s, opacity .2s }
+#act { background: var(--accent); color: var(--cream); box-shadow: inset 0 -5px 0 var(--accent-d), 0 5px 0 var(--accent-dd) }
+#act:hover { background: #c2183f }
+#act:active { transform: translateY(4px); box-shadow: inset 0 -3px 0 var(--accent-d), 0 1px 0 var(--accent-dd) }
+#act::after { content: attr(data-sub); font: 700 9.5px/1.2 var(--mono); letter-spacing: .08em }
+#act:not([data-sub])::after { display: none }
+#act:disabled { background: #6b2a4a; color: #f3dfe6; box-shadow: inset 0 -5px 0 #4d1d35, 0 5px 0 #2d0f1f; transform: none }
+.btn.ghost { min-height: 44px; background: transparent; color: var(--ink); border: 2px solid var(--muted); box-shadow: none; font-size: 16px; padding: 6px 14px }
+.btn.ghost:hover { border-color: var(--ink) }
+.btn:disabled { opacity: .85 }
+/* no wallet (or no contract in this build): watch mode, one plain line and the faucet link where the button would be */
+.watch { min-height: 54px; margin: 0; padding: 6px 10px; border: 2px dashed var(--muted); border-radius: 14px; display: flex; flex-direction: column; justify-content: center; gap: 0;
+  font: 400 10px/1.35 var(--mono); color: var(--ink) }
+.watch p { margin: 0 }
+.watch a { position: relative; font-weight: 700; color: var(--cyan); white-space: nowrap }
+.watch a::after { content: ""; position: absolute; inset: -14px -6px }
+.status { display: flex; align-items: flex-start; gap: 9px; margin: 8px 2px 0 }
+.status .clock { display: none; flex: none; width: 17px; height: 17px; margin-top: 1px }
+.deck.tonight .status .clock { display: block }
+.prompt { margin: 0; min-width: 0; font: 700 12px/1.35 var(--mono); color: var(--ink) }
+.prompt small { display: block; margin-top: 3px; font: 400 11px/1.45 var(--mono); color: var(--muted) }
+.prompt small b { color: var(--ink) }
+.reveal { position: relative; margin: 2px 0 10px; border-radius: 12px; padding: 10px; background: var(--card2); border: 2px solid var(--line); display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 10px; align-items: center }
+.reveal.plain { grid-template-columns: minmax(0, 1fr) }
+.reveal.plain canvas { display: none }
+.reveal canvas { width: 64px; height: 64px; border-radius: 50%; background: radial-gradient(circle at 50% 30%, #3b5be0, #142b94) }
+.reveal .rt { font: 400 19px/1.1 var(--display); letter-spacing: .02em; margin: 0 }
+.reveal .rs { font-size: 12px; line-height: 1.45; color: var(--stage-muted); margin: 4px 0 0 }
+.reveal .rs b { color: var(--stage-ink) }
+.qline { font-size: 12px; line-height: 1.4; margin: 6px 0 0; padding: 6px 8px; border-radius: 8px; background: rgba(0, 0, 0, .28); color: var(--stage-ink) }
+.qline::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin: 0 6px 1px 0; background: var(--ghost) }
+.qline.noise::before { background: var(--stage-muted) }
+.tag2 { display: inline-block; font: 700 10px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; padding: 3px 6px; border-radius: 4px; background: var(--mint); color: #062a1c; vertical-align: 1px; margin-right: 4px }
+.reveal.go { animation: rise .5s ease-out }
+@keyframes rise { from { opacity: 0; transform: translateY(10px) } }
+.nftbox { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 10px; align-items: center; margin: 0; padding: 7px 10px; border-radius: 12px; background: var(--cream); color: var(--navy); border: 0; font: 400 11px/1.4 var(--mono) }
+.nftbox img { width: 56px; height: 56px; border-radius: 8px; background: #0a0f24; display: block }
+.nftbox b { color: var(--navy) }
+.nftmsg { font: 400 11.5px/1.4 var(--mono); color: var(--stage-muted); margin: 0 }
+.nftmsg.err { color: #ffb3a6 }
+.nfthint { font: 400 11px/1.4 var(--mono); color: var(--muted); margin: 6px 2px 2px }
+
+/* ---------- below the first screen ---------- */
+.ln { margin-top: 30px }
+.story { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-content: start; min-width: 0 }
+.card h3 { font: 400 22px/1.05 var(--display); letter-spacing: .03em; text-transform: uppercase; margin: 0 0 6px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap }
+.card h4 { font: 400 17px/1.1 var(--display); letter-spacing: .03em; text-transform: uppercase; margin: 18px 0 4px }
+.card .k { font: 700 11px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--cyan); margin: 0 0 6px }
+.card:not(.play) p { margin: 6px 0 }
+.small { font-size: 12.5px; color: var(--muted) }
+.fine { font-size: 12px; color: var(--muted); font-style: italic }
+.past .small { margin: 0 0 10px }
+.nights { display: grid; gap: 6px; grid-template-columns: repeat(4, minmax(0, 1fr)) }
+.nights button { border: 2px solid var(--tile-line); background: var(--tile); color: var(--ink); border-radius: 8px; min-height: 52px; padding: 5px 1px 4px; display: grid; justify-items: center; align-content: center; gap: 2px; position: relative; min-width: 0;
+  transition: border-color .2s, background-color .2s }
+.nights button:hover { border-color: var(--cream) }
+.nights .wd { font: 700 9.5px/1 var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .02em; white-space: nowrap }
+.nights .dn { font: 400 19px/1 var(--display) }
+.nights button[aria-pressed="true"] { border-color: var(--accent); background: var(--cream); color: var(--navy) }
+.nights button[aria-pressed="true"] .wd { color: var(--navy) }
+.nights .dot { position: absolute; top: 4px; right: 4px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent) }
+.nights .ok { position: absolute; top: 3px; left: 5px; font-size: 10px; line-height: 1; color: var(--good) }
+.nights button[aria-pressed="true"] .ok { color: #0d5a35 }
+.pill { display: inline-flex; align-items: center; gap: 6px; font: 700 11px/1 var(--mono); letter-spacing: .06em; padding: 5px 8px; border-radius: 4px; border: 1.5px solid var(--muted); color: var(--ink); white-space: nowrap; flex: none; text-decoration: none }
+.live { position: relative; color: var(--muted) }
+.live::after { content: ""; position: absolute; inset: -10px -4px }
+.live::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--muted) }
+.live.run { color: var(--good); border-color: var(--good) }
+.live.run::before { background: var(--good); box-shadow: 0 0 8px var(--good); animation: livep 1.2s ease-in-out infinite }
+@keyframes livep { 50% { opacity: .3 } }
+.tonight .when { font: 400 24px/1.1 var(--display); letter-spacing: .02em; text-transform: uppercase; margin: 4px 0 }
+.tnhead { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap }
+.tnhead .k { margin: 0 }
+.tonight .cd { font-weight: 700; color: var(--cyan) }
+.sofar { font-size: 12.5px; padding: 8px 10px; border-radius: 10px; background: var(--card2); border: 2px solid var(--line); margin: 0 0 10px }
+.cardbtn { min-height: 44px; border: 0; border-radius: 12px; padding: 10px 16px; background: var(--accent); color: var(--cream); font: 400 17px/1.1 var(--display); letter-spacing: .03em; text-transform: uppercase; margin-top: 6px;
+  box-shadow: inset 0 -4px 0 var(--accent-d), 0 4px 0 var(--accent-dd) }
+.wlist { margin: 8px 0 0; padding-left: 18px; font-size: 12.5px; color: var(--muted) }
+.wlist li { margin: 3px 0 }
+.mine16 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 10px }
+.mycard { border: 2px solid var(--tile-line); background: var(--tile); color: var(--ink); border-radius: 10px; padding: 6px 4px 8px; display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 3px; text-align: center; min-width: 0 }
+button.mycard { font: inherit; color: inherit }
+button.mycard:hover { border-color: var(--cream) }
+.mycard canvas, .mycard img { width: 100%; max-width: 72px; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle at 50% 30%, #3b5be0, var(--navy)) }
+.mycard img { border-radius: 8px; background: #0a0f24 }
+.mycard .tn { font: 400 14px/1.1 var(--display); letter-spacing: .02em }
+.mycard .tp { font: 400 9.5px/1.25 var(--mono); color: var(--muted) }
+.mycard[data-tier="0"] .tn { color: var(--t0) } .mycard[data-tier="1"] .tn { color: var(--t1) } .mycard[data-tier="2"] .tn { color: var(--t2) } .mycard[data-tier="3"] .tn { color: var(--t3) } .mycard[data-tier="4"] .tn { color: var(--t4) }
+.mycard[data-tier="-1"] canvas { background: #0a0f24 }
+.mycard.todo { border-style: dashed; border-color: var(--accent) }
+.empty { color: var(--muted); font-size: 13px; padding: 8px 0 }
+
+/* ---------- the two disclosures ---------- */
+details.more { padding: 0 }
+details.more > summary { list-style: none; cursor: pointer; min-height: 44px; padding: 16px; font: 400 22px/1.05 var(--display); letter-spacing: .03em; text-transform: uppercase; color: var(--ink); display: flex; align-items: center; gap: 10px }
+details.more > summary::-webkit-details-marker { display: none }
+details.more > summary::after { content: "+"; margin-left: auto; font: 700 24px/1 var(--mono); color: var(--cyan) }
+details.more[open] > summary::after { content: "\2212" }
+details.more > .in { padding: 0 16px 18px }
+details.more > .in > p, details.more > .in > ol, details.more > .in > .small { max-width: 92ch }
+details.sub { border-top: 2px solid var(--line); padding-top: 8px; margin-top: 12px }
+details.sub > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-weight: 700; color: var(--cyan) }
+ol.steps5 { margin: 6px 0; padding-left: 22px; font-size: 13px }
+ol.steps5 li { margin: 7px 0 }
+ol.steps5 b { color: var(--cyan) }
+.bars { position: relative; height: 110px; margin: 12px 0 4px; border-bottom: 2px solid var(--line2) }
+.bars svg { position: absolute; inset: 0; width: 100%; height: 100% }
+.bars rect { fill: var(--cyan); transition: fill .2s }
+.bars rect.on { fill: var(--accent) }
+.bars .cap { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--muted) }
+.bars .cap span { position: absolute; right: 0; top: -15px; font: 700 10px/1 var(--mono); color: var(--muted) }
+.ticks { position: relative; height: 18px; font: 400 10.5px/1 var(--mono); color: var(--muted) }
+.ticks span { position: absolute; top: 4px; translate: -50% 0; white-space: nowrap }
+.ticks span.l { translate: 0 0 } .ticks span.r { translate: -100% 0 }
+.stats { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; font-size: 12.5px; color: var(--muted) }
+.stats b { color: var(--ink); font-family: var(--mono) }
+.dials { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 8px 6px; margin: 12px 0 6px; max-width: 640px }
+.dial { display: grid; justify-items: center; gap: 2px; font: 700 10.5px/1 var(--mono); color: var(--muted); border-radius: 8px; padding: 3px 0; transition: background-color .2s }
+.dial svg { width: 100%; max-width: 40px; height: auto }
+.dial.on { background: color-mix(in srgb, var(--accent) 30%, transparent); color: var(--ink) }
+.dial .face { fill: var(--card2); stroke: var(--line2) }
+.dial .arc { fill: color-mix(in srgb, var(--cyan) 35%, transparent) }
+.dial .needle { stroke: var(--cyan); stroke-width: 3; stroke-linecap: round }
+.dial .pin { fill: var(--cyan) }
+.cmp { margin: 10px 0 2px; max-width: 760px }
+.cmp svg { width: 100%; height: auto; display: block }
+.cmp .c { fill: var(--t4) } .cmp .q { fill: var(--violet) } .cmp .n { fill: var(--muted) }
+.cmp text { font: 400 4px var(--mono); fill: var(--muted) }
+.key { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted) }
+.key i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px }
+.verdict { font-weight: 700 }
+.verdict.kept { color: var(--good) } .verdict.noise { color: var(--bad) }
+.tablewrap { max-height: 280px; overflow: auto; margin-top: 8px; border: 2px solid var(--line); border-radius: 8px; max-width: 760px }
+table { width: 100%; border-collapse: collapse; font: 400 11.5px/1.3 var(--mono) }
+th, td { padding: 5px 7px; text-align: right; border-bottom: 1px solid var(--line) }
+th { position: sticky; top: 0; background: var(--card2); color: var(--muted); font-weight: 700 }
+th:first-child, td:first-child { text-align: left }
+td.v { text-align: left; font-weight: 700 }
+.tiers { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin: 10px 0; text-align: center; font: 400 10.5px/1.25 var(--mono); max-width: 760px }
+.tiers div { padding: 7px 2px; border-radius: 8px; background: var(--card2); border: 2px solid var(--line) }
+.tiers b { display: block; font: 400 15px/1.1 var(--display); letter-spacing: .02em }
+.tiers div:nth-child(1) b { color: var(--t0) } .tiers div:nth-child(2) b { color: var(--t1) } .tiers div:nth-child(3) b { color: var(--t2) } .tiers div:nth-child(4) b { color: var(--t3) } .tiers div:nth-child(5) b { color: var(--t4) }
+.twinbar { position: relative; height: 34px; border-radius: 8px; background: var(--card2); border: 2px solid var(--line); margin: 34px 0 30px; max-width: 760px }
+.twinbar .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 6px 0 0 6px; background: linear-gradient(90deg, color-mix(in srgb, var(--cyan) 25%, transparent), var(--cyan)); display: flex; align-items: center; justify-content: flex-end; padding-right: 8px; color: var(--navy); font: 700 12px/1 var(--mono); white-space: nowrap }
+.twinbar .ln75, .twinbar .ln85 { position: absolute; top: -8px; bottom: -8px; width: 0; border-left: 2px dashed var(--ink) }
+.twinbar .ln85 { border-left: 2px solid var(--good) }
+.twinbar .lab { position: absolute; font: 700 10.5px/1.15 var(--mono); white-space: nowrap; color: var(--muted) }
+.twinbar .lab.b { top: calc(100% + 10px); translate: -50% 0 }
+.twinbar .lab.t { bottom: calc(100% + 10px); translate: -70% 0; color: var(--good) }
+.big { font: 400 40px/1 var(--display); color: var(--cyan) }
+.tplan { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 8px 0; max-width: 520px }
+.tplan > div { display: grid; gap: 5px; padding: 8px; border-radius: 10px; background: var(--card2); border: 2px solid var(--line); font-size: 12.5px }
+.tplan span { display: flex; align-items: center; justify-content: space-between; gap: 6px; font: 700 12px/1 var(--mono); color: var(--muted) }
+.tplan button { min-width: 44px; min-height: 44px; padding: 6px 0; border-radius: 8px; border: 2px solid var(--line2); background: var(--card); font: 700 15px/1 var(--mono); color: var(--cyan); transition: border-color .2s, background-color .2s }
+.tplan button:hover { border-color: var(--cream) }
+.tbtn { min-height: 44px; border: 0; border-radius: 12px; padding: 10px 16px; background: var(--cyan); color: var(--navy); font: 400 17px/1 var(--display); letter-spacing: .03em; text-transform: uppercase }
+.tbtn:disabled { opacity: .55 }
+.tdots { display: flex; flex-wrap: wrap; gap: 3px; margin: 10px 0 2px }
+.tdots:empty { display: none }
+.tdots i { width: 10px; height: 10px; border-radius: 50%; background: var(--line2) }
+.tdots.c100 i { width: 7px; height: 7px }
+.tdots i.w { background: var(--good) } .tdots i.l { background: var(--bad) }
+.kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 12px; font-size: 12.5px; margin: 10px 0 }
+.kv dt { color: var(--muted) }
+.kv dd { margin: 0; min-width: 0 }
+.addr { font: 400 11.5px/1.35 var(--mono); word-break: break-all }
+ol.recipe { margin: 8px 0; padding-left: 20px; font-size: 12.5px }
+ol.recipe li { margin: 5px 0 }
+.nums { font: 400 11px/1.5 var(--mono); color: var(--muted); word-break: break-word }
+.gh { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-weight: 700; text-decoration: none; padding: 8px 14px; border-radius: 10px; border: 2px solid var(--cream); background: transparent; color: var(--ink); text-transform: uppercase; letter-spacing: .04em; font-size: 12.5px }
+.gh:hover { border-color: var(--cyan); color: var(--cyan) }
+.gh svg { width: 18px; height: 18px }
+footer { margin-top: 40px; padding: 18px 0 22px; font-size: 12px; color: var(--muted); background: var(--bg2); border-top: 3px solid var(--edge); box-shadow: 0 0 0 100vmax var(--bg2); clip-path: inset(0 -100vmax) }
+footer p { margin: 6px 0; max-width: 100ch }
+footer .sub { color: var(--ink); font-weight: 700 }
+footer a { color: var(--ink) }
+.myshort { display: inline }
+@media (min-width: 640px) {
+  .nights { grid-template-columns: repeat(var(--n, 7), minmax(0, 1fr)) minmax(0, 2fr) }
+  .ring { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 8px }
+  .spot { height: 96px; border-radius: 8px }
+  .spot .pic { left: 50%; top: 2px; width: min(100%, 76px); translate: -50% 0 }
+  .spot .tag { left: 0; top: 0; right: auto; padding: 3px 6px; background: var(--navy); border-radius: 0 0 6px 0; font-size: 15px }
+  .spot .tag .w { font-size: 10px }
+  .spot .lnd { left: 0; right: 0; bottom: 0; width: auto; height: 28px; padding: 5px 6px 0; background: var(--navy); text-align: left }
+  .spot .lnd b { font-size: 11px }
+  .spot .lnd .bar { height: 4px; margin-top: 5px }
+  .ndot { left: 50%; top: 40% }
+  .spot.sel, .spot.net { transform: translateY(-6px); box-shadow: 0 6px 0 var(--navy) }
+  .spot.sel .tag, .spot.net .tag { background: var(--accent); color: var(--cream) }
+  .ring.revealed .spot.net .tag, .ring.revealed .spot.sel .tag { background: var(--navy); padding: 3px 6px }
+  .spot.sel .lnd, .spot.net .lnd { background: var(--navy) }
+  .spot.sel .lnd b, .spot.net .lnd b { color: var(--cyan) }
+  .spot.sel .lnd .bar, .spot.net .lnd .bar { background: var(--bar) }
+  .spot.sel .lnd .bar i, .spot.net .lnd .bar i { background: var(--cyan) }
+  .spot.sel::after, .spot.net::after { left: auto; right: 0; top: 0; bottom: auto; padding: 4px 5px; background: var(--navy); font-size: 10px }
+  /* after the reveal the tag carries the tier word: it spans the tile (no zero pad), the word a little smaller */
+  .ring.revealed .spot .tag, .ring.revealed .spot[data-tier="4"] .tag, .ring.revealed .spot.net .tag, .ring.revealed .spot.sel .tag { right: 0; padding: 2px 3px; border-radius: 0; font-size: 13px }
+  .ring.revealed .spot .tag .w { font-size: 8.5px; letter-spacing: -.4px }
+  .ring.revealed .spot.d1 .tag i::before { content: none }
+  .ring.revealed .spot.net::after, .ring.revealed .spot.sel::after { top: auto; bottom: 0; background: var(--accent) }
+  .legend { flex-basis: auto; margin-left: auto }
+  .deck { margin-top: 12px; padding-top: 8px }
+  .deckrow { flex-direction: row; align-items: flex-start; gap: 10px }
+  .lcd { width: 38%; min-height: 58px; padding: 6px 9px; flex-direction: column; align-items: stretch; justify-content: center; gap: 5px }
+  .lcd .l1 b { font-size: 19px }
+  .lcd .l2 { text-align: left }
+  .deckrow.solo .lcd { flex: 1 1 auto; width: auto }
+  .btn, .watch { min-height: 58px }
+  .watch { padding: 7px 12px; font-size: 11px; line-height: 1.4 }
+  .btn.ghost { min-height: 44px }
+  .mine16 { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)) }
+  .navl .navt { position: static; width: auto; height: auto; overflow: visible; clip: auto }
+  .navl .myshort { display: none }
+  .navl.help { width: auto; border: 0; border-radius: 0 }
+  .navl.help svg { display: none }
+  .hero h1 { font-size: 26px }
+  .nav { gap: 18px }
+}
+/* tablets (and a PC browser without CSS subgrid): the phone layout, the art kept at a fixed size in the left column. The PC
+   block below overrides every one of these properties */
+@media (min-width: 640px) {
+  .stage { min-height: 350px; margin-inline: 0 }
+  .deck { margin-inline: 0 }
+  .stage .core { left: calc(21cqw - 54px); width: 108px; height: 144px }
+  .stage .mount { left: calc(21cqw - 18px) }
+  .stage .dash { left: calc(21cqw + 50px); width: calc(21cqw - 40px) }
+  .stage .beam { left: calc(21cqw - 85px); width: 170px; top: 124px }
+  .stage .wimg { left: calc(21cqw - 175px); bottom: 0; width: 350px; height: 350px }
+  .podium { left: calc(21cqw - 115px); width: 230px }
+  .stage .ham { left: calc(21cqw - 82px); width: 164px }
+  .stage .stamp { left: 21cqw }
+  .headline { font-size: 27px }
+  .hl .lede { font-size: 12px }
+  .chiptag span { display: block; margin-top: 2px }
+}
+/* PC from 1100 px (below that the header row does not fit beside the stage): the stage on the left, the header, headline,
+   roster and deck on the right, on one shared grid (subgrid) */
+@supports (grid-template-rows: subgrid) {
+@media (min-width: 1100px) {
+  .page { padding-left: max(24px, env(safe-area-inset-left, 0px)); padding-right: max(24px, env(safe-area-inset-right, 0px)) }
+  .first { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto auto auto auto; column-gap: 32px }
+  .hero { grid-column: 2; grid-row: 1; padding-top: 10px }
+  .hero h1 { font-size: 28px }
+  .brand { margin: -10px 0 -12px; font-size: 11.5px }
+  .card.play { grid-column: 1 / -1; grid-row: 1 / -1; grid-template-columns: subgrid; grid-template-rows: subgrid; column-gap: 32px; margin: 0 }
+  .stage { grid-column: 1; grid-row: 1 / -1; min-height: 760px; margin: 0 0 14px; border-width: 0 6px 6px; border-radius: 0 0 26px 26px; box-shadow: 0 8px 0 var(--edge) }
+  .stage .rail { height: 12px; border-bottom-width: 3px }
+  .stage .wimg { left: 0; top: 43.7cqw; bottom: auto; width: 78cqw; height: 78cqw }
+  .stage .beam { left: 13.6cqw; width: 51cqw; top: 49cqw; bottom: auto; height: 73cqw }
+  .stage .streak { left: 80cqw; width: 40px; top: -60px }
+  .stage .streak.s2 { left: 90cqw; width: 10px }
+  .stage .core { left: 16.2cqw; top: 12px; width: 45.9cqw; height: 61.2cqw; filter: drop-shadow(0 0 26px rgba(125, 235, 255, .55)) }
+  .stage .mount { left: calc(39.1cqw - 26px); width: 52px; height: 26px; border-width: 3px }
+  .stage .vline { display: block; left: 82cqw; top: 15px; width: 2px; height: 57px; background: var(--cream) }
+  .stage .dash { left: 54.8cqw; top: 120px; width: 11.9cqw }
+  .podium { left: 9.4cqw; width: 59.5cqw; top: 117cqw; bottom: auto; height: 70px }
+  .podium .sh { height: 56px }
+  .podium .tp { bottom: 14px; height: 56px; border-width: 3px }
+  .podium .rg { left: 17%; right: 17%; bottom: 28px; height: 28px }
+  .podium .gl { left: 27%; right: 27%; bottom: 32px; height: 20px; box-shadow: 0 0 28px 8px rgba(125, 235, 255, .35) }
+  .stage .ham { left: 13.6cqw; width: 51cqw; top: 53.4cqw; bottom: auto }
+  .stage .stamp { left: 39cqw; top: 84cqw; bottom: auto; font-size: 13px }
+  .chiptag { grid-column: 1; grid-row: 1 / -1; justify-self: end; align-self: start; width: 31%; margin: 72px 2.5% 0 0; padding: 10px 12px; border-radius: 6px }
+  .chiptag b { font-size: 15px; line-height: 1.25; white-space: normal }
+  .chiptag span { display: block; margin-top: 6px }
+  .plate { grid-column: 1; grid-row: 1 / -1; justify-self: end; align-self: start; width: 33%; margin: 75% 4% 0 0 }
+  .plate .pk { margin-left: 18px; padding: 5px 12px }
+  .plate .pk span { font-size: 12px }
+  .plate .pc { box-shadow: 8px 8px 0 var(--bg) }
+  .plate .pci { display: block; padding: 10px 18px 12px }
+  .plate .pn { gap: 6px }
+  .plate .pn span { font-size: 34px }
+  .plate .pn b { font-size: min(104px, 8vw) }
+  .plate .pw { margin-top: 10px; gap: 3px; font-size: 12px; letter-spacing: .04em }
+  .plate .pb { padding: 7px 18px }
+  .plate .pb p { font-size: 11px; line-height: 1.35 }
+  .hl { grid-column: 2; grid-row: 2; padding: 16px 0 0 }
+  .headline { font-size: clamp(34px, 3.6vw, 46px); line-height: 1 }
+  .hl .lede { margin-top: 14px; font-size: 15px; line-height: 1.5; color: #dce3ff }
+  .pick { grid-column: 2; grid-row: 3; margin-top: 22px }
+  .pickhead { gap: 6px 12px }
+  .pickhead h2 { font-size: 22px }
+  .src { font-size: 10px }
+  .legend { font-size: 11.5px; gap: 8px }
+  .legend::before { width: 22px; height: 4px }
+  .ring { margin-top: 16px }
+  .caption { font-size: 13px }
+  .deck { grid-column: 2; grid-row: 4; align-self: start; margin: 18px 0 30px; padding: 16px 18px 8px; border-width: 4px; border-radius: 22px; box-shadow: 0 8px 0 var(--edge) }
+  .deckrow { gap: 16px }
+  .lcd { width: clamp(184px, 18vw, 232px); min-height: 84px; padding: 10px 14px; gap: 7px }
+  .lcd .l1 { font-size: 12px; gap: 0 10px }
+  .lcd .l1 b { font-size: 32px }
+  .lcd .l2 { font-size: 10.5px }
+  .btn { min-height: 84px; font-size: clamp(22px, 2.2vw, 28px); border-radius: 16px; gap: 7px }
+  #act { box-shadow: inset 0 -7px 0 var(--accent-d), 0 7px 0 var(--accent-dd) }
+  #act::after { font-size: 11px }
+  .btn.ghost { min-height: 48px; font-size: 20px }
+  .watch { min-height: 84px; padding: 10px 16px; font-size: 12.5px }
+  .nftbox { grid-template-columns: 72px minmax(0, 1fr); padding: 8px 12px; font-size: 12px }
+  .nftbox img { width: 72px; height: 72px }
+  .nfthint { font-size: 12px }
+  .status { gap: 10px; margin-top: 18px }
+  .status .clock { width: 18px; height: 18px }
+  .prompt { font-size: 14.5px }
+  .prompt small { font-size: 12px }
+  .reveal { grid-template-columns: 80px minmax(0, 1fr); padding: 12px }
+  .reveal canvas { width: 80px; height: 80px }
+  .reveal .rt { font-size: 24px }
+  .reveal .rs { font-size: 13px }
+  .ln { margin-top: 36px }
+  .story { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: start }
+  .story .past, .story details.more { grid-column: 1 / -1 }
+  .card { border-width: 4px; border-radius: 22px; padding: 20px; box-shadow: 0 8px 0 var(--edge) }
+  details.more { padding: 0 }
+  details.more > summary { padding: 20px }
+  details.more > .in { padding: 0 20px 22px }
+  footer { font-size: 13px }
+}
+}
+@media (max-width: 350px) {
+  .brand { white-space: normal }
+}
+@media (max-width: 400px) {
+  .card { padding: 14px 12px }
+  details.more { padding: 0 }
+  details.more > summary { padding: 14px 12px }
+  details.more > .in { padding: 0 12px 14px }
+  .mine16 { gap: 6px }
+  .dials { gap: 6px 4px }
+  .mycard .tn { font-size: 12.5px }
+  .tiers { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 5px }
+  .tiers div { grid-column: span 2 }
+  .tiers div:nth-child(4) { grid-column: 2 / span 2 }
+}
+@media (prefers-reduced-motion: reduce) {
+  .live.run::before, #play.playing .ham, .qc-beam, .qc-idle { animation: none }
+}
+</style>
+
+<div class="page">
+  <div class="first">
+    <header class="hero">
+      <div class="top">
+        <h1><span>Quantum Catch</span></h1>
+        <nav class="nav" aria-label="Site">
+          <a class="navl help" id="howlink" href="#how"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 9a3 3 0 1 1 4 3c-1 1-1 1-1 2"/><path d="M12 18h0"/></svg><span class="navt">How it works</span></a>
+          <button class="navl" id="mycount" type="button"><span class="navt">My catches</span><span class="myshort" aria-hidden="true">Mine</span> <b id="mycountn">0</b></button>
+          <button class="navl snd" id="sound" type="button" aria-pressed="false" title="Sound off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9c1 1 1 5 0 6"/><path d="M19 7c2 3 2 7 0 10"/></svg><span id="soundt" class="sr">Sound</span></button>
+        </nav>
+      </div>
+      <a class="brand" id="powered" href="https://squeekchain.com" target="_blank" rel="noopener"><span>Powered by Squeektoshi's real wheel on <b>Squeekchain</b></span></a>
+    </header>
+
+    <section class="card play" id="play" aria-labelledby="stageh">
+      <div class="stage" id="stage">
+        <img class="wimg" id="wimg" alt="" aria-hidden="true">
+        <div class="beam qc-beam" aria-hidden="true"></div>
+        <div class="beam b2 qc-beam" aria-hidden="true"></div>
+        <div class="streak" aria-hidden="true"></div>
+        <div class="streak s2" aria-hidden="true"></div>
+        <div class="rail" aria-hidden="true"></div>
+        <img class="core" id="core" alt="A painted IBM quantum computer hanging over the stage like a claw">
+        <div class="mount" aria-hidden="true"></div>
+        <div class="vline" aria-hidden="true"></div>
+        <div class="dash" aria-hidden="true"></div>
+        <div class="podium" aria-hidden="true"><i class="sh"></i><i class="tp"></i><i class="rg"></i><i class="gl"></i></div>
+        <canvas class="ham qc-idle" id="ham" width="448" height="612" aria-hidden="true"></canvas>
+        <span class="stamp" id="stamp"></span>
+      </div>
+      <p class="chiptag"><b>IBM quantum computer</b><span id="chipline"></span></p>
+      <div class="hl">
+        <p class="headline">A real <em>quantum computer</em> decides who gets caught.<br>Pick your hamster.</p>
+        <p class="lede">Squeektoshi's run programs a real quantum computer. Catch the hamster it lands on.</p>
+      </div>
+      <div class="plate" id="plate">
+        <span class="pk"><span id="platek">Your pick</span></span>
+        <div class="pc"><div class="pci"><p class="pn"><span>No.</span><b id="platen">?</b></p><ul class="pw" id="platew" aria-label="Look"></ul></div><div class="pb"><p id="plateb"></p></div></div>
+      </div>
+      <div class="pick">
+        <div class="pickhead"><h2 id="stageh">Tonight's net</h2><span class="src" id="srcbadge"></span><p class="legend" id="legend"></p></div>
+        <div class="ring" id="ring" data-kind="ghost" role="group" aria-label="16 hamsters, spots 0 to 15"></div>
+        <p class="caption" id="caption" aria-live="polite"></p>
+        <p class="sr" id="srpick" aria-live="polite"></p>
+      </div>
+      <div class="deck" id="deck">
+        <div class="reveal" id="reveal" hidden aria-live="polite">
+          <canvas id="revcv" width="192" height="192"></canvas>
+          <div><p class="rt" id="revt"></p><p class="rs" id="revs"></p><p class="qline" id="revq" hidden></p></div>
+        </div>
+        <div class="deckrow" id="deckrow">
+          <div class="lcd" id="lcd"><p class="l1"><span id="lcdk">Your pick</span><b id="lcdn">#--</b></p><p class="l2" id="lcd2"></p></div>
+          <div class="actions" id="actions">
+            <button class="btn" id="act" type="button" hidden></button>
+            <p class="nftmsg" id="nftmsg" hidden aria-live="polite"></p>
+            <div class="watch" id="watch" hidden><p>To catch, open this page in a browser with a crypto wallet (e.g. MetaMask) on the free Sepolia test network. <a id="faucet" href="https://cloud.google.com/application/web3/faucet/ethereum/sepolia" target="_blank" rel="noopener">Get free test ETH</a></p></div>
+            <div class="nftbox" id="nftbox" hidden><img id="nftimg" alt="Your net NFT"><div id="nfttext"></div></div>
+            <button class="btn ghost" id="alt" type="button" hidden></button>
+            <button class="btn ghost" id="skip" type="button" hidden>Skip to the landing &raquo;</button>
+          </div>
+        </div>
+        <p class="nfthint" id="nfthint" hidden>Free on the Sepolia test network · you only pay test gas, worth nothing. One net per wallet per night.</p>
+        <div class="status"><svg class="clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:var(--cyan)"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><p class="prompt" id="prompt" aria-live="polite"></p></div>
+      </div>
+      <canvas class="fx" id="fx" aria-hidden="true"></canvas>
+    </section>
+  </div>
+
+  <div class="ln">
+    <div class="story">
+      <section class="card past" id="past" aria-labelledby="pasth">
+        <h3 id="pasth">Past nights</h3>
+        <p class="small" id="pastsub">Tap a night to see where IBM's chip found him.</p>
+        <div class="nights" id="nights" role="group" aria-label="Nights"></div>
+      </section>
+
+      <section class="card tonight" id="tonight" aria-labelledby="tnh">
+        <p class="sofar" id="sofar" hidden></p>
+        <div class="tnhead"><p class="k" id="tnk">Tonight's net</p><a class="pill live" id="live" hidden title="" href="https://squeekchain.com" target="_blank" rel="noopener">LIVE</a></div>
+        <h3 class="when" id="tnh"></h3>
+        <p class="small" id="tnclose"></p>
+        <p id="tnstate"></p>
+        <button class="cardbtn" id="tngo" type="button" hidden>Choose tonight's spot</button>
+        <ul class="wlist" id="waiting" hidden></ul>
+      </section>
+
+      <section class="card" id="mine" aria-labelledby="myh">
+        <h3 id="myh">My catches</h3>
+        <div class="mine16" id="mygrid"></div>
+        <p class="small" id="mystats"></p>
+        <p class="empty" id="myempty">No catches yet. One net per night: put it on a hamster before he runs.</p>
+        <div id="nftnets" hidden><h4>My net NFTs on Sepolia</h4><div class="mine16" id="nftgrid"></div><p class="small" id="nftnote"></p></div>
+      </section>
+
+      <details class="card more" id="how">
+        <summary>How it works</summary>
+        <div class="in">
+          <ol class="steps5">
+            <li><b>He runs.</b> Squeektoshi is a real hamster. Squeekchain measures his wheel every 10 minutes and settles it on-chain (Sepolia).</li>
+            <li><b>His run becomes a program.</b> Each round tilts a quantum coin: a lazy round barely moves it, a sprint flips it.</li>
+            <li><b>The ghost.</b> While he runs, the quantum hamster is a ghost spread over the ring of 16 spots: he goes left and right at once, and where his paths meet they add up or cancel out.</li>
+            <li><b>The chip looks.</b> After his night a real IBM quantum computer runs his program and looks 4,000 times. Each look finds him on one spot: the ghost lands.</li>
+            <li><b>Your net.</b> If the chip finds him on your spot in at least 1% of its looks, you catch that spot's hamster. Under 1%: he got away. A spot out of reach that night never catches: he could not land there, so any landings there are only the chip's noise.</li>
+          </ol>
+          <div class="tiers" aria-label="Rarity: the spots caught that night, ranked by the chip's looks"><div><b>Common</b>the rest</div><div><b>Uncommon</b>3rd + 4th fewest</div><div><b>Rare</b>2nd fewest</div><div><b>Epic</b>the fewest</div><div><b>Legendary</b>Epic + first look</div></div>
+          <p class="small" id="rarityline">The least-visited spot he could reach is Epic; if the chip's very first look landed there, it is Legendary.</p>
+          <p class="small" id="howrules"></p>
+
+          <h4 id="nighth">His night</h4>
+          <p class="small" id="nightsub"></p>
+          <p class="small" id="nightsrc"></p>
+          <div class="bars" id="bars"></div>
+          <div class="ticks" id="ticks"></div>
+          <div class="stats" id="nightstats"></div>
+
+          <h4>One coin tilt per step</h4>
+          <p class="small" id="progsub"></p>
+          <div class="dials" id="dials"></div>
+
+          <h4 id="cmph">Did the chip keep the quantum pattern?</h4>
+          <p class="small" id="cmpsub"></p>
+          <div class="cmp" id="cmp"></div>
+          <div class="key"><span><i style="background:var(--t4)"></i>IBM chip</span><span><i style="background:var(--violet)"></i>perfect quantum ghost</span><span><i style="background:var(--muted)"></i>normal hamster</span></div>
+          <p id="cmptext"></p>
+          <div class="tablewrap"><table><thead><tr><th>Night</th><th>Steps</th><th>to ghost</th><th>to normal</th><th>Verdict</th></tr></thead><tbody id="qrows"></tbody></table></div>
+          <p class="small" id="qnote"></p>
+
+          <h4>The ring</h4>
+          <p class="small">Each of the 16 spots has its own hamster: the spot's 4 bits pick a party hat, glasses, a scarf and a grin. The ring turns with his night: he starts at his own spot, his total turns counted round the ring of 16 (the dashed ring on the wheel). Each step moves him one spot, so he can only land on every other spot, and on a short night only near his start: the rest of the ring is out of reach that night (greyed), and a net there gets away. Where he starts depends on his total turns, so nobody knows it before he runs.</p>
+          <p class="small">A normal computer can simulate this small walk. What is real: his run is real, and the chip is a real IBM quantum computer with real noise.</p>
+        </div>
+      </details>
+
+      <details class="card more" id="check">
+        <summary>Check it yourself</summary>
+        <div class="in">
+          <p><a class="gh" id="ghlink" href="#" target="_blank" rel="noopener"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 3.5 1.5 8l4 4.5M10.5 3.5l4 4.5-4 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Code on GitHub</a></p>
+          <p class="small">Every number here is public. The night shown on the wheel:</p>
+          <dl class="kv" id="checkkv"></dl>
+          <p class="small"><b>The recipe in 5 lines</b></p>
+          <ol class="recipe">
+            <li>Read his turns per active 10-minute round from SqueekCore <span class="mono">roundPage</span> on Sepolia (12:00 to 12:00 UTC).</li>
+            <li>One step per round. Too many rounds: even groups, mean turns rounded half up (at most 16 steps up to 4 Nov, recipe v1.1; at most 10 from 5 Nov, recipe v1.2, which also runs with noise protection).</li>
+            <li>Coin tilt = &pi; &times; min(turns, 700) / 700 (an RY turn of the coin qubit).</li>
+            <li>Start at his own spot: total turns mod 16. Coin (|0&rang; + i|1&rang;)/&radic;2. Each step: tilt the coin, then coin 1 steps +1, coin 0 steps &minus;1, on a ring of 16.</li>
+            <li>IBM runs it 4,000 times. A spot is in reach that night if (spot + total turns + steps) is even and it is at most as many spots from his start as he took steps; out of reach: he got away. A spot in reach with at least 1% of the landings is caught; rank those by landings: the fewest is Epic (Legendary if the chip's very first shot landed there), the next Rare, the two after that Uncommon, the rest Common. The spot's 4 bits pick the looks.</li>
+          </ol>
+          <details class="sub">
+            <summary id="roundsum">All rounds of this night</summary>
+            <div class="tablewrap"><table><thead><tr><th>Round</th><th>Your time</th><th>Turns</th><th>Step</th></tr></thead><tbody id="roundrows"></tbody></table></div>
+          </details>
+          <details class="sub">
+            <summary>Rebuild it</summary>
+            <p class="small" id="rebuildnote"></p>
+            <p class="nums" id="rebuild"></p>
+          </details>
+          <h4>Proof stamp: the twin test</h4>
+          <p class="small">Each chip job also plays a card game with two linked qubits that cannot talk. Any fixed plan wins at most 75% of rounds.</p>
+          <div class="big" id="twinpct"></div>
+          <div class="twinbar" id="twinbar"></div>
+          <p id="twintext"></p>
+          <details class="sub" id="tlab">
+            <summary>Play it yourself: can a plan beat 75%?</summary>
+            <p class="small">Each round, twin A and twin B each get a card, <b>FUR</b> or <b>HAT</b>, and answer 0 or 1 without seeing the other's card. They win if they answer <b>the same</b>, except when <b>both got HAT</b>: then they must answer <b>differently</b>. Give them a fixed plan (tap an answer to flip it):</p>
+            <div class="tplan" id="tplan"></div>
+            <button class="tbtn" id="tplay" type="button">Play 20 rounds</button>
+            <div class="tdots" id="tdots" aria-hidden="true"></div>
+            <p class="small" id="tres" aria-live="polite"></p>
+            <div class="tdots c100" id="tcdots" aria-hidden="true"></div>
+            <p class="small" id="tcres" aria-live="polite"></p>
+          </details>
+          <p class="small" id="twinjob"></p>
+          <p class="small" id="twinhealth"></p>
+          <p class="small" id="contract" hidden></p>
+          <p class="fine">A demonstration on one chip, not a lab-grade test.</p>
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <footer>
+    <p class="sub">Squeektoshi is a real hamster. Probably the first hamster to program a quantum computer.</p>
+    <p>Squeektoshi's wheel runs are measured by <a href="https://squeekchain.com" target="_blank" rel="noopener">Squeekchain</a> and settled on Sepolia in 10-minute rounds. His night becomes a quantum walk on a ring of 16 spots, and IBM's chip looks where he lands. A free game: no money, no value.</p>
+    <p>A normal computer can simulate this small walk. What is real is that every chip result shown here ran on real IBM hardware, with real noise, on his real run. Chip runs whose twin test scores under <span class="hmin">79%</span> are thrown out and redone, and each one is listed on its night. A demonstration on one chip, not a lab-grade test.</p>
+    <p>A community project. Not made by the Squeekchain team. <a class="ghf" id="ghfoot" href="#" target="_blank" rel="noopener">Code on GitHub</a></p>
+    <p class="fc" id="footc" hidden></p>
+  </footer>
+</div>
+
+<script>
+/*__ENGINE__*/
+</script>
+<script>
+/*__CATCH__*/
+</script>
+<script>
+(() => {
+  'use strict';
+  const DATA = /*__DATA__*/;
+  const ART = /*__ART__*/;
+  const $ = (id) => document.getElementById(id);
+  const NIGHTS = DATA.nights, CHIPS = DATA.chips, CFG = DATA.config || {};
+  let DAYS = Object.keys(NIGHTS).sort();
+  const TIER = ['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'], SKIN = ['Honey', 'Tiger', 'Circuit', 'Crystal', 'Gold'], SKINKEY = [null, 'tiger', 'circuit', 'crystal', 'gold'];
+  const reduceMotion = (() => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } })();
+  const fast = () => !!window.__QW_FAST || reduceMotion;
+  const now = () => Date.now();
+  const N = (d) => NIGHTS[d], chipOf = (d) => CHIPS[d] || null;
+  const fmtInt = (x) => Number(x).toLocaleString('en-US');
+  const pct = (p) => QW.pctText(p);      // one decimal rounded DOWN: a printed share never crosses its tier line
+  const dayDate = (d) => new Date(d + 'T12:00:00Z');
+  const dayLabel = (d, o) => dayDate(d).toLocaleDateString('en-GB', Object.assign({ weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }, o || {}));
+  const tLocal = (ms) => new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+  const tDay = (ms) => `${new Date(ms).toLocaleDateString('en-GB', { weekday: 'short' })} ${tLocal(ms)}`;      // "Fri 13:00", your time
+  const roundStart = (n, id) => (n.genesis + (id - 1) * 600) * 1000;
+  const capOf = (d) => QW.capOf(N(d).recipe);
+  const LOOKW = (s) => { const L = QW.looks(s), w = []; if (L.hat) w.push('party hat'); if (L.glasses) w.push('glasses'); if (L.neckwear) w.push('scarf'); return (w.length ? w.join(' + ') : 'plain') + (L.face ? ', grin' : ', calm face'); };
+  const bits = (s) => [3, 2, 1, 0].map((b) => (s >> b) & 1).join('');
+  const isSpot = (x) => Number.isInteger(x) && x >= 0 && x < 16, isObj = (o) => !!o && typeof o === 'object' && !Array.isArray(o);
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const pad2 = (s) => String(s).padStart(2, '0');
+  const dShort = (d) => dayLabel(d, { weekday: undefined });                       // "4 Nov"
+  const prevDay = (d) => new Date(Date.parse(d + 'T12:00:00Z') - 864e5).toISOString().slice(0, 10);
+  // a moment in your time said plainly: today / tonight / tomorrow / the weekday
+  const relDay = (ms) => {
+    const a = new Date(now()), b = new Date(ms), k = Math.round((Date.UTC(b.getFullYear(), b.getMonth(), b.getDate()) - Date.UTC(a.getFullYear(), a.getMonth(), a.getDate())) / 864e5);
+    return k === 0 ? (b.getHours() >= 17 ? 'tonight' : 'today') : k === 1 ? 'tomorrow' : b.toLocaleDateString('en-GB', { weekday: 'short' });
+  };
+  // what a spot's hamster wears (its 4 bits), for the name plate
+  const WEARS = (s) => { const L = QW.looks(s), w = []; if (L.hat) w.push('party hat'); if (L.glasses) w.push('round glasses'); if (L.neckwear) w.push('striped scarf'); if (L.face) w.push('grin'); return w.length ? w : ['plain look']; };
+
+  // ---------- per-viewer memory (works without it): one practice catch, one net per night ----------
+  const KEY = 'quantum-catch-v1';
+  let store = { practice: null, nets: {}, sound: false };
+  const load = (j) => {
+    if (!isObj(j)) return;
+    const p = j.practice;
+    store = { practice: isObj(p) && isSpot(p.spot) && typeof p.day === 'string' ? { day: p.day, spot: p.spot, at: p.at || 0, seen: !!p.seen } : null, nets: {}, sound: !!j.sound };
+    if (isObj(j.nets)) for (const [d, x] of Object.entries(j.nets)) if (/^\d{4}-\d{2}-\d{2}$/.test(d) && isObj(x) && isSpot(x.spot)) store.nets[d] = { spot: x.spot, at: x.at || 0, seen: !!x.seen, ...(isObj(x.nft) ? { nft: x.nft } : {}) };
+  };
+  try { load(JSON.parse(localStorage.getItem(KEY) || 'null')); } catch (e) { /* private window: memory only */ }
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) { /* fine */ } };
+
+  // ---------- a night on the ring. v1.1 turns the ring by his night (spot = (position + total turns) mod 16): the walks and
+  // the chip's counts are in positions (steps from his start); everything on the ring is in spots. A chip night carries its
+  // first shot's spot (first_shot) and the night's tiers (the owner's rank rule, QW.tiers = the contract's tiersOf) ----------
+  let VIEW = {};
+  function view(d) {
+    if (VIEW[d]) return VIEW[d];
+    const n = N(d), c = chipOf(d), w = n.rounds.map((r) => r[1]), T = QW.ringTurn(w), tu = (p) => QW.turned(p, T), W = QW.walk(n.steps);
+    const total = w.reduce((a, b) => a + b, 0), k = n.steps.length, counts = c ? tu(c.counts) : null;
+    return (VIEW[d] = { T, total, k, perfect: tu(W.perfect), normal: tu(W.normal), pt: W.perfectTrace.map(tu), nt: W.normalTrace.map(tu),
+      posPerfect: W.perfect, posNormal: W.normal, counts, shots: c ? c.shots_in_order.map((x) => QW.spotOf(x, T)) : null,
+      start: tu(Array.from({ length: 16 }, (_, i) => (i === 0 ? 1 : 0))), q: c ? QW.quantumness(c.counts, c.wheel_shots, W.perfect, W.normal) : null,
+      first: c ? c.first_shot : null, tiers: c ? QW.tiers(counts, total, k, c.first_shot) : null });
+  }
+  // in reach that night: the right parity and at most k spots from his start (the contract's rule)
+  const reach = (d, s) => { const v = view(d); return QW.inReach(s, v.total, v.k); };
+  // what the chip found on a spot: its tier that night (-1 got away; out of reach never catches, its landings are noise)
+  function spotResult(d, s) {
+    const c = chipOf(d), v = view(d), r = reach(d, s), hits = c ? v.counts[s] : 0, shots = c ? c.wheel_shots : 0, tier = c ? v.tiers[s] : -1;
+    return { name: tier >= 0 ? QW.TIER_NAMES[tier] : null, tier, share: shots ? hits / shots : 0, reach: r, noise: !r && hits > 0, first: !!c && v.first === s,
+      chip: !!c, hits, shots, q: v.perfect[s], cl: v.normal[s] };
+  }
+  // the ring tag after the reveal: the tier of a catch, the share of a spot he got away from, 'out' out of reach
+  const tagWord = (h) => (!h.reach ? 'out' : h.tier >= 0 ? h.name : pct(h.share));
+  // why a catch has its tier (the reveal card and the tap caption): only the rare end of the ranking needs words
+  const rankWords = (h, here) => (h.tier === 4 ? ` The rarest catch of the night, and the chip's very first look landed ${here}.`
+    : h.tier === 3 ? ` The rarest catch of the night.` : h.tier === 2 ? ' The second rarest catch of the night.' : '');
+  // a net on night d: waiting (no chip result yet), caught, away, slept, noresult (none came within 14 days: final);
+  // QC.outcome = the contract's result() rules
+  function netResult(d, spot) {
+    const n = N(d), c = chipOf(d);
+    if (n && n.slept) return { status: 'slept' };
+    if (!c) return { status: QC.noResult(QC.nightOfDay(d), Math.floor(now() / 1000)) ? 'noresult' : 'waiting' };
+    const v = view(d), h = spotResult(d, spot), o = QC.outcome({ counts: v.counts, shots: c.wheel_shots, turns: v.total, steps: v.k, firstShot: v.first }, spot);
+    return { status: o.status === 1 ? 'caught' : 'away', h, o };
+  }
+  const chipDays = () => DAYS.filter((d) => chipOf(d));
+  const practiceDay = () => { const c = chipDays(); return c[c.length - 1] || null; };
+  // the one free practice catch: on the newest night the chip has looked at, if it is unused and that night has no real net
+  const practiceOpen = (d) => !!d && d === practiceDay() && !store.practice && !store.nets[d];
+  const mine = (d) => (store.practice && store.practice.day === d ? Object.assign({ practice: true }, store.practice) : store.nets[d] ? Object.assign({ practice: false }, store.nets[d]) : null);
+  // the result card gets ONE plain line about the night (decision 2); the distances and "how much closer" are in How it works.
+  // A chip night is always a past night, so "that night"; the shorter-program sentence depends on the night's own recipe.
+  const qWords = (q, d) => (q.kept ? 'That night the chip kept the quantum pattern.'
+    : N(d).recipe === 'v1.1' ? 'That night noise washed out most of the quantum pattern. Newer nights run a shorter program to keep it.'
+    : 'That night noise washed out most of the quantum pattern, even with the shorter program.');
+  // nets on nights that are locked (past 21:00 UTC) with no chip result yet, and not given up (14 days): his run is on or done
+  const pendingDays = () => { const w = win(), t = Math.floor(now() / 1000);
+    return Object.keys(store.nets).filter((d) => d < w.day && !chipOf(d) && !(N(d) && N(d).slept) && !QC.noResult(QC.nightOfDay(d), t)).sort(); };
+  const canView = (v) => v === 'tonight' || !!N(v) || (!!store.nets[v] && v < win().day);
+  const readyNow = (v) => v !== 'tonight' && !!store.nets[v] && !!chipOf(v) && !store.nets[v].seen;      // a real net's result to see
+  // the chip has not looked at a night for a while (the newest chip night ended more than 36 h ago): say so, promise nothing
+  function staleWords() {
+    const c = chipDays(), last = c[c.length - 1]; if (!last) return '';
+    const ended = (QC.nightStart(QC.nightOfDay(last)) + QC.DAY) * 1000;
+    return now() - ended > 36 * 3600e3 ? `IBM's chip has not looked at a night since ${dayLabel(last)}: nets wait until it does.` : '';
+  }
+
+  // ---------- sound: tiny kit made in code, OFF by default ----------
+  const SFX = (() => {
+    let ctx = null;
+    const ac = () => { if (!store.sound) return null; try { if (!ctx) { const C = window.AudioContext || window.webkitAudioContext; if (!C) return null; ctx = new C(); } if (ctx.state === 'suspended') ctx.resume(); return ctx; } catch (e) { return null; } };
+    function tone(f, at, dur, type, vol, f2) {
+      const c = ac(); if (!c) return; const t = c.currentTime + (at || 0), o = c.createOscillator(), g = c.createGain();
+      o.type = type || 'sine'; o.frequency.setValueAtTime(f, t); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + dur);
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol || 0.06, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g).connect(c.destination); o.start(t); o.stop(t + dur + 0.03);
+    }
+    const NOTES = [523.25, 587.33, 659.25, 783.99, 880, 1046.5];
+    return {
+      tick(turns) { tone(420 + Math.min(700, turns) * 0.9, 0, 0.05, 'triangle', 0.03); },
+      land() { tone(1400 + Math.random() * 500, 0, 0.03, 'sine', 0.012); },
+      reveal(t) { if (t < 0) { tone(392, 0, 0.3, 'triangle', 0.05); tone(311.13, 0.2, 0.45, 'triangle', 0.05); return; } [0, 2, 4, 5].slice(0, 2 + Math.min(2, t)).forEach((k, i) => tone(NOTES[k], i * 0.09, 0.45, 'triangle', 0.05)); },
+      on() { tone(659.25, 0, 0.15, 'sine', 0.05); tone(987.77, 0.08, 0.2, 'sine', 0.04); },
+    };
+  })();
+  function showSound() { $('sound').setAttribute('aria-pressed', String(store.sound)); $('sound').title = store.sound ? 'Sound on' : 'Sound off'; }
+  $('sound').onclick = () => { store.sound = !store.sound; save(); showSound(); if (store.sound) SFX.on(); };
+  showSound();
+
+  // ---------- hamster art (the v9 wish-board hamsters: Party hat, Wire glasses, Scarf, Calm/Grin; one skin per tier) ----------
+  const [BW, BH, CW, CH] = ART.size, OX = (CW - BW) / 2, OY = CH - BH;
+  const IMG = {};
+  const img = (k) => IMG[k] || (IMG[k] = new Promise((res) => { if (!ART.assets[k]) return res(null); const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = 'data:image/webp;base64,' + ART.assets[k]; }));
+  const mk = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+  const comp = new Map();
+  function composite(spot, tier) {          // tier -1 = not caught (plain Honey look)
+    const key = spot + ':' + tier; if (comp.has(key)) return comp.get(key);
+    const p = (async () => {
+      const L = QW.looks(spot), face = L.face ? 'grin' : 'honey', t = Math.max(0, tier);
+      const fits = []; if (L.neckwear) fits.push('fit-scarf'); if (L.glasses) fits.push('fit-glasses'); if (L.hat) fits.push('fit-party');
+      const body = mk(BW, BH), bg = body.getContext('2d');
+      const b = await img(t === 0 ? 'body-' + face : `skin-${SKINKEY[t]}-${face}`); if (b) bg.drawImage(b, 0, 0);
+      bg.globalCompositeOperation = 'destination-out';
+      for (const f of fits) { const e = await img(f + '-erase'); if (e) bg.drawImage(e, 0, 0); }
+      bg.globalCompositeOperation = 'source-over';
+      const cv = mk(CW, CH), g = cv.getContext('2d'); g.drawImage(body, OX, OY);
+      for (const f of fits) { const sh = await img(f + '-shadow'); if (sh) g.drawImage(sh, OX, OY); const it = await img(f); if (it) g.drawImage(it, OX, OY); }
+      return cv;
+    })();
+    comp.set(key, p); return p;
+  }
+  // head-and-shoulders crop into a round portrait; dark = got away (a shadow of who it would have been, with a '?');
+  // out = out of reach that night (a faint shadow, no '?': he could not land there at all)
+  // A canvas taller than wide (a roster tile) gets the hamster from the hat to the belly instead.
+  async function portrait(cv, spot, tier, dark, out) {
+    const src = await composite(spot, dark ? -1 : tier), a = ART.anchors.honey, g = cv.getContext('2d'), W = cv.width, H = cv.height;
+    g.clearRect(0, 0, W, H);
+    if (W === H) { const s = 372, sx = OX + a.cx - s / 2, sy = OY + 30; g.drawImage(src, sx, sy, s, s, 0, 0, W, W); }
+    else { const sw = 368, sh = sw * H / W, sx = OX + a.cx - sw / 2, sy = OY + 36; g.drawImage(src, sx, sy, sw, sh, 0, 0, W, H); }
+    if (dark && out) { g.globalCompositeOperation = 'source-atop'; g.fillStyle = 'rgba(14,19,42,0.96)'; g.fillRect(0, 0, W, H); g.globalCompositeOperation = 'source-over'; }
+    else if (dark) { g.globalCompositeOperation = 'source-atop'; g.fillStyle = 'rgba(28,36,72,0.92)'; g.fillRect(0, 0, W, H); g.globalCompositeOperation = 'source-over';
+      g.fillStyle = 'rgba(190,200,240,.6)'; g.font = `400 ${Math.round(W * 0.3)}px Anton, "Liberation Sans Narrow", sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('?', W / 2, W === H ? W * 0.56 : H * 0.36); }
+  }
+  function paintInto(cv, spot, tier, dark, out) {
+    const want = `${spot}:${tier}:${dark ? 1 : 0}:${dark && out ? 1 : 0}`; cv.dataset.want = want;
+    const tmp = mk(cv.width, cv.height);
+    return portrait(tmp, spot, tier, dark, out).then(() => { if (cv.dataset.want !== want) return; const g = cv.getContext('2d'); g.clearRect(0, 0, cv.width, cv.height); g.drawImage(tmp, 0, 0); });
+  }
+  const look = (h) => (h.tier >= 0 ? { tier: h.tier, dark: false } : { tier: -1, dark: true });
+
+  // ---------- state: the wheel shows TONIGHT (the open net) or one built-in night ----------
+  const S = { view: 'tonight', sel: null, playing: false, watched: {}, focus: null, nftBusy: false };
+  const win = () => QC.netWindow(now());
+  // casting a net = minting its free test NFT (R6'): it needs the contract in this build and a browser wallet; without
+  // either the page is watch-only (the roster, the stage, past nights and How it works all still work)
+  const nftOn = () => !!(CFG.catchAddress && window.ethereum && typeof window.ethereum.request === 'function');
+
+  // ---------- the roster: the ring of 16 spots as 16 tiles (number tag, painted hamster, a night's landings) ----------
+  const ring = $('ring'), spots = [], dots = [], strips = [];
+  for (let s = 0; s < 16; s++) {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'spot' + (s < 10 ? ' d1' : ''); b.dataset.spot = s;
+    b.innerHTML = '<span class="glow"></span><span class="pic"><canvas width="112" height="150"></canvas></span><span class="tag" aria-hidden="true"></span><span class="lnd" aria-hidden="true"></span><span class="ndot"></span>';
+    b.onclick = () => onSpot(s);
+    ring.appendChild(b); spots.push(b); dots.push(b.querySelector('.ndot')); strips.push(b.querySelector('.lnd'));
+  }
+  $('wimg').src = 'data:image/webp;base64,' + ART.scene.wheel;
+  $('core').src = 'data:image/webp;base64,' + ART.scene.core;
+  const glowOf = (p) => Math.min(1, Math.sqrt(Math.max(0, p)) * 1.55);
+  const setTag = (s, v) => { spots[s].querySelector('.tag').innerHTML = `<i>${s}</i>${v ? `<span class="w"> ${v}</span>` : ''}`; };
+  // the bottom strip of a tile: a night's landings on that spot (a number and a bar), 'out' where he could not land
+  function setStrip(s, v, max) {
+    const el = strips[s];
+    if (v == null) { el.className = 'lnd'; el.innerHTML = ''; return; }
+    el.className = 'lnd' + (v === 'out' ? ' out' : '');
+    el.innerHTML = v === 'out' ? '<b>out</b><span class="bar"></span>' : `<b>${fmtInt(v)}</b><span class="bar"><i style="--w:${max ? Math.min(100, 100 * v / max).toFixed(1) : 0}%"></i></span>`;
+  }
+  // whose landings the strips show: on tonight's net the newest night IBM's chip has looked at (never a result of the viewer's
+  // that is not seen yet); on a night, that night's once it is revealed
+  function stripDay() {
+    if (S.view !== 'tonight') return !S.playing && N(S.view) && revealedNow(S.view) ? S.view : null;
+    const c = chipDays().filter((d) => { const m = mine(d); return !(m && !m.seen); });
+    return c[c.length - 1] || null;
+  }
+  function setGlow(P, kind) { ring.dataset.kind = kind; spots.forEach((el, s) => el.style.setProperty('--g', glowOf(P[s]).toFixed(3))); }
+  function setDots(P) { dots.forEach((el, s) => el.style.setProperty('--g', glowOf(P[s]).toFixed(3))); }
+  const ZERO = new Array(16).fill(0);
+  const revealedNow = (d) => { const m = mine(d); return !S.playing && !!chipOf(d) && ((m && m.seen) || !!S.watched[d]); };
+
+  function paintRing() {
+    // flat: tonight's net, or a net whose night is not in the page yet (his run is on): nothing known about that night
+    const t = S.view === 'tonight', d = t ? null : S.view, flat = t || !N(d), m = t ? store.nets[win().day] : mine(d), rev = !flat && revealedNow(d);
+    // the viewer's own real net not seen yet: no out-of-reach marks (and no ghost) until the replay shows where he landed.
+    // (The practice net was picked on the greyed ring, so it keeps it.)
+    const hide = !flat && !!m && !m.seen && !m.practice;
+    const canPick = !S.playing && !S.nftBusy && (t ? !m : !flat && !m && practiceOpen(d));
+    ring.classList.toggle('revealed', rev); ring.classList.toggle('pickable', canPick);
+    spots.forEach((el, s) => {
+      const cv = el.querySelector('canvas'), out = !flat && !N(d).slept && !hide && !reach(d, s);
+      el.classList.toggle('out', out);
+      if (rev) { const h = spotResult(d, s), L = look(h); el.dataset.tier = h.tier; paintInto(cv, s, L.tier, L.dark, out); setTag(s, tagWord(h)); }
+      else { el.dataset.tier = 'x'; paintInto(cv, s, -1, false); setTag(s, out ? 'out' : ''); }
+      el.classList.toggle('net', !!(m && m.spot === s));
+      el.classList.toggle('sel', !m && S.sel === s);
+      el.classList.toggle('focus', rev && S.focus === s && !(m && m.spot === s));
+      el.setAttribute('aria-disabled', String(canPick && out));
+      el.setAttribute('aria-pressed', String(!!(m && m.spot === s) || (!m && S.sel === s)));
+      el.setAttribute('aria-label', spotLabel(flat ? null : d, s, rev, out, m));
+    });
+    if (rev) setGlow(view(d).counts.map((x) => x / chipOf(d).wheel_shots), 'chip');
+    else if (!flat && !hide && !S.playing && !chipOf(d) && !N(d).slept) setGlow(view(d).perfect.map((x) => x * 0.8), 'ghost');   // his run is in, the chip has not looked
+    else setGlow(flat || N(d).slept ? ZERO : view(d).start.map((x) => x * 0.35), 'ghost');
+    spots.forEach((el, s) => el.classList.toggle('start', !flat && !N(d).slept && s === view(d).T));
+    // the strips: a night's landings per spot (tonight: the newest night the chip has looked at, which the legend names)
+    const sd = S.playing ? null : stripDay(), sc = sd ? view(sd).counts : null, mx = sc ? Math.max(1, ...sc.filter((x, s) => reach(sd, s))) : 0;
+    spots.forEach((el, s) => setStrip(s, !sd ? null : !reach(sd, s) ? 'out' : sc[s], mx));
+    $('legend').textContent = sd ? `${t && sd === prevDay(win().day) ? `Landings last night (${dShort(sd)})` : `Landings on ${dayLabel(sd)}`}, of ${fmtInt(chipOf(sd).wheel_shots)}` : '';
+    const st = $('stamp'), waiting = !t && !S.playing && !chipOf(d) && !(N(d) && N(d).slept);
+    st.textContent = waiting ? 'Not looked at yet' : ''; st.classList.toggle('on', waiting);
+    paintStage();
+  }
+  function spotLabel(d, s, rev, out, m) {
+    const own = m && m.spot === s ? ', your net' : '';
+    if (!d) { const L = S.view === 'tonight' ? stripDay() : null, h = L ? spotResult(L, s) : null;
+      return `Spot ${s}, ${LOOKW(s)}${h ? `. ${dayLabel(L)}: ${h.reach ? `${fmtInt(h.hits)} landings` : 'out of reach'}` : ''}${own}`; }
+    if (!rev) return `Spot ${s}, ${LOOKW(s)}${out ? ': out of reach that night' : ''}${own}`;
+    const h = spotResult(d, s);
+    return `Spot ${s}, ${LOOKW(s)}: ${h.tier >= 0 ? h.name : h.reach ? 'got away' : 'out of reach, got away'}, ${pct(h.share)} of the chip's looks${own}`;
+  }
+
+  // ---------- the stage: the picked hamster on the podium (the computer's beam on it), its name plate, the chip, the LCD ----------
+  const ham = $('ham');
+  let hamWant = '';
+  // who stands on the podium: tonight your pick (or your net); on a night your net, the practice pick, the tapped spot, or the
+  // night's rarest catch; nobody picked yet: a '?'
+  function stageSpot() {
+    const w = win();
+    if (S.view === 'tonight') { const net = store.nets[w.day]; return net ? { s: net.spot, key: 'Your net' } : { s: S.sel, key: 'Your pick' }; }
+    const d = S.view, m = mine(d);
+    if (m) return { s: m.spot, key: m.practice ? 'Practice' : 'Your net' };
+    if (!N(d) || N(d).slept) return { s: null, key: 'Night' };
+    if (practiceOpen(d)) return { s: S.sel, key: 'Practice' };
+    if (revealedNow(d)) {
+      if (S.focus != null) return { s: S.focus, key: 'Spot' };
+      const T = view(d).tiers, top = Math.max(...T);
+      return top >= 0 ? { s: T.indexOf(top), key: 'Rarest catch' } : { s: null, key: 'Night' };
+    }
+    return { s: null, key: 'Night' };
+  }
+  const resultWords = (h) => (h.tier >= 0 ? `${h.name} · ${fmtInt(h.hits)} landings` : h.reach ? `got away · ${fmtInt(h.hits)} landings` : 'out of reach');
+  function plateBand(t, d, w, s, h) {
+    if (t) {
+      const L = stripDay();
+      if (s == null) return `Nets close ${tLocal(w.closeMs)}<br>One net per night`;
+      if (!L) return `Night of ${dShort(w.day)}<br>Not run yet`;
+      return `${L === prevDay(w.day) ? `Last night, ${dShort(L)}` : dayLabel(L)}<br>${resultWords(spotResult(L, s))}`;
+    }
+    const nn = `Night of ${dShort(d)}`;
+    if (!N(d)) return `${nn}<br>${now() >= (QC.nightStart(QC.nightOfDay(d)) + QC.DAY) * 1000 ? 'Waiting for the chip' : 'His night is on'}`;
+    if (N(d).slept) return `${nn}<br>He slept`;
+    if (h) return `${nn}<br>${resultWords(h)}`;
+    const m = mine(d);
+    return `${nn}<br>${!chipOf(d) ? 'Waiting for the chip' : m ? 'Result ready' : !practiceOpen(d) ? (S.watched[d] ? 'No net that night' : 'Watch his night') : s == null ? 'Tap a hamster' : 'Practice catch'}`;
+  }
+  function paintStage() {
+    const t = S.view === 'tonight', d = t ? null : S.view, w = win(), P = stageSpot(), s = P.s;
+    const h = !t && s != null && N(d) && revealedNow(d) ? spotResult(d, s) : null;
+    // the hamster: the pick in its plain look; after the reveal in its tier's skin (got away: a shadow); nobody yet: a '?'
+    const mode = s == null ? 'q' : h && h.tier < 0 ? 'away' : 'ok', tier = h && h.tier >= 0 ? h.tier : 0, want = `${s}:${tier}:${mode}`;
+    ham.classList.toggle('away', mode === 'away');
+    if (want !== hamWant) {
+      hamWant = want;
+      composite(s == null ? 0 : s, tier).then((src) => {
+        if (hamWant !== want) return;
+        const g = ham.getContext('2d'), W = ham.width, H = ham.height; g.clearRect(0, 0, W, H); g.drawImage(src, 0, 0);
+        if (mode === 'q') { g.globalCompositeOperation = 'source-atop'; g.fillStyle = 'rgba(32,44,110,0.95)'; g.fillRect(0, 0, W, H); g.globalCompositeOperation = 'source-over';
+          g.fillStyle = 'rgba(201,211,255,.85)'; g.font = '400 170px Anton, "Liberation Sans Narrow", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('?', W / 2, H * 0.5); }
+      });
+    }
+    $('platek').textContent = P.key; $('platen').textContent = s == null ? '?' : String(s);
+    $('platew').innerHTML = s == null ? `<li>${t ? 'Tap a hamster' : 'No pick'}</li>` : WEARS(s).map((x) => `<li>${x}</li>`).join('');
+    $('plateb').innerHTML = plateBand(t, d, w, s, h);
+    const L = t ? stripDay() : null;
+    $('chipline').textContent = t ? (L ? `${L === prevDay(w.day) ? "Last night's chip" : `Chip on ${dShort(L)}`}: ${chipOf(L).backend}` : 'Not run yet')
+      : !N(d) ? 'Not run yet' : N(d).slept ? 'He slept that night' : chipOf(d) ? `Chip that night: ${chipOf(d).backend}` : 'Not run yet';
+    // the LCD: the pick, the chip's drops, when
+    const c = d && chipOf(d), shots = (chipOf(practiceDay()) || {}).wheel_shots || 4000;
+    $('lcdk').textContent = P.key; $('lcdn').textContent = s == null ? '#--' : '#' + pad2(s);
+    $('lcd2').textContent = t ? `${fmtInt(shots)} drops · ${relDay(w.endMs)} ${tLocal(w.endMs)}` : !N(d) ? `Night of ${dShort(d)}` : c ? `${fmtInt(c.wheel_shots)} drops · ${dayLabel(d)}` : N(d).slept ? 'He slept' : 'Waiting for the chip';
+  }
+
+  // ---------- wheel spin (speed follows his turns during the replay) ----------
+  let wAng = 0, wSpeed = 5, lastT = 0;
+  function spin(t) {
+    const dt = lastT ? Math.min(0.1, (t - lastT) / 1000) : 0; lastT = t;
+    if (!reduceMotion) { wAng = (wAng + wSpeed * dt) % 360; $('wimg').style.transform = `rotate(${wAng.toFixed(2)}deg)`; }
+    requestAnimationFrame(spin);
+  }
+  requestAnimationFrame(spin);
+
+  // ---------- the stage: title, prompt, ONE action, the result ----------
+  const stageNight = () => (S.view === 'tonight' ? null : S.view);
+  function renderStage() {
+    const t = S.view === 'tonight', d = stageNight(), w = win(), b = $('srcbadge');
+    let head, badge = '', bcls = '', prompt = '', sub = '', act = null, alt = null, watch = false;
+    if (t) {
+      const net = store.nets[w.day];
+      head = `${w.when === 'tonight' ? "Tonight's net" : "Tomorrow's net"} · ${dayLabel(w.day)}`;
+      badge = 'not run yet'; bcls = 'wait';
+      const closes = `Nets close at <b>${tLocal(w.closeMs)}</b> your time (in <b class="cdn">${QC.countdown(w.leftMs)}</b>)`;
+      if (!net) {
+        // the deck's clock: when nets close, when the result can come (his night ends, then the chip looks), his usual start
+        prompt = `Nets close ${tLocal(w.closeMs)} ${relDay(w.closeMs)} · result ${relDay(w.endMs)} after ${tLocal(w.endMs)}`;
+        sub = `He usually starts ${tLocal(w.startFromMs)}–${tLocal(w.startToMs)} · closes in <b class="cdn">${QC.countdown(w.leftMs)}</b>`;
+        // casting = minting the net's free test NFT (one click, one transaction); no wallet or no contract: watch mode
+        if (!nftOn()) watch = true;
+        else act = S.nftBusy ? { text: `Catching #${S.sel}…`, off: true, sub: 'Answer in your wallet' }
+          : S.sel == null ? { text: 'Pick a hamster first', off: true, sub: NFT_SUB }
+          : { text: `Catch #${S.sel} · free NFT`, go: () => castNft(S.sel), sub: NFT_SUB };
+      } else {
+        prompt = `Your net is on spot ${net.spot}.`;
+        sub = `${closes}. He usually starts between ${tLocal(w.startFromMs)} and ${tLocal(w.startToMs)}. His night ends ${tDay(w.endMs)} your time, then IBM's chip looks: come back after that to see if you caught him.`;
+      }
+    } else if (!N(d)) {
+      // the viewer's net on a locked night that is not in the page yet: his run is on (live rounds so far), or over and
+      // waiting for IBM's chip. Tomorrow's net is one tap away (secondary button).
+      const m = store.nets[d], nn = QC.nightOfDay(d), endMs = (QC.nightStart(nn) + QC.DAY) * 1000, over = now() >= endMs, so = sofar && sofar.day === d ? sofar : null, sw = QC.startWindow(nn);
+      head = `Your net · night of ${dayLabel(d)}`; badge = over ? 'waiting for the chip' : 'his night is on'; bcls = 'wait';
+      prompt = `Your net is on spot ${m.spot}.`;
+      if (!over) sub = (so && so.rounds ? `Tonight so far: <b>${so.rounds}</b> round${so.rounds === 1 ? '' : 's'}, <b>${fmtInt(so.turns)}</b> turns (settled on-chain up to ${tLocal(so.upToMs)} your time).`
+        : now() < sw[1] ? `Nets are closed. He usually starts between ${tLocal(sw[0])} and ${tLocal(sw[1])} your time.` : 'His night is on.') + ` It ends ${tDay(endMs)} your time, then IBM's chip looks.`;
+      else sub = `His night is over. ${staleWords() || "IBM's chip has not looked yet: come back later to see if you caught him."}`;
+      const wn = w.when === 'tonight' ? "tonight's" : "tomorrow's";
+      alt = { text: store.nets[w.day] ? `Show ${wn} net` : nftOn() ? `Cast ${wn} net` : `See ${wn} net`, go: () => selectView('tonight') };
+    } else {
+      const n = N(d), c = chipOf(d), m = mine(d), pr = practiceOpen(d);
+      head = pr || (m && m.practice) ? `Practice catch · night of ${dayLabel(d)}` : m ? `Your net · night of ${dayLabel(d)}` : `Night of ${dayLabel(d)}`;
+      badge = c ? 'IBM chip' : n.slept ? 'he slept' : 'waiting for the chip'; bcls = pr || (m && m.practice) ? 'practice' : c ? 'chip' : 'wait';
+      if (pr || (m && m.practice)) badge = 'practice';
+      if (S.playing) { prompt = m ? `Spot ${m.spot}: here comes his night…` : 'Here comes his night…'; sub = c ? "Then IBM's chip looks 4,000 times." : ''; }
+      else if (n.slept) { prompt = 'He slept that night.'; sub = 'No run, nothing to catch.'; }
+      else if (pr && S.sel == null) { prompt = 'Put your net on a hamster.'; sub = 'Practice on a night IBM\'s chip has already looked at: one free try. Grey hamsters were out of reach that night.'; act = { text: 'Pick a hamster first', off: true, sub: 'Practice: one free try' }; }
+      else if (pr) { prompt = `Net on spot ${S.sel}?`; sub = `${esc(LOOKW(S.sel))}. Cast it and watch his night: did the chip find him there?`; act = { text: `Cast practice net on #${S.sel}`, go: () => castPractice(S.sel), sub: 'Practice: one free try' }; }
+      else if (m && !c) { prompt = `Your net is on spot ${m.spot}.`; sub = netResult(d, m.spot).status === 'noresult' ? 'No chip result came for this night, so this net stays as it is.' : `His run is in. ${staleWords() || "IBM's chip has not looked yet: come back later to see if you caught him."}`; alt = { text: '▶ Watch his run', go: () => play() }; }
+      else if (m && !m.seen) { prompt = `Your net is on spot ${m.spot}. Did the chip find him there?`; sub = "IBM's chip has looked. Watch his night to find out."; act = { text: 'See if you caught him', go: () => play() }; }
+      else if (m) {
+        const r = netResult(d, m.spot);
+        prompt = r.status === 'caught' ? `You caught ${/^[UEAIO]/.test(r.h.name) ? 'an' : 'a'} ${r.h.name} hamster!` : 'He got away.';
+        sub = m.practice ? 'That was your practice catch. Real nets are cast before he runs, when nobody knows which spots will be out of reach: one per night.' : `Your net on spot ${m.spot}, night of ${dayLabel(d)}.`;
+        alt = { text: '▶ Replay', go: () => play() };
+      } else if (c && !S.watched[d]) { prompt = 'You had no net on this night.'; sub = "Nets are cast before he runs: one per night. Watch what IBM's chip found."; alt = { text: '▶ Watch his night', go: () => play() }; }
+      else if (c) { prompt = `Where the chip found him · ${dayLabel(d)}`; sub = 'Tap a hamster for its numbers.'; alt = { text: '▶ Replay', go: () => play() }; }
+      else { prompt = 'His run is in.'; sub = "IBM's chip has not looked yet. You had no net on this night."; alt = { text: '▶ Watch his run', go: () => play() }; }
+      if (!S.playing && !act && m && (m.seen || !c)) { const nx = nextStep(); if (nx) act = nx; }
+      if (!S.playing && !act && !m && !pr && chipOf(d) && S.watched[d]) { const nx = nextStep(); if (nx) act = nx; }
+    }
+    $('stageh').textContent = head; b.className = 'src ' + bcls; b.textContent = badge;
+    $('prompt').innerHTML = `${esc(prompt)}${sub ? `<small>${sub}</small>` : ''}`;
+    const A = $('act'), B = $('alt');
+    A.hidden = S.playing || !act; B.hidden = S.playing || !alt;
+    if (act) {
+      A.textContent = act.text; A.onclick = act.go || null; A.className = 'btn'; A.disabled = !!act.off;
+      if (act.sub) A.dataset.sub = act.sub; else delete A.dataset.sub;
+    }
+    if (alt) { B.textContent = alt.text; B.onclick = alt.go; }
+    $('skip').hidden = !S.playing;
+    $('watch').hidden = S.playing || !watch;
+    $('deck').classList.toggle('tonight', t && !store.nets[w.day]);
+    // the long honest line about the NFT, under the deck while the cast button is there
+    $('nfthint').hidden = S.playing || !(t && !store.nets[w.day] && act);
+    if (!S.playing) $('caption').innerHTML = captionText();
+    renderReveal(); renderNftBox(); deckSolo();
+  }
+  // the action slot always holds something; when it would be empty the LCD takes the whole row
+  const deckSolo = () => { $('deckrow').classList.toggle('solo', ['act', 'nftmsg', 'watch', 'nftbox', 'alt', 'skip'].every((k) => $(k).hidden)); };
+  // after a result: the next thing to do is tonight's net (if not cast yet)
+  function nextStep() {
+    const w = win(), wn = w.when === 'tonight' ? "tonight's" : "tomorrow's";
+    if (store.nets[w.day] || N(w.day)) return null;
+    return { text: nftOn() ? `Now cast ${wn} net` : `See ${wn} net`, go: () => { selectView('tonight'); scrollStage(); } };
+  }
+  function captionText() {
+    const d = stageNight();
+    if (!d || !N(d)) return '';
+    if (N(d).slept) return '';
+    if (revealedNow(d)) return S.focus != null ? spotInfo(d, S.focus) : '';
+    if (!chipOf(d)) return 'The ghost is spread over the 16 spots. When the chip looks, he lands.';
+    return '';
+  }
+  function spotInfo(d, s) {
+    const h = spotResult(d, s);
+    const head = `Spot <b>${s}</b>: ${h.tier >= 0 ? `<b>${h.name}</b>` : 'got away'}, the chip found him here in ${pct(h.share)} of its looks.` +
+      rankWords(h, 'here') + (h.first && h.tier !== 4 ? " The chip's very first look landed here." : '');
+    if (!h.reach) return `Spot <b>${s}</b>: out of reach that night, he could not land here.${h.hits ? ` The chip's ${fmtInt(h.hits)} landings here (${pct(h.share)}) are its noise.` : ''}`;
+    let why = ` Quantum ghost ${pct(h.q)}, normal hamster ${pct(h.cl)}.`;
+    if (h.cl >= 0.01 && h.q * 2 <= h.cl) why += " The ghost's paths cancel out here.";
+    else if (h.q >= 0.01 && h.q >= 2 * h.cl) why += " The ghost's paths add up here.";
+    return head + why;
+  }
+  function renderReveal() {
+    const d = stageNight(), el = $('reveal'), m = d ? mine(d) : null;
+    const show = !!d && !S.playing && revealedNow(d);
+    if (!show) { el.hidden = true; return; }
+    const v = view(d), c = chipOf(d), q = v.q, qe = $('revq');
+    qe.hidden = !q; if (q) { qe.textContent = qWords(q, d); qe.classList.toggle('noise', !q.kept); }
+    if (m) {
+      const r = netResult(d, m.spot), h = r.h, L = look(h);
+      el.classList.remove('plain'); paintInto($('revcv'), m.spot, L.tier, L.dark, !h.reach);
+      const an = h.tier >= 0 && /^[UEAIO]/.test(h.name) ? 'an' : 'a';
+      $('revt').textContent = h.tier >= 0 ? `${an[0].toUpperCase() + an.slice(1)} ${h.name} ${SKIN[h.tier]} hamster!` : 'He got away.';
+      $('revt').style.color = h.tier >= 0 ? `var(--r${h.tier})` : 'var(--stage-muted)';
+      $('revs').innerHTML = (m.practice ? '<span class="tag2">practice</span>' : '') + (h.tier >= 0
+        ? `Spot ${m.spot} (${esc(LOOKW(m.spot))}): the chip found him there in <b>${pct(h.share)}</b> of its ${fmtInt(c.wheel_shots)} looks.${rankWords(h, 'there')}`
+        : h.reach ? `The chip found him on spot ${m.spot} in only <b>${pct(h.share)}</b> of its ${fmtInt(c.wheel_shots)} looks (a catch needs 1%).`
+        : `Spot ${m.spot} was out of reach that night: he could not land there.${h.hits ? ` The chip's ${fmtInt(h.hits)} landings there are its noise.` : ''}`);
+    } else {
+      el.classList.add('plain');
+      $('revt').textContent = `The ghost landed · ${dayLabel(d)}`; $('revt').style.color = 'var(--accent2)';
+      $('revs').innerHTML = `IBM's chip looked ${fmtInt(c.wheel_shots)} times. Bright spots: where it found him most.`;
+    }
+    el.hidden = false;
+  }
+  // the minted net in the action slot, on its own night (looked up by the night it was cast for) until the chip has looked
+  function renderNftBox() {
+    const w = win(), d = S.view === 'tonight' ? w.day : S.view, net = store.nets[d], box = $('nftbox');
+    const on = !S.playing && !!(net && net.nft) && !chipOf(d) && !(N(d) && N(d).slept);
+    box.hidden = !on;
+    if (on) {
+      $('nfttext').innerHTML = `<b>Your net is an NFT</b> on Sepolia (free test, no value): night of ${esc(dayLabel(net.nft.day || d))}, spot ${net.spot}. It turns into your catch (or "got away") when the chip's result is posted.`;
+      const im = $('nftimg'); if (net.nft.image && /^data:image\/svg\+xml;base64,/.test(net.nft.image)) { im.src = net.nft.image; im.hidden = false; } else im.hidden = true;
+    }
+  }
+
+  // ---------- picking + casting ----------
+  function onSpot(s) {
+    if (S.playing || S.nftBusy) return;
+    const t = S.view === 'tonight', d = stageNight(), w = win();
+    if (t) {
+      if (store.nets[w.day]) { $('caption').innerHTML = `Your net is already on spot <b>${store.nets[w.day].spot}</b> for this night: nets can't be moved.`; return; }
+      S.sel = S.sel === s ? null : s; nftMsg(''); renderStage(); paintRing(); if (S.sel != null) showAct();
+      $('srpick').textContent = S.sel != null ? `Your pick: spot ${s}, ${LOOKW(s)}` : 'No pick'; return;
+    }
+    const m = mine(d), pr = practiceOpen(d);
+    if (!N(d)) { $('caption').innerHTML = `Your net is on spot <b>${m.spot}</b> for this night: nets can't be moved.`; return; }
+    if (revealedNow(d)) { S.focus = s; paintRing(); $('caption').innerHTML = spotInfo(d, s); return; }
+    if (!pr || m) {
+      if (m && !chipOf(d)) $('caption').innerHTML = `Your net is on spot <b>${m.spot}</b>. The chip has not looked yet.`;
+      else if (m) $('caption').innerHTML = `Your net is on spot <b>${m.spot}</b>. Tap <b>See if you caught him</b>.`;
+      else $('caption').innerHTML = 'You had no net on this night.';
+      return;
+    }
+    if (!reach(d, s)) { S.sel = null; renderStage(); paintRing(); $('caption').innerHTML = `Spot <b>${s}</b> was out of reach that night: he could not land there. Pick one of the lit hamsters.`; return; }
+    S.sel = S.sel === s ? null : s; renderStage(); paintRing(); if (S.sel != null) showAct();
+  }
+  // the ONE action (or the watch line) must be on screen after a pick (short phones: it sits under the ring): scroll just enough
+  function showAct(instant) {
+    try {
+      const a = !$('act').hidden ? $('act') : !$('watch').hidden ? $('watch') : null; if (!a) return;
+      const r = a.getBoundingClientRect(), by = r.bottom + 12 - innerHeight;
+      if (by > 0) window.scrollBy({ top: by, behavior: instant || fast() ? 'auto' : 'smooth' });
+    } catch (e) { /* fine */ }
+  }
+  function castPractice(s) {
+    const d = stageNight();
+    if (!practiceOpen(d) || !isSpot(s) || !reach(d, s)) return;
+    store.practice = { day: d, spot: s, at: now(), seen: false }; save(); S.sel = null;
+    play();
+  }
+  const bumpMine = () => { $('mycount').classList.remove('bump'); void $('mycount').offsetWidth; $('mycount').classList.add('bump'); };
+  const scrollStage = () => { try { $('play').scrollIntoView({ behavior: fast() ? 'auto' : 'smooth', block: 'start' }); } catch (e) { /* fine */ } };
+
+  // ---------- the replay: his run (the ghost spreads), then the chip looks and the ghost lands ----------
+  let run = 0, skipping = false;
+  $('skip').onclick = () => { skipping = true; };
+  const playing = (on) => { ring.classList.toggle('playing', on); $('play').classList.toggle('playing', on); };
+  function cancelPlay() { run++; skipping = false; S.playing = false; playing(false); wSpeed = 5; clearFx(); }
+  const STEP_MS = 520;
+  async function play() {
+    const d = stageNight(); if (!d || !N(d) || N(d).slept) return;
+    const my = ++run; skipping = false; S.playing = true; S.focus = null;
+    const n = N(d), c = chipOf(d), G = QW.groups(n.rounds.map((r) => r[1]), capOf(d));
+    const live = () => my === run;
+    const wait = (ms) => new Promise((r) => { if (skipping || !live()) return r(); setTimeout(r, fast() ? Math.min(ms, 20) : ms); });
+    playing(true); renderStage(); paintRing(); highlight(-1);
+    const v = view(d);
+    setGlow(v.start, 'ghost'); setDots(v.start);
+    $('caption').innerHTML = 'He starts at his own spot (dashed). <b>Glow</b>: the quantum hamster, a ghost spread over the 16 spots. <b>White dot</b>: a normal hamster.';
+    await wait(900); if (!live()) return;
+    for (let k = 0; k < n.steps.length; k++) {
+      if (!live()) return;
+      const t = n.steps[k], g = G[k], when = tLocal(roundStart(n, n.rounds[g[0]][0]));
+      setGlow(v.pt[k], 'ghost'); setDots(v.nt[k]); highlight(k, g);
+      wSpeed = 20 + Math.min(700, t) * 0.9; SFX.tick(t);
+      const kind = t >= 450 ? 'a sprint' : t >= 150 ? 'a steady run' : 'a lazy round';
+      $('caption').innerHTML = `${when} · <b>${fmtInt(t)}</b> turns: ${kind}`;
+      await wait(STEP_MS);
+    }
+    if (!live()) return;
+    highlight(-1); wSpeed = 5;
+    if (c) {
+      $('caption').innerHTML = `Then IBM's chip looks <b>${fmtInt(c.wheel_shots)} times</b>.`;
+      setDots(ZERO); await landings(v.shots, my, d); if (!live()) return;
+      setGlow(v.counts.map((x) => x / c.wheel_shots), 'chip');
+    } else {
+      setDots(ZERO); setGlow(v.perfect, 'ghost');
+      $('caption').innerHTML = 'The ghost is spread over the 16 spots. The chip has not looked yet.';
+      await wait(1100); if (!live()) return;
+    }
+    S.playing = false; playing(false);
+    const m = mine(d);
+    if (c) {
+      if (m) { if (m.practice) store.practice.seen = true; else store.nets[d].seen = true; save(); } else S.watched[d] = true;
+      ring.classList.add('revealed');
+      const order = [...Array(16).keys()].sort((a, b) => spotResult(d, b).share - spotResult(d, a).share);
+      for (const s of order) {
+        if (!live()) return;
+        const h = spotResult(d, s), el = spots[s], L = look(h); el.dataset.tier = h.tier; paintInto(el.querySelector('canvas'), s, L.tier, L.dark, !h.reach);
+        if (!h.reach) el.classList.add('out');
+        setTag(s, tagWord(h));
+        el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
+        await wait(55);
+      }
+    }
+    renderAll();
+    if (c && m) {
+      try { const a = $('act').hidden ? $('reveal') : $('act'), r = a.getBoundingClientRect(), by = r.bottom + 12 - innerHeight; if (by > 0) window.scrollBy({ top: by, behavior: fast() ? 'auto' : 'smooth' }); } catch (e) { /* fine */ }
+      SFX.reveal(spotResult(d, m.spot).tier); bumpMine();
+    }
+  }
+  // the chip's real landings: drops fall from the quantum computer onto their spot's tile, in the order the chip produced
+  // them, and each tile's strip counts up
+  const fx = $('fx');
+  // (an idle overlay has no size: a canvas sized for a wider window would scroll the page sideways after a resize)
+  function clearFx() { fx.width = 0; fx.height = 0; fx.style.width = '0px'; fx.style.height = '0px'; }
+  function landings(shotSpots, my, d) {
+    const inR = [...Array(16).keys()].map((s) => reach(d, s));
+    return new Promise((resolve) => {
+      const P = $('play'), pr = P.getBoundingClientRect(), W = P.clientWidth, H = P.clientHeight, dpr = Math.min(2, window.devicePixelRatio || 1);
+      fx.width = Math.round(W * dpr); fx.height = Math.round(H * dpr); fx.style.width = W + 'px'; fx.style.height = H + 'px';
+      const g = fx.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+      // the drops never cross the headline (on a PC it sits between the computer and the roster)
+      const hb = document.querySelector('.hl').getBoundingClientRect();
+      g.beginPath(); g.rect(0, 0, W, H); g.rect(hb.left - pr.left, hb.top - pr.top, hb.width, hb.height); g.clip('evenodd');
+      const cr = $('core').getBoundingClientRect(), O = [cr.left - pr.left + cr.width / 2, cr.top - pr.top + cr.height * 0.92];
+      const C = spots.map((el) => { const r = el.getBoundingClientRect(); return [r.left - pr.left + r.width / 2, r.top - pr.top + r.height * 0.42]; });
+      const shots = shotSpots, M = Math.min(360, shots.length), every = shots.length / M, DUR = fast() ? 60 : 2400, FLY = fast() ? 30 : 620;
+      const acc = new Array(16).fill(0);
+      const parts = Array.from({ length: M }, (_, i) => ({ s: shots[Math.floor(i * every)], t0: (i / M) * DUR, j: (Math.sin(i * 12.9898) * 43758.5453) % 1, done: false }));
+      setGlow(ZERO, 'chip'); const t0 = performance.now(); let landed = 0, lastPaint = 0;
+      function frame(nowT) {
+        if (my !== run) return resolve();
+        const t = skipping ? 1e9 : nowT - t0; g.clearRect(0, 0, W, H);
+        for (const p of parts) {
+          const u = (t - p.t0) / FLY; if (u < 0) continue;
+          if (u >= 1) { if (!p.done) { p.done = true; acc[p.s] += every; landed++; if (landed % 9 === 0) SFX.land(); } continue; }
+          const [x1, y1] = C[p.s], dx = x1 - O[0], dy = y1 - O[1], L = Math.hypot(dx, dy) || 1, e = u * u * (3 - 2 * u), bend = Math.sin(u * Math.PI) * L * 0.16 * p.j;
+          const x = O[0] + dx * e - dy / L * bend, y = O[1] + dy * e + dx / L * bend;
+          g.fillStyle = 'rgba(125,235,255,.95)'; g.beginPath(); g.arc(x, y, 2.4, 0, Math.PI * 2); g.fill();
+          g.fillStyle = 'rgba(125,235,255,.22)'; g.beginPath(); g.arc(x, y, 6, 0, Math.PI * 2); g.fill();
+        }
+        if (nowT - lastPaint > 90 || landed === M) {
+          lastPaint = nowT; setGlow(acc.map((x) => x / shots.length), 'chip');
+          const mx = Math.max(1, ...acc.filter((x, s) => inR[s])); acc.forEach((x, s) => setStrip(s, inR[s] ? Math.round(x) : 'out', mx));
+        }
+        if (landed >= M) { clearFx(); return resolve(); }
+        requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+    });
+  }
+
+  // ---------- nights strip (built-in nights + tonight) ----------
+  function renderNights() {
+    const box = $('nights'), list = [...new Set([...DAYS, ...pendingDays()])].sort().slice(-7);
+    box.style.setProperty('--n', String(list.length));      // 4 columns on a phone (CSS), the nights + a wide tonight from 640 px
+    box.innerHTML = '';
+    for (const d of list) {
+      const m = mine(d), r = m ? netResult(d, m.spot) : null, b = document.createElement('button'); b.type = 'button'; b.dataset.day = d;
+      b.innerHTML = `<span class="wd">${dayLabel(d, { day: undefined, month: undefined })}</span><span class="dn">${dayDate(d).getUTCDate()}</span>` +
+        (m ? '<span class="dot" title="your net"></span>' : '') + (r && r.status === 'caught' && m.seen ? '<span class="ok" title="caught">&#10003;</span>' : '');
+      b.setAttribute('aria-label', `Night of ${dayLabel(d, { weekday: 'long', month: 'long' })}${m ? (m.practice ? ', your practice net' : ', your net') : ''}${N(d) ? '' : ', not looked at yet'}`);
+      b.onclick = () => { selectView(d); toStage(); };
+      box.appendChild(b);
+    }
+    const w = win(), tb = document.createElement('button'); tb.type = 'button'; tb.dataset.day = 'tonight';
+    tb.innerHTML = `<span class="wd">${w.when === 'tonight' ? 'Tonight' : 'Tomorrow'}</span><span class="dn">${dayDate(w.day).getUTCDate()}</span>` + (store.nets[w.day] ? '<span class="dot" title="your net"></span>' : '');
+    tb.setAttribute('aria-label', `${w.when === 'tonight' ? "Tonight's" : "Tomorrow's"} net, ${dayLabel(w.day, { weekday: 'long', month: 'long' })}`);
+    tb.onclick = () => { selectView('tonight'); toStage(); }; box.appendChild(tb);
+    for (const b of box.children) b.setAttribute('aria-pressed', String(b.dataset.day === S.view));
+    const pd = practiceDay();
+    $('pastsub').textContent = "Tap a night to see where IBM's chip found him." + (practiceOpen(pd) ? ` One free practice catch on ${dayLabel(pd)}.` : '');
+  }
+  // the strip sits below the first screen: after a tap, bring the stage back into view
+  const toStage = () => { try { if ($('play').getBoundingClientRect().top < 0) scrollStage(); } catch (e) { /* fine */ } };
+  function selectView(v) {
+    if (S.playing) cancelPlay();
+    S.view = canView(v) ? v : 'tonight'; S.sel = null; S.focus = null;
+    renderAll();
+  }
+
+  // ---------- Tonight's net card (countdown, the net, his run so far, nets waiting for the chip) ----------
+  let sofar = null;
+  function renderTonight() {
+    const w = win(), net = store.nets[w.day];
+    $('tnk').textContent = w.when === 'tonight' ? "Tonight's net" : "Tomorrow's net";
+    $('tnh').textContent = `Night of ${dayLabel(w.day, { weekday: 'long', month: 'long' })}`;
+    $('tnclose').innerHTML = `Nets close at <b>${tLocal(w.closeMs)}</b> your time · in <span class="cd">${QC.countdown(w.leftMs)}</span>. He usually starts between ${tLocal(w.startFromMs)} and ${tLocal(w.startToMs)}.`;
+    $('tnstate').innerHTML = net ? `Your net: <b>spot ${net.spot}</b> (${esc(LOOKW(net.spot))}).${net.nft ? ' A free test NFT on Sepolia.' : ''}` : 'No net yet for this night.';
+    $('tngo').hidden = S.view === 'tonight'; $('tngo').textContent = net ? 'Show my net' : `Choose ${w.when === 'tonight' ? "tonight's" : "tomorrow's"} spot`;
+    // his running night (live, settled rounds only) at the top of the card: after the 21:00 UTC lock it is not the open night
+    const sf = $('sofar'), sn = sofar && store.nets[sofar.day];
+    if (sofar && !N(sofar.day)) { sf.hidden = false; sf.innerHTML = `Tonight so far: <b>${sofar.rounds}</b> round${sofar.rounds === 1 ? '' : 's'}, <b>${fmtInt(sofar.turns)}</b> turns <span class="small">(his night of ${dayLabel(sofar.day)}, settled on-chain up to ${tLocal(sofar.upToMs)} your time)</span>${sn && sofar.day !== w.day ? ` · your net there: <b>spot ${sn.spot}</b>` : ''}`; }
+    else sf.hidden = true;
+    const wait = Object.keys(store.nets).filter((d) => d !== w.day && !chipOf(d) && !(N(d) && N(d).slept)).sort(), stale = wait.length ? staleWords() : '';
+    $('waiting').innerHTML = wait.map((d) => `<li><b>${dayLabel(d)}</b>: your net on spot ${store.nets[d].spot}, ${netResult(d, store.nets[d].spot).status === 'noresult' ? 'no chip result came for this night' : 'waiting for the chip'}.</li>`).join('') + (stale ? `<li>${stale}</li>` : '');
+    $('waiting').hidden = !wait.length;
+  }
+  $('tngo').onclick = () => { selectView('tonight'); scrollStage(); };
+  // the countdown ticks; at the lock (21:00 UTC) the open night rolls over and everything redraws
+  let lastOpen = win().day;
+  setInterval(() => {
+    const w = win();
+    if (w.day !== lastOpen) { const was = lastOpen; lastOpen = w.day; if (S.view === 'tonight') { S.sel = null; if (store.nets[was]) S.view = was; } renderAll(); fetchResults(); return; }
+    const t = QC.countdown(w.leftMs);
+    document.querySelectorAll('.cd, .cdn').forEach((e) => { e.textContent = t; });
+  }, 1000);
+
+  // ---------- my catches ----------
+  function myList() {
+    const L = [];
+    if (store.practice && N(store.practice.day) && chipOf(store.practice.day)) L.push([store.practice.day, Object.assign({ practice: true }, store.practice)]);
+    for (const [d, x] of Object.entries(store.nets)) if (N(d) && (chipOf(d) || N(d).slept)) L.push([d, Object.assign({ practice: false }, x)]);
+    return L.sort(([a], [b]) => (a < b ? 1 : -1));
+  }
+  function renderMine() {
+    const L = myList(), box = $('mygrid'); box.innerHTML = '';
+    const looksGot = new Set(); let best = -1, caught = 0;
+    for (const [d, m] of L) {
+      const r = netResult(d, m.spot), el = document.createElement('button'); el.type = 'button'; el.className = 'mycard'; el.dataset.night = d;
+      el.onclick = () => { selectView(d); scrollStage(); };
+      if (r.status === 'slept') { el.dataset.tier = -1; el.innerHTML = `<span class="tn">He slept</span><span class="tp">${dayLabel(d, { weekday: undefined })} · #${m.spot}</span>`; box.appendChild(el); continue; }
+      if (!m.seen) { el.classList.add('todo'); el.dataset.tier = 'x'; const cv = mk(112, 112); el.appendChild(cv); paintInto(cv, m.spot, -1, false); el.insertAdjacentHTML('beforeend', `<span class="tn">Ready!</span><span class="tp">${dayLabel(d, { weekday: undefined })} · #${m.spot}</span><span class="tp">tap to see</span>`); box.appendChild(el); continue; }
+      const h = r.h; el.dataset.tier = h.tier;
+      if (h.tier >= 0) { caught++; looksGot.add(m.spot); best = Math.max(best, h.tier); }
+      const cv = mk(112, 112); el.appendChild(cv); const lk = look(h); paintInto(cv, m.spot, lk.tier, lk.dark, !h.reach);
+      el.insertAdjacentHTML('beforeend', `<span class="tn">${h.tier >= 0 ? h.name : 'Got away'}</span><span class="tp">${dayLabel(d, { weekday: undefined })} · #${m.spot}</span><span class="tp">${m.practice ? 'practice' : h.reach ? 'IBM chip' : 'out of reach'}</span>`);
+      el.title = `${dayLabel(d)} · spot ${m.spot} (${LOOKW(m.spot)}) · ${h.tier >= 0 ? h.name + ' ' + SKIN[h.tier] + ' hamster' : 'got away'} · ${pct(h.share)} of the chip's looks${m.practice ? ' · practice' : ''}`;
+      box.appendChild(el);
+    }
+    $('myempty').hidden = L.length > 0;
+    $('mycountn').textContent = String(caught);
+    $('myh').textContent = caught ? `My catches: ${caught}` : 'My catches';
+    $('mystats').innerHTML = caught ? `Looks collected: <b>${looksGot.size} of 16</b>${best >= 0 ? ` · rarest: <b>${TIER[best]}</b>` : ''}` : '';
+  }
+  $('mycount').onclick = () => $('mine').scrollIntoView({ behavior: fast() ? 'auto' : 'smooth', block: 'start' });
+  $('howlink').onclick = () => { $('how').open = true; };          // the link then jumps to it
+
+  // ---------- How it works: his night, the coin tilts, did the chip keep the quantum pattern ----------
+  const howDay = () => { const d = stageNight(); return (d && N(d) ? d : null) || practiceDay() || DAYS[DAYS.length - 1]; };
+  function dialSvg(theta) {
+    const r = 17, cx = 20, cy = 20, ex = cx + r * Math.sin(theta), ey = cy - r * Math.cos(theta), nx = cx + 15 * Math.sin(theta), ny = cy - 15 * Math.cos(theta);
+    const arc = theta > 0.01 ? `<path class="arc" d="M${cx} ${cy} L${cx} ${cy - r} A${r} ${r} 0 ${theta > Math.PI ? 1 : 0} 1 ${ex.toFixed(2)} ${ey.toFixed(2)} Z"/>` : '';
+    return `<svg viewBox="0 0 40 40" aria-hidden="true"><circle class="face" cx="20" cy="20" r="${r}"/>${arc}<line class="needle" x1="20" y1="20" x2="${nx.toFixed(2)}" y2="${ny.toFixed(2)}"/><circle class="pin" cx="20" cy="20" r="2.6"/></svg>`;
+  }
+  function renderHow() {
+    const d = howDay(), n = N(d), R = n.rounds, w = win();
+    $('howrules').innerHTML = `One net per wallet per night, cast before he runs: nets close at 21:00 UTC (${tLocal(w.closeMs)} your time); he usually starts between 21:10 and 21:40 UTC. Each net is a free NFT on the Sepolia test network (you pay only test gas, worth nothing), cast from a browser wallet; without one the page is for watching. Under Past nights there is also one free practice catch, on the newest night the chip has looked at.`;
+    if (!R.length) { $('nighth').textContent = `His night of ${dayLabel(d)}: he slept`; ['nightsub', 'nightsrc', 'bars', 'ticks', 'nightstats', 'dials', 'progsub'].forEach((k) => { $(k).innerHTML = ''; }); renderCompare(d); return; }
+    const ids = R.map((r) => r[0]), lo = ids[0] - 1, hi = ids[ids.length - 1] + 1, span = hi - lo + 1;
+    const H = 100, MAXT = 800, G = QW.groups(R.map((r) => r[1]), capOf(d)), stepOf = {};
+    G.forEach((g, k) => g.forEach((i) => (stepOf[i] = k)));
+    let svg = `<svg viewBox="0 0 ${span} ${H}" preserveAspectRatio="none" role="img" aria-label="Turns per active round">`;
+    R.forEach(([id, t], i) => { const h = Math.max(1.5, Math.min(t, MAXT) / MAXT * H); svg += `<rect data-i="${i}" x="${id - lo + 0.12}" y="${H - h}" width="0.76" height="${h}"><title>Round ${id} · ${tLocal(roundStart(n, id))} · ${fmtInt(t)} turns · step ${stepOf[i] + 1}</title></rect>`; });
+    $('bars').innerHTML = svg + '</svg>' + `<div class="cap" style="top:${(100 - 700 / MAXT * 100).toFixed(1)}%"><span>700 = full flip</span></div>`;
+    const t0 = roundStart(n, lo), t1 = roundStart(n, hi + 1);
+    $('ticks').innerHTML = `<span class="l" style="left:0">${tLocal(t0)}</span><span class="r" style="left:100%">${tLocal(t1)}</span>`;
+    const total = R.reduce((a, r) => a + r[1], 0);
+    $('nighth').textContent = `His night of ${dayLabel(d)}: ${fmtInt(total)} turns in ${R.length} rounds`;
+    $('nightsrc').innerHTML = `Rounds ${ids[0]}-${ids[ids.length - 1]} · SqueekCore <a class="mono" href="https://sepolia.etherscan.io/address/${n.core}" target="_blank" rel="noopener">${n.core.slice(0, 6)}…${n.core.slice(-3)}</a> on Sepolia, read by Squeekchain &#8599;`;
+    const fromMs = roundStart(n, ids[0]);
+    $('nightsub').textContent = `He ran from ${tLocal(fromMs)} to ${tLocal(roundStart(n, ids[ids.length - 1]) + 600e3)} your time. Bars: turns in each 10-minute round.`;
+    $('nightstats').innerHTML = `<span><b>${R.length}</b> active rounds</span><span><b>${fmtInt(total)}</b> turns</span><span><b>${n.steps.length}</b> steps</span><span>best round <b>${fmtInt(Math.max(...R.map((r) => r[1])))}</b></span>`;
+    const angles = n.steps.map(QW.angle);
+    $('dials').innerHTML = n.steps.map((t, k) => { const g = G[k], ids2 = g.map((i) => R[i][0]), rr = ids2.length > 1 ? `rounds ${ids2[0]}-${ids2[ids2.length - 1]}, mean` : `round ${ids2[0]},`; return `<div class="dial" data-k="${k}" title="Step ${k + 1}: ${rr} ${fmtInt(t)} turns, coin tilted ${Math.round(angles[k] * 180 / Math.PI)} degrees">${dialSvg(angles[k])}<span>${t}</span></div>`; }).join('');
+    $('progsub').textContent = `${R.length} active rounds${n.steps.length < R.length ? `, grouped into ${n.steps.length} steps (mean turns)` : ', one step each'}: recipe ${n.recipe}, at most ${capOf(d)} steps. A lazy round barely tilts the coin; a sprint turns him round.`;
+    renderCompare(d);
+  }
+  function highlight(k, g) {
+    [...$('dials').children].forEach((el, i) => el.classList.toggle('on', i === k));
+    const on = new Set(g || []); $('bars').querySelectorAll('rect').forEach((r) => r.classList.toggle('on', on.has(Number(r.dataset.i))));
+  }
+  // decision 5: per night, distance of the chip's landings to the perfect quantum walk (dq) and to the normal hamster (dn),
+  // both in position space. Never claim the chip differs from the normal hamster on every night.
+  function renderCompare(d) {
+    const c = chipOf(d), v = view(d);
+    if (!c) {
+      $('cmph').textContent = 'Did the chip keep the quantum pattern?'; $('cmpsub').textContent = `The night of ${dayLabel(d)} has no chip result yet.`; $('cmp').innerHTML = ''; $('cmptext').innerHTML = '';
+    } else {
+      const chip = v.counts.map((x) => x / c.wheel_shots), M = Math.max(...chip, ...v.perfect, ...v.normal) || 1;
+      let svg = '<svg viewBox="0 0 160 66" role="img" aria-label="Share of looks per spot: chip, quantum ghost, normal hamster">';
+      for (let s = 0; s < 16; s++) {
+        const x = s * 10, bar = (p, cls, dx) => { const h = Math.max(0.4, p / M * 54); return `<rect class="${cls}" x="${x + dx}" y="${56 - h}" width="2.6" height="${h}"/>`; };
+        svg += bar(chip[s], 'c', 1.3) + bar(v.perfect[s], 'q', 4.2) + bar(v.normal[s], 'n', 7.1) + `<text x="${x + 5}" y="63" text-anchor="middle">${s}</text>`;
+      }
+      $('cmp').innerHTML = svg + '</svg>';
+      $('cmph').textContent = `Did the chip keep the quantum pattern on ${dayLabel(d)}?`;
+      $('cmpsub').textContent = 'Share of the chip\'s looks on each spot, next to the perfect quantum ghost and a normal hamster (the same coin, but looked at after every step).';
+      const q = v.q;
+      $('cmptext').innerHTML = `<span class="verdict ${q.kept ? 'kept' : 'noise'}">${q.kept ? `The chip kept the quantum pattern that night: its landings were ${q.closer.toFixed(1)}&times; closer to the perfect quantum ghost than to a normal hamster.` : 'Noise washed out most of the quantum pattern that night: the ghost landed more like a normal hamster.'}</span> Distance of the chip's landings to the quantum ghost: <b>${q.dq.toFixed(2)}</b>; to a normal hamster: <b>${q.dn.toFixed(2)}</b> (0 = the same, 1 = nothing in common).`;
+    }
+    const all = chipDays(), noise = all.filter((x) => !view(x).q.kept);
+    $('qrows').innerHTML = all.map((x) => { const q = view(x).q; return `<tr><td>${dayLabel(x)}</td><td>${N(x).steps.length}</td><td>${q.dq.toFixed(2)}</td><td>${q.dn.toFixed(2)}</td><td class="v verdict ${q.kept ? 'kept' : 'noise'}">${q.kept ? 'quantum' : 'noise'}</td></tr>`; }).join('') +
+      (DATA.reruns || []).map((r) => { const W = QW.walk(r.steps), q = QW.quantumness(r.counts, r.wheel_shots, W.perfect, W.normal); return `<tr><td>${dayLabel(r.night)} re-run</td><td>${r.steps.length}</td><td>${q.dq.toFixed(2)}</td><td>${q.dn.toFixed(2)}</td><td class="v verdict ${q.kept ? 'kept' : 'noise'}">${q.kept ? 'quantum' : 'noise'}</td></tr>`; }).join('');
+    const v11 = all.filter((x) => N(x).recipe === 'v1.1'), v11n = v11.filter((x) => !view(x).q.kept), v12 = all.filter((x) => N(x).recipe === 'v1.2'), v12n = v12.filter((x) => !view(x).q.kept);
+    $('qnote').innerHTML = `The chip does not beat noise every night. ${v11.length ? `On ${v11n.length} of the ${v11.length} first nights (recipe v1.1, up to 16 steps) noise won: the longer the program, the more the chip's noise blurs the ghost. ` : ''}Newer nights use a shorter program (recipe v1.2: at most 10 steps, plus noise protection) to keep the quantum pattern.` +
+      (v12.length ? ` With the shorter program, noise won on ${v12n.length} of ${v12.length} night${v12.length === 1 ? '' : 's'} so far.` : '') +
+      ((DATA.reruns || []).length ? ` To test it, ${(DATA.reruns || []).map((r) => dayLabel(r.night)).join(' and ')} ran again with the shorter program (the "re-run" rows): ${(DATA.reruns || []).every((r) => { const W = QW.walk(r.steps); return QW.quantumness(r.counts, r.wheel_shots, W.perfect, W.normal).kept; }) ? 'both kept the quantum pattern' : 'see the verdicts'}. Catches always use the night's own run.` : '') +
+      (noise.length ? '' : '');
+  }
+
+  // ---------- Check it yourself ----------
+  const when = (iso) => (iso ? new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
+  const HMIN = Math.round(DATA.health_min * 100) + '%';
+  const notShown = (d) => (DATA.not_shown || []).filter((x) => x.night === d);
+  function notShownText(x) {
+    const twin = `${x.twin_pct.toFixed(1)}% (${fmtInt(x.twin_wins)} of ${fmtInt(x.twin_shots)})`;
+    return x.why === 'replaced'
+      ? `${dayLabel(x.night)}: an older healthy run (${esc(x.backend)}, job <span class="mono">${esc(x.job_id)}</span>, twin test ${twin}) was replaced by a newer run.`
+      : `${dayLabel(x.night)}: a run on ${esc(x.backend)} (job <span class="mono">${esc(x.job_id)}</span>) scored ${twin} in the twin test${x.note ? ' ' + esc(x.note) : ''} and was thrown out.`;
+  }
+  function renderCheck() {
+    const d = howDay(), n = N(d), c = chipOf(d), R = n.rounds, G = QW.groups(R.map((r) => r[1]), capOf(d)), stepOf = {};
+    G.forEach((g, k) => g.forEach((i) => (stepOf[i] = k + 1)));
+    const newCore = n.core === '0xfd6c166d4b8e2962e65746a13e5a0797cd4de0c4', ns = notShown(d), rr = (DATA.reruns || []).filter((x) => x.night === d);
+    $('checkkv').innerHTML =
+      `<dt>SqueekCore</dt><dd><a class="addr" href="https://sepolia.etherscan.io/address/${n.core}" target="_blank" rel="noopener">${n.core}</a><br><span class="small">Sepolia, ${newCore ? 'new core (since 4 Nov)' : 'old core (until 4 Nov)'}</span></dd>` +
+      `<dt>Night</dt><dd>${dayLabel(d, { weekday: 'long', month: 'long' })}, 12:00 to 12:00 UTC (rounds ${n.firstRound}-${n.lastRound})</dd>` +
+      `<dt>His rounds</dt><dd class="mono">${R.length ? `${R.length} active: ${R[0][0]} to ${R[R.length - 1][0]}` : 'none: he slept'}</dd>` +
+      `<dt>Recipe</dt><dd>${n.recipe} (at most ${capOf(d)} steps): ${n.steps.length} steps</dd>` +
+      `<dt>Wheel job</dt><dd>${c ? `<span class="mono">${esc(c.job_id)}</span> on ${esc(c.backend)}, ${fmtInt(c.wheel_shots)} looks${c.created ? `, ran on IBM on ${when(c.created)}` : ''}` : 'no chip result yet'}</dd>` +
+      `<dt>Twin job</dt><dd><span class="mono">${esc(c && c.twin && c.twin.length ? c.job_id : DATA.twin.job_id)}</span> on ${esc(c ? c.backend : DATA.twin.backend)}${c ? '' : ' (an earlier job)'}</dd>` +
+      (rr.length ? `<dt>Re-run</dt><dd>${rr.map((x) => `recipe ${x.recipe}, job <span class="mono">${esc(x.job_id)}</span> on ${esc(x.backend)} (for comparison, not this night's result)`).join('<br>')}</dd>` : '') +
+      (ns.length ? `<dt>Not shown</dt><dd>${ns.map(notShownText).join('<br>')}</dd>` : '');
+    $('roundsum').textContent = `All ${R.length} rounds of this night`;
+    $('roundrows').innerHTML = R.map(([id, t], i) => `<tr><td>${id}</td><td>${tLocal(roundStart(n, id))}</td><td>${fmtInt(t)}</td><td>${stepOf[i]}</td></tr>`).join('');
+    const f = (a) => a.map((x) => (x * 100).toFixed(2)).join(' '), v = view(d);
+    $('rebuildnote').innerHTML = 'A normal computer can simulate this small walk, so you can redo every number here from the rounds above. ' + (c
+      ? `What is real: this night ran on real IBM hardware (${esc(c.backend)}, job <span class="mono">${esc(c.job_id)}</span>), with real noise, on his real run.`
+      : 'This night has no chip result yet.');
+    $('rebuild').innerHTML = `steps (turns): ${n.steps.join(' ') || 'none'}<br>ring turn: ${fmtInt(v.total)} turns mod 16 = <b>${v.T}</b>, so position p is spot (p + ${v.T}) mod 16` +
+      `<br>perfect quantum, % per position 0-15: ${f(v.posPerfect)}<br>normal hamster, % per position 0-15: ${f(v.posNormal)}` +
+      (c ? `<br>IBM chip landings per position 0-15: ${c.counts.join(' ')} (of ${fmtInt(c.wheel_shots)}, as in the job result)<br>on the ring, % per spot 0-15: ${f(v.counts.map((x) => x / c.wheel_shots))}` : '');
+    renderProof(d);
+  }
+  function renderProof(d) {
+    const c = chipOf(d), own = !!(c && c.twin && c.twin.length), T = DATA.twin;
+    const pairs = own ? c.twin : T.pairs, wins = pairs.reduce((a, p) => a + p.wins, 0), shots = pairs.reduce((a, p) => a + p.shots, 0), w = 100 * wins / shots;
+    const lo = 50, hi = 92, x = (v) => `${((v - lo) / (hi - lo) * 100).toFixed(2)}%`;
+    $('twinpct').textContent = w.toFixed(1) + '%';
+    $('twinbar').innerHTML = `<div class="fill" style="width:${x(Math.max(lo, w))}">${esc(own ? c.backend : T.backend)}</div><div class="ln75" style="left:${x(75)}"></div><div class="ln85" style="left:${x(T.ideal_pct)}"></div>` +
+      `<span class="lab b" style="left:${x(75)}">75% best fixed plan</span><span class="lab t" style="left:${x(T.ideal_pct)}">${T.ideal_pct.toFixed(1)}% perfect chip</span>`;
+    $('twintext').innerHTML = `IBM's chip won <b>${fmtInt(wins)} of ${fmtInt(shots)}</b> rounds: <b>${w.toFixed(1)}%</b>. ${w > 75 ? 'That beats the 75% limit any fixed plan can reach.' : 'That does not beat the 75% limit any fixed plan can reach.'}`;
+    $('twinjob').innerHTML = own ? `Same IBM job as this night's wheel: <span class="mono">${esc(c.job_id)}</span> on ${esc(c.backend)}.`
+      : `From an earlier IBM job on ${esc(T.backend)}: <span class="mono">${esc(T.job_id)}</span> (${when(T.created)}).`;
+    const ns = notShown(d);
+    $('twinhealth').innerHTML = `<b>Health check.</b> The twin test runs in the same IBM job as the wheel: a run that scores under ${HMIN} is thrown out and redone, so a night shown here never scores under ${HMIN}.` +
+      (ns.length ? ' ' + ns.map(notShownText).join(' ') : own ? ' No run of this night was thrown out.' : '');
+  }
+  // Twin Lab: any fixed plan wins at most 75%; IBM's linked qubits play their real recorded rounds
+  const CARDN = ['FUR', 'HAT'], tplan = { A: [0, 0], B: [0, 0] }, twinWin = (a, b, x, y) => (a ^ b) === (x & y);
+  function renderPlan() {
+    $('tplan').innerHTML = ['A', 'B'].map((t) => `<div><b>Twin ${t}</b>${[0, 1].map((c) => `<span>${CARDN[c]} &rarr; <button type="button" data-t="${t}" data-c="${c}" aria-label="Twin ${t}, card ${CARDN[c]}: answer ${tplan[t][c]}">${tplan[t][c]}</button></span>`).join('')}</div>`).join('');
+    $('tplan').querySelectorAll('button').forEach((b) => { b.onclick = () => { tplan[b.dataset.t][+b.dataset.c] ^= 1; renderPlan(); }; });
+  }
+  renderPlan();
+  $('tplay').onclick = async () => {
+    const T = DATA.twin, pause = (ms) => new Promise((r) => setTimeout(r, fast() ? 0 : ms));
+    $('tplay').disabled = true; $('tcdots').innerHTML = ''; $('tcres').textContent = '';
+    const R = []; for (let x = 0; x < 2; x++) for (let y = 0; y < 2; y++) for (let k = 0; k < 5; k++) R.push([x, y]);
+    for (let i = R.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [R[i], R[j]] = [R[j], R[i]]; }
+    $('tdots').innerHTML = '<i></i>'.repeat(20); const dd = $('tdots').children; let w = 0;
+    for (let i = 0; i < R.length; i++) { const [x, y] = R[i], a = tplan.A[x], b = tplan.B[y], ok = twinWin(a, b, x, y); w += ok; dd[i].className = ok ? 'w' : 'l'; $('tres').textContent = `${CARDN[x]} / ${CARDN[y]}: ${a} ${b}, ${ok ? 'win' : 'lose'} · ${w} of ${i + 1}`; await pause(140); }
+    $('tres').innerHTML = `Your plan won <b>${w} of 20</b> (${w * 5}%). Try any plan: none wins more than 15 of 20 (75%), because every fixed plan loses at least one pair of cards.`;
+    const seq = []; for (let k = 0; k < 25; k++) T.pairs.forEach((p, pi) => seq.push([pi, k]));
+    $('tcdots').innerHTML = '<i></i>'.repeat(seq.length); const cd = $('tcdots').children; let cw = 0;
+    for (let i = 0; i < seq.length; i++) { const [pi, k] = seq[i], p = T.pairs[pi], ab = p.first[k], ok = twinWin(+ab[0], +ab[1], CARDN.indexOf(p.a_card), CARDN.indexOf(p.b_card)); cw += ok; cd[i].className = ok ? 'w' : 'l'; if (i % 4 === 3) await pause(30); }
+    const tot = T.pairs.reduce((a, p) => a + p.wins, 0), shots = T.pairs.reduce((a, p) => a + p.shots, 0);
+    $('tcres').innerHTML = `IBM's linked qubits on ${esc(T.backend)} played the same game: their first 100 real recorded rounds (25 per pair of cards, job <span class="mono">${esc(T.job_id)}</span>) won <b>${cw} of 100</b>. Over all ${fmtInt(shots)} rounds: ${fmtInt(tot)} wins, ${(100 * tot / shots).toFixed(1)}%.`;
+    $('tplay').disabled = false; $('tplay').textContent = 'Try another plan';
+  };
+
+  // ---------- casting a net = minting its free test NFT: one transaction (castNet) on Sepolia (R6') ----------
+  const NFT_SUB = 'Sepolia test network · worth nothing';
+  const NFT_STEP = { connect: 'Open your wallet to connect…', network: 'Switching your wallet to Sepolia (test network)…', check: 'Checking this night…',
+    send: 'Confirm the one transaction in your wallet: a free net, only the Sepolia test fee.', wait: 'Waiting for Sepolia…', done: 'Done!' };
+  const nftMsg = (t, err) => { const e = $('nftmsg'); e.hidden = !t; e.textContent = t || ''; e.classList.toggle('err', !!err); deckSolo(); };
+  // the pick stays (and the button comes back) if anything goes wrong; the net is recorded only once the chain has it, under
+  // the night the CHAIN cast it for
+  async function castNft(s) {
+    const w = win();
+    if (S.nftBusy || !isSpot(s)) return;
+    if (!nftOn()) { renderAll(); return; }
+    if (store.nets[w.day] || N(w.day)) { S.sel = null; renderAll(); $('caption').innerHTML = store.nets[w.day] ? 'You already have a net for this night.' : 'Nets for this night are closed.'; return; }
+    S.nftBusy = true; nftMsg(''); renderStage(); paintRing();
+    try {
+      const balance = /^https?:$/.test(location.protocol) ? QC.rpcBalance((u, i) => fetch(u, Object.assign({ signal: (window.AbortSignal && AbortSignal.timeout) ? AbortSignal.timeout(8000) : undefined }, i)), RPC) : null;
+      const r = await QC.castNetNft(window.ethereum, CFG.catchAddress, s, { balance, onStep: (k) => nftMsg(NFT_STEP[k] || '') });
+      let meta = null;
+      try { meta = QC.tokenMeta(QC.dec.string(await QC.walletCall(window.ethereum)(CFG.catchAddress, QC.enc.tokenURI(r.tokenId)))); } catch (e) { /* the picture can come later */ }
+      store.nets[r.day] = { spot: r.spot, at: now(), seen: false, nft: { tokenId: r.tokenId, tx: r.txHash, day: r.day, image: meta && meta.image ? meta.image : null } }; save();
+      S.sel = null; S.nftBusy = false; renderAll(); SFX.reveal(0); bumpMine();
+      nftMsg(r.day !== w.day ? `Sepolia's clock had already passed 21:00 UTC: your net is for the night of ${dayLabel(r.day)}.` : '');
+      $('caption').innerHTML = `Net cast on spot <b>${r.spot}</b>. Good luck!`;
+      walletNets(false);
+    } catch (e) {
+      S.nftBusy = false; renderAll(); nftMsg(QC.plainError(e), true);
+      // the chain may know more than this browser: a net cast elsewhere ('already'), or a slow Sepolia ('timeout')
+      if (e && e.code === 'already') walletNets(false);
+      if (e && e.code === 'timeout') setTimeout(() => walletNets(false), 60000);
+    }
+  }
+  // a connected wallet's nets of recent nights (read-only eth_call; never asks the wallet for anything on load). The chain is
+  // the record: a net of this wallet that this browser does not know (cast in another browser, cleared storage, a slow
+  // Sepolia) is added to the local list, so the deck and the result work as for a net cast here
+  async function walletNets(ask) {
+    if (!nftOn()) return;
+    try {
+      const eth = window.ethereum, acc = await eth.request({ method: ask ? 'eth_requestAccounts' : 'eth_accounts' });
+      if (!acc || !acc.length || String(await eth.request({ method: 'eth_chainId' })).toLowerCase() !== QC.SEPOLIA.chainId) return;
+      const open = QC.openNight(Math.floor(now() / 1000)), nights = []; for (let k = 0; k < 8; k++) nights.push(open - k);
+      const nets = await QC.myNets(QC.walletCall(eth), CFG.catchAddress, acc[0], nights);
+      let added = false;
+      for (const x of nets) {
+        const loc = store.nets[x.day];
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(x.day) || !isSpot(x.spot)) continue;
+        if (loc && loc.nft) { if (loc.nft.tokenId === x.tokenId && !loc.nft.image && x.image) { loc.nft.image = x.image; added = true; } continue; }   // known (or another wallet's)
+        store.nets[x.day] = { spot: x.spot, at: loc ? loc.at : now(), seen: !!(loc && loc.spot === x.spot && loc.seen), nft: { tokenId: x.tokenId, day: x.day, image: x.image || null } };
+        added = true;
+      }
+      if (added) { save(); if (!S.playing && !S.nftBusy) { if (S.view === 'tonight' && store.nets[win().day]) S.sel = null; renderAll(); } }
+      const box = $('nftgrid'); $('nftnets').hidden = !nets.length; box.innerHTML = '';
+      const ST = ['waiting for the chip', 'caught', 'got away', 'he slept', 'no chip result'];
+      for (const x of nets) {
+        const el = document.createElement('div'); el.className = 'mycard'; el.dataset.tier = x.tier ? x.tier - 1 : -1;
+        el.innerHTML = (x.image ? `<img alt="Net NFT, night of ${esc(dayLabel(x.day))}">` : '') + `<span class="tn">${x.status === 1 ? TIER[x.tier - 1] : esc(ST[x.status] || '')}</span><span class="tp">${dayLabel(x.day, { weekday: undefined })} · #${x.spot}</span>`;
+        if (x.image) el.querySelector('img').src = x.image;
+        box.appendChild(el);
+      }
+      $('nftnote').textContent = nets.length ? 'Read from the QuantumCatch contract on Sepolia (result and on-chain picture of each net).' : '';
+    } catch (e) { /* no wallet answer: nothing to show */ }
+  }
+
+  // ---------- results.json next to the page (the standalone site): new nights and chip results without a rebuild ----------
+  const okNum = (x) => Number.isInteger(x) && x >= 0;
+  function validNight(d, n) {
+    try {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || !isObj(n) || !/^0x[0-9a-f]{40}$/.test(n.core) || !okNum(n.genesis) || !okNum(n.firstRound) || !okNum(n.lastRound)) return false;
+      if (!Array.isArray(n.rounds) || !n.rounds.every((r) => Array.isArray(r) && okNum(r[0]) && okNum(r[1]))) return false;
+      return JSON.stringify(QW.steps(n.rounds.map((r) => r[1]), QW.capOf(n.recipe))) === JSON.stringify(n.steps) && (!!n.slept === !n.rounds.length);
+    } catch (e) { return false; }
+  }
+  function validChip(d, c) {
+    try {
+      const n = N(d);
+      if (!isObj(c) || c.night !== d || c.recipe !== n.recipe || JSON.stringify(c.steps) !== JSON.stringify(n.steps)) return false;
+      if (!/^[a-z0-9]{6,40}$/.test(c.job_id) || !/^[a-z0-9_]{2,40}$/.test(c.backend) || !Array.isArray(c.twin)) return false;
+      if (!Array.isArray(c.counts) || c.counts.length !== 16 || !c.counts.every(okNum) || c.counts.reduce((a, b) => a + b, 0) !== c.wheel_shots || !(c.wheel_shots > 0)) return false;
+      if (!Array.isArray(c.shots_in_order) || c.shots_in_order.length !== c.wheel_shots) return false;
+      const k = new Array(16).fill(0); for (const s of c.shots_in_order) { if (!isSpot(s)) return false; k[s]++; }
+      // the first shot decides a Legendary: it must be the file's own first shot, turned onto the ring
+      if (c.first_shot !== QW.spotOf(c.shots_in_order[0], QW.ringTurn(n.rounds.map((r) => r[1])))) return false;
+      return k.every((x, i) => x === c.counts[i]) && c.twin.every((p) => isObj(p) && okNum(p.wins) && okNum(p.shots) && p.wins <= p.shots);
+    } catch (e) { return false; }
+  }
+  async function fetchResults() {
+    if (!/^https?:$/.test(location.protocol)) return;
+    try {
+      const r = await fetch('results.json', { cache: 'no-store', signal: (window.AbortSignal && AbortSignal.timeout) ? AbortSignal.timeout(8000) : undefined });
+      if (!r.ok) return;
+      const j = await r.json(); let added = 0;
+      if (!isObj(j) || j.kind !== 'quantum_catch_results') return;
+      for (const [d, n] of Object.entries(isObj(j.nights) ? j.nights : {})) if (!NIGHTS[d] && validNight(d, n)) { NIGHTS[d] = n; added++; }
+      for (const [d, c] of Object.entries(isObj(j.chips) ? j.chips : {})) if (NIGHTS[d] && !CHIPS[d] && validChip(d, c)) { CHIPS[d] = c; added++; }
+      if (added && !S.playing) { DAYS = Object.keys(NIGHTS).sort(); VIEW = {}; if (!canView(S.view)) S.view = 'tonight'; S.view = startView(true); renderAll(); if (readyNow(S.view)) requestAnimationFrame(() => showAct(true)); }
+    } catch (e) { /* the claude.ai preview and file:// block it: the built-in nights still work */ }
+  }
+
+  // ---------- SqueekCore live: his running night so far (settled rounds only), straight from Sepolia ----------
+  const RPC = 'https://ethereum-sepolia-rpc.publicnode.com';
+  let soTimer = null;
+  async function readSoFar() {
+    clearTimeout(soTimer);
+    if (!/^https?:$/.test(location.protocol) || !DATA.core) return;
+    try {
+      const call = QC.rpcCall((u, i) => fetch(u, Object.assign({ signal: (window.AbortSignal && AbortSignal.timeout) ? AbortSignal.timeout(8000) : undefined }, i)), RPC);
+      sofar = await QC.tonightSoFar(call, DATA.core.address, DATA.core.genesis, Math.floor(now() / 1000));
+      renderTonight(); if (S.view === sofar.day && !N(S.view) && !S.playing) renderStage();
+    } catch (e) { return; }                   // blocked or offline: nothing shown, nothing retried
+    if (!document.hidden) soTimer = setTimeout(readSoFar, 120000);
+  }
+
+  // ---------- LIVE: his wheel right now, from Squeekchain's official status API (hidden when it cannot be reached) ----------
+  const LIVE_API = 'https://api.squeekchain.com/v1/status';
+  let liveFails = 0, liveTimer = null;
+  function liveState(st) {
+    const m = st && st.measurement; if (!m) return null;
+    const age = (now() - Date.parse(m.observedAt)) / 1000, fresh = m.freshness === 'online' && age >= -60 && age < (Number(m.staleAfterSeconds) || 120) + 30;
+    if (!fresh) return { on: false, word: 'OFFLINE', text: 'the sensor is offline right now' };
+    const v = Number(m.speedMmPerSecond) || 0;
+    return v > 0 ? { on: true, word: `RUNNING<span class="spd"> ${(v / 1000).toFixed(2)} m/s</span>`, text: `Squeektoshi is running right now (${(v / 1000).toFixed(2)} m/s)` } : { on: false, word: 'RESTING', text: 'Squeektoshi is resting right now' };
+  }
+  async function livePoll() {
+    clearTimeout(liveTimer);
+    try {
+      const r = await fetch(LIVE_API, { cache: 'no-store', signal: (window.AbortSignal && AbortSignal.timeout) ? AbortSignal.timeout(8000) : undefined });
+      const L = liveState(await r.json()); liveFails = 0;
+      if (L) { const b = $('live'); b.hidden = false; b.className = 'pill live' + (L.on ? ' run' : ''); b.innerHTML = `LIVE<span class="lw"> · ${L.word}</span>`; b.title = `His real wheel: ${L.text} (Squeekchain live sensor)`; b.setAttribute('aria-label', `Live: ${L.text}`); }
+    } catch (e) { liveFails++; if (liveFails >= 3) return; }
+    if (!document.hidden) liveTimer = setTimeout(livePoll, liveFails ? 15000 * liveFails : 30000);
+  }
+  // back on the tab (e.g. the next morning): look for new results too, so a net left open overnight resolves without a reload
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { if (liveFails < 3) livePoll(); readSoFar(); fetchResults(); } else { clearTimeout(liveTimer); clearTimeout(soTimer); } });
+
+  // ---------- go ----------
+  // first screen: a result waiting to be seen, else the viewer's net whose night is on or waiting for the chip, else the
+  // free practice, else tonight's net
+  function startView(keep) {
+    const ready = DAYS.filter((d) => store.nets[d] && chipOf(d) && !store.nets[d].seen);
+    if (ready.length) return ready[ready.length - 1];
+    if (keep && S.view && canView(S.view)) return S.view;
+    const pend = pendingDays();
+    if (pend.length) return pend[pend.length - 1];
+    if (store.practice && !store.practice.seen && N(store.practice.day)) return store.practice.day;
+    return 'tonight';
+  }
+  function renderAll() { renderNights(); renderStage(); paintRing(); renderTonight(); renderMine(); renderHow(); renderCheck(); }
+  document.querySelectorAll('.hmin').forEach((e) => { e.textContent = HMIN; });
+  for (const a of [$('ghlink'), $('ghfoot')]) a.href = CFG.repoUrl;
+  if (CFG.catchAddress) { const k = $('contract'); k.hidden = false; k.innerHTML = `Each net is a free test NFT: QuantumCatch contract <a class="addr" href="https://sepolia.etherscan.io/address/${CFG.catchAddress}" target="_blank" rel="noopener">${CFG.catchAddress}</a> on Sepolia (no money value; one net per wallet per night).`;
+    const f = $('footc'), a = CFG.catchAddress; f.hidden = false; f.innerHTML = `Contract <a href="https://sepolia.etherscan.io/address/${a}" target="_blank" rel="noopener">QuantumCatch ${a.slice(0, 6)}…${a.slice(-4)}</a> on Sepolia`; }
+  S.view = startView(false);
+  renderAll(); livePoll(); fetchResults(); readSoFar(); walletNets(false);
+  // a wallet that injects itself after the page loaded: casting becomes possible, and its nets are read
+  window.addEventListener('ethereum#initialized', () => { renderAll(); walletNets(false); }, { once: true });
+  // the '?' on the stage and on dark portraits is drawn in Anton: draw it again once the web font is in
+  try { document.fonts.load('170px Anton').then(() => { hamWant = ''; if (!S.playing) renderAll(); }).catch(() => {}); } catch (e) { /* no font loading API */ }
+  if (readyNow(S.view)) requestAnimationFrame(() => showAct(true));   // a result waiting: its button on screen
+  window.QCP = { get stage() { return S.view; }, get playing() { return S.playing; }, get sel() { return S.sel; }, store: () => JSON.parse(JSON.stringify(store)),
+    data: DATA, spotResult, netResult, viewOf: view, select: selectView, practiceDay, win, get sofar() { return sofar; } };
+})();
+</script>

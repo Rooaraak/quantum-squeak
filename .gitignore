@@ -1,0 +1,11 @@
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+wheel/out/shots/
+# private local settings: never published
+data/local.json
+wheel/test/local.json

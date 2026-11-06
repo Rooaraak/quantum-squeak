@@ -1,0 +1,699 @@
+{
+ "source": "SqueekCore.roundPage on Sepolia (active rounds only)",
+ "nights": {
+  "2026-10-29": {
+   "core": "0x980b4424c007caf7a1f3670b48c8eaef7ebc3d44",
+   "genesis": 1793022600,
+   "firstRound": 422,
+   "lastRound": 565,
+   "settledThrough": 1339,
+   "complete": true,
+   "rounds": [
+    {
+     "id": 478,
+     "turns": 155
+    },
+    {
+     "id": 481,
+     "turns": 260
+    },
+    {
+     "id": 482,
+     "turns": 570
+    },
+    {
+     "id": 483,
+     "turns": 582
+    },
+    {
+     "id": 484,
+     "turns": 624
+    },
+    {
+     "id": 485,
+     "turns": 581
+    },
+    {
+     "id": 486,
+     "turns": 436
+    },
+    {
+     "id": 487,
+     "turns": 631
+    },
+    {
+     "id": 488,
+     "turns": 494
+    },
+    {
+     "id": 489,
+     "turns": 639
+    },
+    {
+     "id": 490,
+     "turns": 495
+    },
+    {
+     "id": 491,
+     "turns": 462
+    },
+    {
+     "id": 492,
+     "turns": 625
+    },
+    {
+     "id": 493,
+     "turns": 556
+    },
+    {
+     "id": 494,
+     "turns": 377
+    },
+    {
+     "id": 495,
+     "turns": 622
+    },
+    {
+     "id": 496,
+     "turns": 597
+    },
+    {
+     "id": 497,
+     "turns": 479
+    },
+    {
+     "id": 499,
+     "turns": 615
+    },
+    {
+     "id": 500,
+     "turns": 548
+    },
+    {
+     "id": 501,
+     "turns": 554
+    },
+    {
+     "id": 502,
+     "turns": 336
+    },
+    {
+     "id": 515,
+     "turns": 467
+    },
+    {
+     "id": 516,
+     "turns": 591
+    },
+    {
+     "id": 517,
+     "turns": 336
+    },
+    {
+     "id": 518,
+     "turns": 466
+    },
+    {
+     "id": 539,
+     "turns": 199
+    }
+   ]
+  },
+  "2026-10-30": {
+   "core": "0x980b4424c007caf7a1f3670b48c8eaef7ebc3d44",
+   "genesis": 1793022600,
+   "firstRound": 566,
+   "lastRound": 709,
+   "settledThrough": 1339,
+   "complete": true,
+   "rounds": [
+    {
+     "id": 622,
+     "turns": 580
+    },
+    {
+     "id": 623,
+     "turns": 657
+    },
+    {
+     "id": 624,
+     "turns": 487
+    },
+    {
+     "id": 625,
+     "turns": 120
+    },
+    {
+     "id": 626,
+     "turns": 475
+    },
+    {
+     "id": 627,
+     "turns": 428
+    },
+    {
+     "id": 628,
+     "turns": 597
+    },
+    {
+     "id": 629,
+     "turns": 534
+    },
+    {
+     "id": 630,
+     "turns": 534
+    },
+    {
+     "id": 631,
+     "turns": 625
+    },
+    {
+     "id": 632,
+     "turns": 473
+    },
+    {
+     "id": 633,
+     "turns": 505
+    },
+    {
+     "id": 634,
+     "turns": 233
+    },
+    {
+     "id": 635,
+     "turns": 638
+    },
+    {
+     "id": 636,
+     "turns": 561
+    },
+    {
+     "id": 637,
+     "turns": 159
+    },
+    {
+     "id": 638,
+     "turns": 513
+    },
+    {
+     "id": 639,
+     "turns": 471
+    },
+    {
+     "id": 641,
+     "turns": 623
+    },
+    {
+     "id": 642,
+     "turns": 222
+    },
+    {
+     "id": 643,
+     "turns": 447
+    },
+    {
+     "id": 644,
+     "turns": 63
+    },
+    {
+     "id": 656,
+     "turns": 336
+    },
+    {
+     "id": 657,
+     "turns": 660
+    },
+    {
+     "id": 658,
+     "turns": 273
+    },
+    {
+     "id": 665,
+     "turns": 403
+    },
+    {
+     "id": 666,
+     "turns": 476
+    },
+    {
+     "id": 670,
+     "turns": 412
+    },
+    {
+     "id": 671,
+     "turns": 56
+    }
+   ]
+  },
+  "2026-10-31": {
+   "core": "0x980b4424c007caf7a1f3670b48c8eaef7ebc3d44",
+   "genesis": 1793022600,
+   "firstRound": 710,
+   "lastRound": 853,
+   "settledThrough": 1339,
+   "complete": true,
+   "rounds": [
+    {
+     "id": 767,
+     "turns": 615
+    },
+    {
+     "id": 768,
+     "turns": 593
+    },
+    {
+     "id": 769,
+     "turns": 495
+    },
+    {
+     "id": 770,
+     "turns": 178
+    },
+    {
+     "id": 771,
+     "turns": 628
+    },
+    {
+     "id": 772,
+     "turns": 603
+    },
+    {
+     "id": 773,
+     "turns": 400
+    },
+    {
+     "id": 774,
+     "turns": 464
+    },
+    {
+     "id": 775,
+     "turns": 79
+    },
+    {
+     "id": 776,
+     "turns": 3
+    },
+    {
+     "id": 791,
+     "turns": 489
+    },
+    {
+     "id": 792,
+     "turns": 648
+    },
+    {
+     "id": 793,
+     "turns": 277
+    },
+    {
+     "id": 794,
+     "turns": 635
+    },
+    {
+     "id": 795,
+     "turns": 232
+    },
+    {
+     "id": 796,
+     "turns": 504
+    },
+    {
+     "id": 797,
+     "turns": 486
+    },
+    {
+     "id": 819,
+     "turns": 285
+    },
+    {
+     "id": 820,
+     "turns": 609
+    },
+    {
+     "id": 821,
+     "turns": 282
+    }
+   ]
+  },
+  "2026-11-01": {
+   "core": "0x980b4424c007caf7a1f3670b48c8eaef7ebc3d44",
+   "genesis": 1793022600,
+   "firstRound": 854,
+   "lastRound": 997,
+   "settledThrough": 1339,
+   "complete": true,
+   "rounds": [
+    {
+     "id": 909,
+     "turns": 333
+    },
+    {
+     "id": 910,
+     "turns": 629
+    },
+    {
+     "id": 911,
+     "turns": 359
+    },
+    {
+     "id": 912,
+     "turns": 600
+    },
+    {
+     "id": 913,
+     "turns": 238
+    },
+    {
+     "id": 914,
+     "turns": 626
+    },
+    {
+     "id": 915,
+     "turns": 200
+    },
+    {
+     "id": 916,
+     "turns": 568
+    },
+    {
+     "id": 917,
+     "turns": 359
+    },
+    {
+     "id": 918,
+     "turns": 452
+    },
+    {
+     "id": 929,
+     "turns": 164
+    },
+    {
+     "id": 930,
+     "turns": 475
+    },
+    {
+     "id": 931,
+     "turns": 657
+    },
+    {
+     "id": 932,
+     "turns": 209
+    },
+    {
+     "id": 933,
+     "turns": 487
+    },
+    {
+     "id": 934,
+     "turns": 466
+    },
+    {
+     "id": 935,
+     "turns": 153
+    },
+    {
+     "id": 948,
+     "turns": 50
+    },
+    {
+     "id": 949,
+     "turns": 667
+    },
+    {
+     "id": 950,
+     "turns": 456
+    },
+    {
+     "id": 951,
+     "turns": 277
+    },
+    {
+     "id": 965,
+     "turns": 261
+    },
+    {
+     "id": 966,
+     "turns": 298
+    }
+   ]
+  },
+  "2026-11-02": {
+   "core": "0x980b4424c007caf7a1f3670b48c8eaef7ebc3d44",
+   "genesis": 1793022600,
+   "firstRound": 998,
+   "lastRound": 1141,
+   "settledThrough": 1339,
+   "complete": true,
+   "rounds": [
+    {
+     "id": 1055,
+     "turns": 72
+    },
+    {
+     "id": 1056,
+     "turns": 580
+    },
+    {
+     "id": 1057,
+     "turns": 550
+    },
+    {
+     "id": 1058,
+     "turns": 302
+    },
+    {
+     "id": 1059,
+     "turns": 604
+    },
+    {
+     "id": 1060,
+     "turns": 317
+    },
+    {
+     "id": 1061,
+     "turns": 366
+    },
+    {
+     "id": 1062,
+     "turns": 566
+    },
+    {
+     "id": 1063,
+     "turns": 404
+    },
+    {
+     "id": 1064,
+     "turns": 475
+    },
+    {
+     "id": 1065,
+     "turns": 460
+    },
+    {
+     "id": 1066,
+     "turns": 426
+    },
+    {
+     "id": 1067,
+     "turns": 323
+    },
+    {
+     "id": 1068,
+     "turns": 385
+    },
+    {
+     "id": 1069,
+     "turns": 567
+    },
+    {
+     "id": 1070,
+     "turns": 38
+    },
+    {
+     "id": 1072,
+     "turns": 237
+    },
+    {
+     "id": 1073,
+     "turns": 552
+    },
+    {
+     "id": 1074,
+     "turns": 36
+    },
+    {
+     "id": 1090,
+     "turns": 296
+    },
+    {
+     "id": 1091,
+     "turns": 590
+    },
+    {
+     "id": 1092,
+     "turns": 570
+    },
+    {
+     "id": 1093,
+     "turns": 9
+    }
+   ]
+  },
+  "2026-11-03": {
+   "core": "0x980b4424c007caf7a1f3670b48c8eaef7ebc3d44",
+   "genesis": 1793022600,
+   "firstRound": 1142,
+   "lastRound": 1285,
+   "settledThrough": 1339,
+   "complete": true,
+   "rounds": [
+    {
+     "id": 1200,
+     "turns": 409
+    },
+    {
+     "id": 1202,
+     "turns": 362
+    },
+    {
+     "id": 1203,
+     "turns": 535
+    },
+    {
+     "id": 1204,
+     "turns": 412
+    },
+    {
+     "id": 1205,
+     "turns": 165
+    },
+    {
+     "id": 1206,
+     "turns": 490
+    },
+    {
+     "id": 1207,
+     "turns": 298
+    },
+    {
+     "id": 1208,
+     "turns": 568
+    },
+    {
+     "id": 1210,
+     "turns": 613
+    },
+    {
+     "id": 1211,
+     "turns": 397
+    },
+    {
+     "id": 1212,
+     "turns": 291
+    },
+    {
+     "id": 1213,
+     "turns": 188
+    },
+    {
+     "id": 1214,
+     "turns": 498
+    },
+    {
+     "id": 1227,
+     "turns": 420
+    },
+    {
+     "id": 1228,
+     "turns": 457
+    },
+    {
+     "id": 1229,
+     "turns": 427
+    },
+    {
+     "id": 1230,
+     "turns": 464
+    },
+    {
+     "id": 1244,
+     "turns": 112
+    },
+    {
+     "id": 1245,
+     "turns": 449
+    },
+    {
+     "id": 1246,
+     "turns": 443
+    }
+   ]
+  },
+  "2026-11-04": {
+   "core": "0xfd6c166d4b8e2962e65746a13e5a0797cd4de0c4",
+   "genesis": 1793735400,
+   "firstRound": 98,
+   "lastRound": 241,
+   "settledThrough": 261,
+   "complete": true,
+   "rounds": [
+    {
+     "id": 186,
+     "turns": 6
+    },
+    {
+     "id": 195,
+     "turns": 250
+    },
+    {
+     "id": 196,
+     "turns": 471
+    },
+    {
+     "id": 197,
+     "turns": 500
+    },
+    {
+     "id": 198,
+     "turns": 178
+    },
+    {
+     "id": 199,
+     "turns": 452
+    },
+    {
+     "id": 200,
+     "turns": 136
+    },
+    {
+     "id": 201,
+     "turns": 485
+    },
+    {
+     "id": 202,
+     "turns": 48
+    },
+    {
+     "id": 203,
+     "turns": 308
+    },
+    {
+     "id": 204,
+     "turns": 316
+    },
+    {
+     "id": 205,
+     "turns": 338
+    },
+    {
+     "id": 209,
+     "turns": 150
+    },
+    {
+     "id": 210,
+     "turns": 179
+    }
+   ]
+  }
+ }
+}
