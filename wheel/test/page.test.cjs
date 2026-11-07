@@ -121,7 +121,9 @@ async function scenario(name, o, body) {
         window.__walletLog = []; window.__sent = [];
         const script = (wallet.send || []).slice();      // how the user answers each transaction prompt: 'reject' | 'hold' (until __releaseSend()) | default yes
         let connected = wallet.connected !== false;      // false: eth_accounts is empty until the page asks (eth_requestAccounts)
-        window.ethereum = { request: async ({ method, params }) => {
+        let account = wallet.account; const ons = {};    // __switchAccount(a): the user picks another account (accountsChanged)
+        window.__switchAccount = (a) => { account = a; (ons.accountsChanged || []).forEach((f) => f([a])); };
+        window.ethereum = { on: (ev, f) => { (ons[ev] = ons[ev] || []).push(f); }, removeListener: () => {}, request: async ({ method, params }) => {
           window.__walletLog.push(method);
           if (method === 'eth_sendTransaction' && script.length) {
             const k = script.shift();
@@ -131,8 +133,8 @@ async function scenario(name, o, body) {
           if (method === 'eth_sendTransaction') window.__sent.push([String(params[0].to).toLowerCase(), params[0].data]);
           // a wallet that cannot sign typed data (then catch.js approves exactly the cost first)
           if (method === 'eth_signTypedData_v4' && wallet.sign === 'unsupported') { const e = new Error('The requested method is not supported by this Ethereum provider.'); e.code = 4200; throw e; }
-          if (method === 'eth_requestAccounts') { connected = true; return [wallet.account]; }
-          if (method === 'eth_accounts') return connected ? [wallet.account] : [];
+          if (method === 'eth_requestAccounts') { connected = true; return [account]; }
+          if (method === 'eth_accounts') return connected ? [account] : [];
           if (method === 'eth_chainId') return '0xaa36a7';
           if (method === 'wallet_switchEthereumChain' || method === 'wallet_addEthereumChain') return null;
           const r = await fetch(wallet.rpc, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params: params || [] }) });
@@ -157,6 +159,7 @@ async function scenario(name, o, body) {
 // ---------- helpers that run in the page ----------
 const vp = (p, width, height) => p.setViewport({ width, height, deviceScaleFactor: 1, isMobile: p.__mobile, hasTouch: p.__mobile });
 const txt = (p, sel) => p.$eval(sel, (e) => e.textContent.replace(/\s+/g, ' ').trim());
+const seenTxt = (p, sel) => p.$eval(sel, (e) => e.innerText.replace(/\s+/g, ' ').trim());          // what is on screen (hidden parts left out)
 const hidden = (p, sel) => p.$eval(sel, (e) => e.hidden || getComputedStyle(e).display === 'none');
 const stored = (p) => p.evaluate((KEY) => { try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { return 'blocked'; } }, KEY);
 const scrollTo = (p, sel) => p.evaluate((sel) => document.querySelector(sel).scrollIntoView({ block: 'start' }), sel);
@@ -454,7 +457,14 @@ async function startS2Anvil() {
       return { address: r, chunks: chunks.length };
     };
     const page = path.join(tmp, 's2.html');
-    execFileSync('python3', [path.join(ROOT, 'wheel/build.py'), '--season1-address', v2, '--season2-address', v3, '--sqk-address', sqk, '--faucet-address', faucet, '--out', page], { encoding: 'utf8' });
+    // the burned total as a build would count it at this block (here: a made-up 0.50 before the first net of this chain)
+    ch.burnedAt = parseInt(await rpc('eth_blockNumber'), 16); ch.burnedWei = 5n * 10n ** 17n;
+    execFileSync('python3', [path.join(ROOT, 'wheel/build.py'), '--season1-address', v2, '--season2-address', v3, '--sqk-address', sqk, '--faucet-address', faucet, '--out', page],
+      { encoding: 'utf8', env: { ...process.env, QC_BURNED: `0.5@${ch.burnedAt}` } });
+    // what the page must show: the build's total + every NetPaid of both games since that block (the chain's own logs)
+    ch.burnedNow = async () => { const logs = await rpc('eth_getLogs', [{ address: [v3, v2], topics: [QC.TOPIC_NETPAID], fromBlock: '0x' + (ch.burnedAt + 1).toString(16), toBlock: 'latest' }]);
+      return logs.reduce((a, l) => a + QC.dec.netPaid(l).burned, ch.burnedWei); };
+    ch.v2Draw = async (n, x, tokenId) => Number(QC.dec.uint(await call(v2, '0x' + ids2[DRAW_SIG] + pad(n) + x.sha + x.job + pad(tokenId) + x.perSpot.map(pad).join(''))));
     ch.html = fs.readFileSync(page);
     return ch;
   } catch (e) { proc.kill('SIGTERM'); s2Skip = 'the Season 2 setup failed on anvil: ' + e.message; return null; }
@@ -502,6 +512,9 @@ async function nftCastScenario(chain, name, viewport, account) {
     assert.deepEqual(await p.$eval('#act', (e) => [e.hidden, e.disabled, e.textContent, e.dataset.sub]), [false, false, ...CAST_BTN], 'one button, ready: nothing to pick first');
     assert.equal(await p.$('#nfthint'), null, 'no hint under the button: one short line per state (owner, 6 Nov)');
     assert.equal(await txt(p, '#prompt'), 'Nets close 22:00 · result tomorrow 13:00', 'the ONE line under the button');
+    // the fuel (owner 11-07): one small line under the button; this test build has no complete total, so no number at all
+    assert.equal(await seenTxt(p, '#burn'), viewport.width < 400 ? '🔥 The door eats 0.01 test SQK' : '🔥 The door eats 0.01 test SQK per net');
+    assert.ok(await hidden(p, '#burnt') && (await box(p, '#burn')).top >= (await box(p, '#act')).bottom, 'under the button; no total without a complete count');
     assert.equal(await p.$$eval('.spot[aria-pressed], .spot.sel, .spot.net', (e) => e.length), 0, 'no picker: no pressed or selected tile');
     // the button's price never breaks inside ("CAST A NET · 0.01 TEST / SQK"): a long label wraps after the dot
     assert.equal(await p.$eval('#act .nw', (e) => [e.textContent, e.getClientRects().length].join(' ')), '0.01 test SQK 1', 'the price on one line');
@@ -724,7 +737,9 @@ async function nftErrorScenario(chain, name, viewport, account) {
     await shot('3-tonight-watch');
     // How it works: the 4 claw-machine steps, last night's odds, then the night and the per-night quantumness, honestly
     await openDetails(p, 'how');
-    assert.deepEqual(await items(p, '#howsteps > li > b'), ['The door.', 'The shake.', 'Your net.', 'Got away?'], 'How it works opens with the story');
+    assert.deepEqual(await items(p, '#howsteps > li > b'), ['The door.', 'The shake.', 'Your net.', 'Got away?', 'The fuel.'], 'How it works opens with the story');
+    assert.match(await txt(p, '#howsteps'), /The door only opens for SQK\. Every net burns 0\.01 test SQK forever\./, 'the fuel (owner 11-07)');
+    assert.ok(await hidden(p, '#burnth'), 'no live read here (the RPC is not reachable): no total, never a wrong one');
     assert.match(await txt(p, '#howsteps'), /At 13:00 the quantum computer runs it 4,000 times\. Each run is a drop through the door that lands on one of 16 hamsters\./);
     assert.deepEqual(await items(p, '#unis > div'), ['Common the Home Burrow', 'Uncommon the Wild Worlds', 'Rare the Machine Worlds', 'Epic the Dream Worlds', 'Legendary the Golden World'], 'the universes per tier');
     assert.match(await txt(p, '#howfacts'), new RegExp(`^Cast your net before 22:00 your time\\. It costs 0\\.01 test SQK \\(burned${REAL_FAUCET ? '; free here once per night' : ''}\\) and is a test NFT on Sepolia\\. Nobody picks a hamster\\.$`));
@@ -1338,6 +1353,15 @@ async function nftErrorScenario(chain, name, viewport, account) {
       // 19 the deployer (= the owner until lock); casters ca5700..13 cast on v3 for 5 Nov (the seal decides their draws)
       await s2.mint(acc[1], 5n * CENT);
       await s2.castOn(V2, acc[4]);
+      await s2.castOn(V2, acc[7]); await s2.mint(acc[6], 5n * CENT);   // the wallet switch: B (7) has only an early net for 5 Nov; A (6) casts tonight
+      // My hamsters: candidates whose early (v2) net for 5 Nov catches (v2's drawOf, before they cast) and who also cast on v3
+      // that night (and on v3 for 6 Nov, below); after the seal the first whose v3 net caught is the window's wallet
+      const P5w = postOf(NX), WH = [];
+      for (let k = 0; WH.length < 5 && k < 400; k++) {
+        const a = '0x' + 'a11e' + k.toString(16).padStart(36, '0'), sp = await s2.v2Draw(N5, P5w, QC.netId(N5, a));
+        if (NX.tiers[sp] >= 0) { await s2.impersonate(a); await s2.castOn(V2, a); await s2.castOn(V3, a); WH.push(a); }
+      }
+      assert.equal(WH.length, 5, 'five My hamsters candidates');
       const C = []; for (let k = 0; k < 20; k++) { const a = '0x' + 'ca57' + k.toString(16).padStart(36, '0'); await s2.impersonate(a); await s2.castOn(V3, a); C.push(a); }
 
       // S2-1. the first screen of Season 2 (no wallet): the small "Season 2" tag (the only new first-screen text), the prizes as
@@ -1375,6 +1399,9 @@ async function nftErrorScenario(chain, name, viewport, account) {
         await openDetails(p, 'how');
         assert.ok(!(await hidden(p, '#s2how')));
         assert.equal((await items(p, '#s2how li')).length, 3, 'three sentences');
+        await p.waitForFunction(() => !document.getElementById('burnth').hidden, { timeout: 15000 });
+        assert.equal(await seenTxt(p, '#howsteps > li:nth-child(5)'), `The fuel. The door only opens for SQK. Every net burns 0.01 test SQK forever. So far the door has eaten ${QC.units(await s2.burnedNow())} SQK.`);
+        assert.ok(await hidden(p, '#myham'), 'no wallet: no My hamsters window');
         assert.deepEqual(await items(p, '.s2odds tbody td'), ['Chance', '64 in 100', '23 in 100', '7 in 100', '6 in 100', '~1 in 260'], 'the one-line odds table');
         assert.equal(await p.$$eval('.s2odds tbody tr', (e) => e.length), 1);
         assert.ok(await p.$eval('.s2odds', (t) => t.getBoundingClientRect().right <= t.parentElement.getBoundingClientRect().right + 0.5), 'the odds table fits the phone (no sideways scroll in its box)');
@@ -1400,16 +1427,23 @@ async function nftErrorScenario(chain, name, viewport, account) {
         assert.equal(await p.$eval('#revimg', (e) => e.getAttribute('src')), 'data:image/webp;base64,' + x.data, `the example ${name}`);
         assert.equal(await txt(p, '#revt'), `An Epic ${name.slice(5).split(',')[0]} hamster!`);
         assert.match(await txt(p, '#revs'), /^practice/);
+        assert.ok(await hidden(p, '#burnth'), 'the public RPC is not reachable here: no total, never a wrong one');
         assert.ok(await p.$eval('#ham', (e) => e.classList.contains('s2')), 'the podium: the example');
         assert.deepEqual(await items(p, '#platew li'), [], 'no Season 1 wears');
         assert.equal(await p.$eval('#mygrid img', (e) => e.getAttribute('src')), 'data:image/webp;base64,' + x.data, 'My catches: the same example');
         await shot('1-practice');
       });
       // S2-2. the cast: ONE signature + ONE transaction, castNetWithPermit on v3 (never v2); the net remembers its contract
-      await scenario('s2-cast', { width: 360, height: 740, page: s2.html, storage: PRESET(), wallet: { account: acc[1], rpc: s2.url } }, async (p, { shot }) => {
+      const burned0 = await s2.burnedNow();
+      await scenario('s2-cast', { width: 360, height: 740, page: s2.html, storage: PRESET(), wallet: { account: acc[1], rpc: s2.url }, rpcUrl: s2.url }, async (p, { shot }) => {
         await sqkRead(p, () => QCP.sqk.balance != null);
         assert.deepEqual(await p.$eval('#act', (e) => [e.hidden, e.textContent]), [false, CAST_BTN[0]]);
+        // the fuel line with the total: the build's count + every net paid since its block, live (both games)
+        await p.waitForFunction(() => !document.getElementById('burnt').hidden, { timeout: 15000 });
+        assert.equal(await seenTxt(p, '#burn'), `🔥 The door eats 0.01 test SQK · ${QC.units(burned0)} burned so far`, '360 px: without "per net"');
         await fits(p, 740, '#act', '#prow');
+        assert.ok((await box(p, '#burn')).bottom <= (await box(p, '#prow')).top, 'the button, the fuel line, then the prizes: all on the first screen');
+        await shot('0-fuel-360');
         await p.click('#act');
         await p.waitForFunction(() => !document.getElementById('nftbox').hidden, { timeout: 30000 });
         assert.deepEqual((await p.evaluate(() => window.__sent)).map(([to, d]) => [to, d.slice(0, 10)]), [[V3, QC.SEL.castNetWithPermit]], 'the one transaction goes to the Season 2 contract');
@@ -1419,11 +1453,13 @@ async function nftErrorScenario(chain, name, viewport, account) {
         assert.equal(await s2.result(V2, QC.netId(N5, acc[1])), null, 'nothing on Season 1');
         await p.waitForFunction(() => !document.getElementById('nftnets').hidden, { timeout: 20000 });
         assert.match(await txt(p, '#nftgrid'), /^waiting for the chip5 Nov · #\?$/, 'the chain: one net, Season 2 (no label)');
+        assert.ok(!(await hidden(p, '#burn')) && (await box(p, '#burn')).top >= (await box(p, '#nftbox')).bottom, 'the net is in: the fuel line under its card');
         await shot('1-net-in');
       });
       // the 5 Nov night is over; the hatcher posts it on both games (v3 waits for its seal)
       await s2.at(Date.parse('2026-11-06T12:30:00Z'));
       await s2.castOn(V3, acc[4]);                                     // acc 4: an early (v2) net for 5 Nov + tonight's (6 Nov) on v3
+      for (const a of WH) await s2.castOn(V3, a);                      // the My hamsters candidates: tonight's net too
       const P5 = postOf(NX);
       await s2.post(V3, N5, P5); await s2.post(V2, N5, P5);
       assert.equal((await s2.result(V3, QC.netId(N5, C[0]))).status, QC.DRAWING, 'v3: posted, not sealed = drawing');
@@ -1461,6 +1497,30 @@ async function nftErrorScenario(chain, name, viewport, account) {
         await vp(p, 360, 740); await sleep(200);
         await p.click('#prevnet .pmore'); await p.waitForFunction(() => QCP.route === 'details', { timeout: 5000 });
         assert.match(await txt(p, '#waiting'), /Wed 4 Nov: your net.*Thu 5 Nov: your net/, '+1 more: Details lists them all');
+      });
+      // WALLET SCOPE (owner 11-07, live bug): A casts tonight, then the wallet switches to B, whose only net is an early one for
+      // 5 Nov. The deck shows B's state (free SQK) and B's earlier net in the line, never A's "Your net is in"; back to A: A's net
+      await scenario('s2-switch', { width: 360, height: 740, at: Date.parse('2026-11-06T11:47:00Z'), page: s2.html, storage: PRESET(), wallet: { account: acc[6], rpc: s2.url } }, async (p, { shot, noHScroll }) => {
+        await castNft(p, '2026-11-06');
+        assert.match(await txt(p, '#nfttext'), /^✓ Your net is in/);
+        assert.ok(await hidden(p, '#prevnet'), 'A has no earlier net');
+        await p.evaluate((b) => window.__switchAccount(b), acc[7]);
+        await p.waitForFunction(() => document.getElementById('act').textContent === 'Get free test SQK', { timeout: 15000 });
+        assert.ok(await hidden(p, '#nftbox'), 'B: never A\'s "Your net is in"');
+        assert.equal(await p.evaluate(() => QCP.stage), 'tonight');
+        await p.waitForFunction(() => !document.getElementById('prevnet').hidden, { timeout: 15000 });
+        assert.match(await txt(p, '#prevnet'), /^Last night's net: result today at 13:00 · in 1[23] min$/, "B's earlier net, in the free-SQK state too");
+        assert.equal(await txt(p, '#tnstate'), 'No net yet for this night.', 'Details: B has no net tonight');
+        const st = await stored(p);
+        assert.ok(st.others[acc[6]] && st.others[acc[6]]['2026-11-06'], "A's net is kept, under A's address");
+        assert.ok(!st.nets['2026-11-06'] && st.nets['2026-11-05'].nft.contract === V2, "B's own nets only");
+        await noHScroll('switch'); await shot('1-switched-to-B');
+        for (const [w, h] of [[390, 844], [1280, 860]]) { await vp(p, w, h); await sleep(300); await p.evaluate(() => window.scrollTo(0, 0)); await shot(`2-switched-to-B-${w}x${h}`); }
+        await vp(p, 360, 740); await sleep(200);
+        await p.evaluate((a) => window.__switchAccount(a), acc[6]);
+        await p.waitForFunction(() => !document.getElementById('nftbox').hidden, { timeout: 15000 });
+        assert.match(await txt(p, '#nfttext'), /^✓ Your net is in/, 'back to A: its net again');
+        assert.ok(await hidden(p, '#prevnet'), 'and not B\'s earlier net');
       });
       // the seal (anyone, a later block): every v3 net of the night is drawn now
       await s2.rpc('evm_mine'); await s2.seal(N5);
@@ -1571,6 +1631,52 @@ async function nftErrorScenario(chain, name, viewport, account) {
         assert.ok(!/season/i.test(await p.evaluate(() => document.body.innerText)), 'no season words');
         assert.deepEqual(await asked(p), [], 'reading asks nothing');
         await shot('1-season1'); await shots2(p, shot, '2-season1');
+      });
+      // My hamsters (owner 11-07): the connected wallet's nets under the prizes: an early (v2) catch, a v3 catch not seen yet
+      // (Ready!), tonight's v3 net (waiting); newest first; a tap opens the result / goes to the deck
+      const W = (await Promise.all(WH.map(async (a) => [a, await s2.result(V3, QC.netId(N5, a))]))).find(([, r]) => r.status === 1);
+      assert.ok(W, 'a candidate whose v3 net caught');
+      const [WA, WR] = W, WE = await s2.result(V2, QC.netId(N5, WA)), WIMG = (await s2.meta(V3, QC.netId(N5, WA))).image;
+      assert.equal(WE.status, 1, 'its early net caught (picked with v2\'s drawOf)');
+      await scenario('s2-myham', { width: 390, height: 844, at: Date.parse('2026-11-06T13:00:00Z'), page: s2.html, results: NX.body, storage: { practice: null, nets: {} }, wallet: { account: WA, rpc: s2.url }, rpcUrl: s2.url }, async (p, { shot, noHScroll }) => {
+        await p.waitForFunction(() => !document.getElementById('myham').hidden && document.querySelectorAll('#mhrow .mhc').length === 3, { timeout: 20000 }); await sleep(400);
+        const cards = () => p.$$eval('#mhrow .mhc', (e) => e.map((c) => [c.dataset.day, c.dataset.k, c.querySelector('.mt').textContent, c.querySelector('.md').textContent]));
+        const c0 = await cards();
+        assert.deepEqual(c0.map((c) => c.slice(0, 2)), [['2026-11-06', 'waiting'], ['2026-11-05', 'ready'], ['2026-11-05', 'caught']], 'newest first: tonight (waiting), 5 Nov v3 (not seen yet), 5 Nov early (caught)');
+        assert.equal(c0[0][2], 'Result tomorrow at 13:00'); assert.match(c0[0][3], /^in \d+ h \d+ min$/);
+        assert.deepEqual(c0[1].slice(2), ['Ready!', '5 Nov']);
+        assert.deepEqual(c0[2].slice(2), [QW.TIER_NAMES[WE.tier - 1], '5 Nov'], 'the early catch: its tier and date');
+        assert.equal(await txt(p, '#myhamh'), 'My hamsters'); assert.ok(await hidden(p, '#mhall'));
+        assert.equal(await p.$$eval('#myham p, #myham .small', (e) => e.length), 0, 'nothing but the heading and the cards');
+        assert.ok((await box(p, '#myham')).top >= (await box(p, '#prizes')).bottom && (await box(p, '#myham')).bottom <= (await box(p, '#soon')).top + 1, 'under the prizes, above the battles band');
+        // the header: "My hamsters n" (a hamster icon + the count on a phone): it scrolls to the window
+        assert.ok(await p.$eval('#mycount svg.myshort', (e) => getComputedStyle(e).display !== 'none'), 'phones: the icon');
+        await p.click('#mycount'); await sleep(600);
+        assert.ok((await box(p, '#myham')).top >= -2 && (await box(p, '#myham')).top < 120, 'the header button brings the window up');
+        for (const [w, h] of [[360, 740], [390, 844], [1280, 860]]) { await vp(p, w, h); await sleep(350); await scrollTo(p, '#myham'); await sleep(300); await noHScroll(`my hamsters ${w}`); await shot(`1-myham-${w}x${h}`); }
+        await vp(p, 390, 844); await sleep(300);
+        // the Ready! card: its night's replay and result; then the card is the chain's own picture
+        await scrollTo(p, '#myham'); await p.click('#mhrow .mhc[data-k="ready"]'); await revealed(p);
+        assert.equal(await p.evaluate(() => QCP.stage), '2026-11-05');
+        await p.waitForFunction(() => document.getElementById('revimg').getAttribute('src'), { timeout: 20000 });
+        assert.equal(await p.$eval('#revimg', (e) => e.getAttribute('src')), WIMG, 'the result card: the chain\'s picture');
+        await scrollTo(p, '#myham'); await sleep(300);
+        await p.waitForFunction(() => { const c = document.querySelectorAll('#mhrow .mhc')[1]; return c && c.dataset.k === 'caught' && c.querySelector('canvas').dataset.want.startsWith('s2:'); }, { timeout: 20000 });
+        assert.equal((await cards())[1][2], QW.TIER_NAMES[WR.tier - 1], 'seen: its tier, its picture from the contract');
+        await shot('2-myham-after');
+        // a waiting card: tonight's deck (the net card), with the fuel line under it
+        await p.click('#mhrow .mhc[data-k="waiting"]'); await sleep(500);
+        assert.equal(await p.evaluate(() => QCP.stage), 'tonight');
+        assert.ok(await visible(p, '#nftbox', 844), 'the deck: tonight\'s net card on screen');
+        await p.waitForFunction(() => !document.getElementById('burnt').hidden, { timeout: 15000 });
+        assert.match(await seenTxt(p, '#burn'), /^🔥 The door eats 0\.01 test SQK · \d+(\.\d+)? burned so far$/, '390 px: without "per net"');
+        await shot('3-deck-fuel');
+      });
+      // a wallet with no net: no window; the header button opens Details › My catches
+      await scenario('s2-myham-empty', { width: 360, height: 740, page: s2.html, storage: { practice: null, nets: {} }, wallet: { account: acc[2], rpc: s2.url } }, async (p) => {
+        await p.waitForFunction(() => window.__walletLog.filter((m) => m === 'eth_call').length >= 16, { timeout: 15000 }); await sleep(500);
+        assert.ok(await hidden(p, '#myham'), 'an empty wallet: no window');
+        await p.click('#mycount'); await p.waitForFunction(() => QCP.route === 'details', { timeout: 5000 });
       });
       // S2-6. lock(): the owner gives up the renderer for good; the page says so
       await s2.lock();

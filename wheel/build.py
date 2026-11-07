@@ -189,6 +189,56 @@ if SEASON2 and os.path.exists(S2_EX):
 elif SEASON2:
     print('note: no wheel/art/s2/examples.json: the Season 2 gallery shows the painted previews ("A first look at Season 2")', file=sys.stderr)
 
+# ---- the door's fuel (owner 11-07: every net burns its NET_COST of test SQK). The page shows the total burned so far only
+# when it is COMPLETE: every NetPaid log of the paid game contracts (QuantumCatch v2 and v3; v1 nets were free) since their
+# deploy blocks, read in chunks of at most 9,500 blocks from the public RPC and kept in data/burned.json, so each build reads
+# only the blocks since the one before (the public node prunes logs older than ~10,000 blocks). Any gap or failure: no
+# number (DATA.burned null), never a wrong one; the page adds the nets paid after asOfBlock, read live.
+#   QC_BURNED=<sqk>@<block> | none   a fixed value (tests); test builds (address flags, --out) never read the chain
+GAME_DEPLOY = {V2_CATCH: 12077948, '0x5331631708adff57965aab4bba5453be35e30b30': 12082925}   # (ops/deploy-v2/v3-sepolia-record.json)
+TOPIC_NETPAID = '0x100db5ea1f9223afdc01a632bcfeea16' + '5e5be9e69a705ff5a0f3602c4eb65ef0'   # NetPaid(uint32,address,uint256), in halves for the leak gate
+BURN_CACHE = os.path.join(ROOT, 'data', 'burned.json')
+def burned_total():
+    env = os.environ.get('QC_BURNED')
+    if env is not None:
+        if env in ('', 'none'): return None
+        m = re.fullmatch(r'(\d+(?:\.\d{1,18})?)@(\d+)', env); assert m, 'QC_BURNED must be <sqk>@<block> or none'
+        from decimal import Decimal
+        return {'wei': str(int(Decimal(m.group(1)) * 10 ** 18)), 'asOfBlock': int(m.group(2))}
+    if os.path.abspath(OUT) != os.path.join(HERE, 'out', 'quantum-catch.html') or any(f in sys.argv for f in ('--catch-address', '--season1-address', '--season2-address')):
+        return None
+    games = sorted({a for a in (S1, S2, CATCH and CATCH.lower()) if a in GAME_DEPLOY})
+    if not games: return None
+    import urllib.request
+    def rpc(method, params):
+        q = urllib.request.Request('https://ethereum-sepolia-rpc.publicnode.com', data=json.dumps({'jsonrpc': '2.0', 'id': 1, 'method': method, 'params': params}).encode(),
+                                   headers={'content-type': 'application/json', 'user-agent': 'quantum-squeak-build'})
+        j = json.load(urllib.request.urlopen(q, timeout=20))
+        if 'error' in j: raise RuntimeError(str(j['error'])[:120])
+        return j['result']
+    try:
+        cache = json.load(open(BURN_CACHE)) if os.path.exists(BURN_CACHE) else {}
+        known = cache.get('games', {})
+        as_of = int(rpc('eth_blockNumber', []), 16) - 3          # a few blocks back: no reorg can take a counted net back
+        out = {}
+        for g in games:
+            c = known.get(g) if isinstance(known.get(g), dict) and known[g].get('deployBlock') == GAME_DEPLOY[g] else None
+            wei, nets, frm = (int(c['wei']), int(c['nets']), int(c['toBlock']) + 1) if c else (0, 0, GAME_DEPLOY[g])
+            while frm <= as_of:
+                to = min(frm + 9499, as_of)
+                for l in rpc('eth_getLogs', [{'address': g, 'topics': [TOPIC_NETPAID], 'fromBlock': hex(frm), 'toBlock': hex(to)}]):
+                    assert l['topics'][0].lower() == TOPIC_NETPAID and len(l['data']) == 66, 'not a NetPaid log'
+                    wei += int(l['data'], 16); nets += 1
+                frm = to + 1
+            out[g] = {'deployBlock': GAME_DEPLOY[g], 'toBlock': as_of, 'wei': str(wei), 'nets': nets}
+        json.dump({'note': 'test SQK burned by Quantum Squeak nets (NetPaid logs since each deploy), counted by wheel/build.py', 'asOfBlock': as_of, 'games': out},
+                  open(BURN_CACHE, 'w'), indent=1); open(BURN_CACHE, 'a').write('\n')
+        return {'wei': str(sum(int(x['wei']) for x in out.values())), 'asOfBlock': as_of}
+    except Exception as e:                                      # offline, refused, pruned: no number at all
+        print(f'note: the burned total is not shown (cannot read it completely: {str(e)[:100]})', file=sys.stderr)
+        return None
+data['burned'] = burned_total()
+
 T = rd(os.path.join(HERE, 'page.template.html'))
 rep = {'/*__ENGINE__*/': rd(os.path.join(HERE, 'engine.js')), '/*__CATCH__*/': rd(os.path.join(HERE, 'catch.js')),
        '/*__DATA__*/': jdump(data), '/*__ART__*/': jdump(art)}
@@ -220,4 +270,5 @@ print(f'{rel(OUT)}: {len(T.encode())} bytes, {rel(RES)}: {os.path.getsize(RES)} 
       f're-runs with the other recipe: {[(x["night"], x["recipe"], x["job_id"]) for x in reruns] or "none"}; '
       f'runs not shown (listed on the page): {[(x["night"], x["job_id"], x["why"]) for x in not_shown] or "none"}; '
       f'NFT button: {"on, " + CATCH if CATCH else "off (no contract address)"}; '
-      f'Season 2: {"on (casts to " + S2 + ", Season 1 nets from " + S1 + ")" if SEASON2 else "off (season2Address null)"}')
+      f'Season 2: {"on (casts to " + S2 + ", Season 1 nets from " + S1 + ")" if SEASON2 else "off (season2Address null)"}; '
+      f'burned so far: {"%s test SQK as of block %d" % (int(data["burned"]["wei"]) / 1e18, data["burned"]["asOfBlock"]) if data["burned"] else "not shown"}')

@@ -208,7 +208,9 @@ test('no picking: the claw-machine words, the 4 steps of How it works, last nigh
   const how = text.slice(text.indexOf('<details class="card more" id="how">'), text.indexOf('<details class="card more" id="check">'));
   const steps = how.match(/<ol class="steps4" id="howsteps">([\s\S]*?)<\/ol>/);
   assert.ok(steps, 'How it works: the steps');
-  assert.deepEqual([...steps[1].matchAll(/<li><b>([^<]+)<\/b>/g)].map((m) => m[1]), ['The door.', 'The shake.', 'Your net.', 'Got away?'], 'How it works opens with the story (owner 11-07)');
+  assert.deepEqual([...steps[1].matchAll(/<li><b>([^<]+)<\/b>/g)].map((m) => m[1]), ['The door.', 'The shake.', 'Your net.', 'Got away?', 'The fuel.'], 'How it works opens with the story (owner 11-07; the fuel: the door runs on SQK)');
+  assert.match(plain(steps[1]), /The door only opens for SQK\. Every net burns 0\.01 test SQK forever\. So far the door has eaten 0 SQK\./, 'the fuel step (its total: JS, hidden unless complete)');
+  assert.ok(how.includes('<span id="burnth" hidden>'), 'the total starts hidden');
   assert.ok(how.indexOf('id="howsteps"') < how.indexOf('id="needs"'), 'the story first, then what you need');
   assert.match(plain(steps[1]), /One of the 4,000 drops is yours\. The hamster it lands on is your catch\. The rarer the hamster, the stranger its universe\./);
   assert.match(plain(steps[1]), /Some drops land where no hamster can be\. Then your hamster slipped back through the door\./);
@@ -486,4 +488,32 @@ test('Season 2 build (one switch): casts on v3, Season 1 from v2, the tag, the s
     const x = s2Build([], cfg);
     try { assert.notEqual(x.r.status, 0, JSON.stringify(cfg)); assert.match(x.r.stderr, why); assert.ok(!fs.existsSync(x.out), 'nothing written'); } finally { x.done(); }
   }
+});
+
+// the door's fuel (owner 11-07): the deck's line and How it works' step; the total burned so far is COMPLETE or absent: the real
+// build counts every NetPaid since the deploys (data/burned.json, incremental), a test build never reads the chain, QC_BURNED
+// injects a fixed value
+test('the fuel: the deck line, the build\'s burned total (complete or none), QC_BURNED for tests; My hamsters under the prizes', () => {
+  assert.ok(text.includes('<p class="burn" id="burn" hidden>🔥 The door eats <span class="ncost">0.01</span> test SQK<span class="pn"> per net</span><span id="burnt" hidden> · <span class="bsum">0</span> burned so far</span></p>'), 'the deck line (hidden until a state where you can cast or your net is in)');
+  const B = DATA_.burned;
+  assert.ok(B === null || (/^\d+$/.test(B.wei) && Number.isInteger(B.asOfBlock) && BigInt(B.wei) % 10n ** 16n === 0n), `DATA.burned: null or a whole number of nets (${JSON.stringify(B)})`);
+  if (B && fs.existsSync(path.join(ROOT, 'data/burned.json'))) {
+    const c = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/burned.json'), 'utf8'));
+    assert.equal(String(Object.values(c.games).reduce((a, g) => a + BigInt(g.wei), 0n)), B.wei, 'the page\'s total = the cache\'s sum');
+    for (const [a, g] of Object.entries(c.games)) assert.ok(g.toBlock >= g.deployBlock && BigInt(g.wei) === BigInt(g.nets) * 10n ** 16n, `${a}: counted from its deploy block, 0.01 a net`);
+  }
+  const dir = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'qc-burn-')), out = path.join(dir, 'b.html');
+  const D = (env) => { execFileSync('python3', [path.join(ROOT, 'wheel/build.py'), '--out', out], { encoding: 'utf8', env: { ...process.env, ...env } });
+    return JSON.parse(fs.readFileSync(out, 'utf8').match(/const DATA = (\{.*?\});\n/s)[1]).burned; };
+  try {
+    assert.deepEqual(D({ QC_BURNED: '1.37@12090000' }), { wei: '1370000000000000000', asOfBlock: 12090000 }, 'a fixed value for tests');
+    assert.equal(D({ QC_BURNED: 'none' }), null);
+    const env = { ...process.env }; delete env.QC_BURNED;
+    execFileSync('python3', [path.join(ROOT, 'wheel/build.py'), '--out', out], { encoding: 'utf8', env });
+    assert.equal(JSON.parse(fs.readFileSync(out, 'utf8').match(/const DATA = (\{.*?\});\n/s)[1]).burned, null, 'a test build (--out) never reads the chain');
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+  // My hamsters: the window between the first screen and the battles band, hidden until a connected wallet has a net
+  const g = text.indexOf('<section class="myham" id="myham" hidden aria-labelledby="myhamh"><h2 class="mhh" id="myhamh">My hamsters</h2>');
+  assert.ok(g > text.indexOf('id="prizes"') && g < text.indexOf('<section class="soon"'), 'under the prizes, above the battles band');
+  assert.match(text, /<button class="navl" id="mycount" type="button"><span class="navt">My hamsters<\/span><svg class="myshort"/, 'the header button: My hamsters (an icon on phones)');
 });
