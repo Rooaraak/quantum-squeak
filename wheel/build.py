@@ -177,7 +177,9 @@ TEASER = json.load(open(os.path.join(HERE, 'art', 'teaser.json')))              
 BANNERS = json.load(open(os.path.join(HERE, 'art', 'banners.json')))                       # the lab (footer) + the 5 prizes podium (How it works)
 assert len(SHOWCASE) == 12 and all(base64.b64decode(v['data'][:16])[:4] == b'RIFF' and v['traits'] for v in SHOWCASE.values())
 assert base64.b64decode(TEASER['data'][:16])[:4] == b'RIFF'
-art = {**art, 'showcase': SHOWCASE, 'teaser': TEASER, 'banners': BANNERS}        # in memory only: art.json (packed on-chain) is not rewritten
+LORE = json.load(open(os.path.join(HERE, 'art', 'lore.json')))                            # the story band's 5 panels (make_lore.py)
+assert sorted(LORE) == ['panel-1', 'panel-2', 'panel-3', 'panel-4', 'panel-5'] and all(base64.b64decode(v['data'][:16])[:4] == b'RIFF' for v in LORE.values())
+art = {**art, 'showcase': SHOWCASE, 'teaser': TEASER, 'banners': BANNERS, 'lore': LORE}   # in memory only: art.json (packed on-chain) is not rewritten
 if S2_SKINS: art['s2skins'] = S2_SKINS
 # Season 2 gallery: real hamsters drawn by the contract's own renderer (wheel/art/s2/examples.json, same shape as
 # showcase.json); without it the page keeps the 12 painted previews under "A first look at Season 2"

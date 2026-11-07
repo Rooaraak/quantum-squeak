@@ -340,6 +340,7 @@ a:hover { color: var(--ink) }
 #nfttext { display: grid; gap: 6px; min-width: 0 }
 #nfttext .ok { font: 400 26px/1 var(--display); letter-spacing: .02em; text-transform: uppercase; color: var(--good) }
 #nfttext .rl { font: 400 13px/1.3 var(--mono); color: var(--muted) }
+#nfttext .rl2 { display: block; margin-top: 4px; font: italic 400 10.5px/1.35 var(--mono); color: var(--muted) }
 #nfttext .cdr { font: 700 22px/1.1 var(--mono); color: var(--cyan) }
 .nftmsg { font: 400 11.5px/1.4 var(--mono); color: var(--stage-muted); margin: 0 }
 .nftmsg.err { color: #ffb3a6 }
@@ -487,6 +488,21 @@ button.mycard:hover::after { opacity: 1 }
 .mhall { display: inline-block; margin-top: 6px; padding: 12px 0; color: var(--cyan); font: 700 12px/1 var(--mono); letter-spacing: .04em; text-transform: uppercase }
 @media (min-width: 640px) { .mhrow { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); overflow: visible; margin: 10px 0 0; padding: 0 } .mhc { flex: none } .mhh { font-size: 22px } }
 @media (min-width: 1100px) { .mhrow { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 12px } .myham { margin-top: 10px } }
+/* the story band (owner 11-07: "some kind of lore on the first site"): 4 painted panels, one sentence each; phones swipe */
+.lore { margin: 30px 0 0 }
+.lrow { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; margin: 10px -16px 0; padding: 4px 16px 6px; scrollbar-width: none }
+.lrow::-webkit-scrollbar { display: none }
+.lp { flex: 0 0 86%; scroll-snap-align: center; margin: 0; min-width: 0 }
+.lp img { display: block; width: 100%; height: auto; aspect-ratio: 900 / 672; border-radius: var(--r-m); background: var(--card2); box-shadow: var(--lift) }
+.lp img:not([src]) { visibility: hidden }
+.lp figcaption { margin: 8px 2px 0; font: 400 var(--fs-s)/1.45 var(--mono); color: var(--ink) }
+.ldots { display: flex; justify-content: center; gap: 7px; margin: 8px 0 0 }
+.ldots i { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); opacity: .45 }
+.ldots i.on { background: var(--cyan); opacity: 1 }
+.lnext { margin: 14px 0 0; text-align: center; font: italic 400 var(--fs-s)/1.45 var(--mono); color: var(--muted) }
+@media (min-width: 640px) { .lrow { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; overflow: visible; margin: 12px 0 0; padding: 0 } .ldots { display: none } }
+@media (min-width: 1100px) { .lrow { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px } .lore { margin-top: 10px } .lp figcaption { font-size: var(--fs-xs) } }
+@media (min-width: 640px) and (max-width: 1099px) { .lp:last-child { grid-column: 1 / -1; justify-self: center; width: calc(50% - 9px) } }
 /* the deck's fuel line (owner 11-07: the door runs on SQK) */
 .burn { margin: 8px 2px 0; font: 400 11px/1.4 var(--mono); color: var(--stage-muted); text-align: center }
 .burn[hidden] { display: none }
@@ -833,6 +849,19 @@ footer a { color: var(--ink) }
     </section>
   </div>
 
+  <section class="lore" id="lore" aria-labelledby="loreh">
+    <h2 class="mhh" id="loreh">How Squeektoshi opened the door</h2>
+    <div class="lrow" id="lrow" role="list">
+      <figure class="lp" role="listitem"><img alt="Squeektoshi runs his golden wheel in an attic at night; a chain of glowing blocks rises from it to the window" width="900" height="672" data-k="panel-1"><figcaption>Squeektoshi is a real hamster. Every night he runs his wheel, and Squeekchain writes down every turn.</figcaption></figure>
+      <figure class="lp" role="listitem"><img alt="His wheel blazes with light under a quantum computer, and a glowing crack opens in the wall" width="900" height="672" data-k="panel-2"><figcaption>One night he ran so fast that his turns reached a real IBM quantum computer. The chip opened a door.</figcaption></figure>
+      <figure class="lp" role="listitem"><img alt="Squeektoshi looks through a glowing doorway at jungles, a chrome city, a ghost in the stars and a faraway golden land" width="900" height="672" data-k="panel-3"><figcaption>Behind it: other universes. Tigers in the Wild Worlds, chrome in the Machine Worlds, ghosts in the Dream Worlds, and far away, the Golden World.</figcaption></figure>
+      <figure class="lp" role="listitem"><img alt="Hamsters of every kind tumble out of a glowing portal under the quantum computer, and a net catches one" width="900" height="672" data-k="panel-4"><figcaption>Now every night he runs, the door opens again. At 13:00 the quantum computer shakes it, hamsters tumble through, and your net catches one.</figcaption></figure>
+      <figure class="lp" role="listitem"><img alt="Squeektoshi runs while the door's map grows; behind it one hamster shimmers in many universes at once" width="900" height="672" data-k="panel-5"><figcaption>Why wait until 13:00? While he runs, every turn adds to the door's map. When his night ends, the quantum computer shakes it. Until then your hamster is in every universe at once.</figcaption></figure>
+    </div>
+    <div class="ldots" id="ldots" aria-hidden="true"><i class="on"></i><i></i><i></i><i></i><i></i></div>
+    <p class="lnext">Some say the door is getting wider. Some say the hamsters on the other side are getting ready to fight…</p>
+  </section>
+
   <section class="myham" id="myham" hidden aria-labelledby="myhamh"><h2 class="mhh" id="myhamh">My hamsters</h2><div class="mhrow" id="mhrow" role="list" aria-labelledby="myhamh"></div><a class="mhall" id="mhall" href="#mine" hidden>See all &rarr;</a></section>
 
   <section class="soon" id="soon" aria-labelledby="soonh">
@@ -881,7 +910,7 @@ footer a { color: var(--ink) }
         <div class="in">
           <ol class="steps4" id="howsteps">
             <li><b>The door.</b> Every night Squeektoshi, a real hamster, runs his wheel on Squeekchain. His run becomes a program for a real IBM quantum computer.</li>
-            <li><b>The shake.</b> At <span class="tend">13:00</span> the quantum computer runs it 4,000 times. Each run is a drop through the door that lands on one of 16 hamsters.</li>
+            <li><b>The shake.</b> At <span class="tend">13:00</span> the quantum computer runs it 4,000 times. Each run is a drop through the door that lands on one of 16 hamsters. Why wait? Until then your hamster is in every universe at once.</li>
             <li><b>Your net.</b> One of the 4,000 drops is yours. The hamster it lands on is your catch. The rarer the hamster, the stranger its universe.</li>
             <li><b>Got away?</b> Some drops land where no hamster can be. Then your hamster slipped back through the door.</li>
             <li><b>The fuel.</b> The door only opens for SQK. Every net burns <span class="ncost">0.01</span> test SQK forever.<span id="burnth" hidden> So far the door has eaten <span class="bsum">0</span> SQK.</span></li>
@@ -1683,7 +1712,7 @@ footer a { color: var(--ink) }
     if (isDrop(net)) {
       const end = endOf(d), over = now() >= end;
       $('nfttext').innerHTML = `<b class="ok">${NET_IN}</b><span class="rl">${over ? 'Waiting for the quantum computer…' : `Result ${relDay(end)} at ${tLocal(end)}`}</span>` +
-        (over ? '' : `<b class="cdr" data-to="${end}">in ${QC.countdown(end - now())}</b>`);
+        (over ? '' : `<b class="cdr" data-to="${end}">in ${QC.countdown(end - now())}</b><span class="rl2">Until ${tLocal(end)} your hamster is in every universe at once.</span>`);
     } else $('nfttext').innerHTML = `<b>Your net is an NFT</b> on Sepolia (free test, no value): night of ${esc(dayLabel(net.nft.day || d))}, ${OLD} on No. ${net.spot}. It turns into your catch (or "got away") when the chip's result is posted.`;
     const im = $('nftimg'), src = net.nft && net.nft.image; if (src && /^data:image\/svg\+xml;base64,/.test(src)) { im.src = src; im.hidden = false; } else {
       im.hidden = true;
@@ -2545,6 +2574,14 @@ footer a { color: var(--ink) }
       f.querySelector('img').dataset.src = 'data:image/webp;base64,' + x.data; box.appendChild(f); tilt(f);
     }
   }
+  // the story band: its pictures load when it comes near; on phones the dots follow the swipe
+  const loreIn = () => { for (const im of document.querySelectorAll('#lrow img[data-k]')) { const x = ART.lore && ART.lore[im.dataset.k]; if (x && !im.getAttribute('src')) im.src = 'data:image/webp;base64,' + x.data; } };
+  try { const lio = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { loreIn(); lio.disconnect(); } }, { rootMargin: '600px' }); lio.observe($('lore')); } catch (e) { loreIn(); }
+  $('lrow').addEventListener('scroll', () => {
+    const r = $('lrow'), f = r.firstElementChild; if (!f) return;
+    const k = Math.max(0, Math.min(r.children.length - 1, Math.round(r.scrollLeft / (f.getBoundingClientRect().width + 12))));
+    [...$('ldots').children].forEach((d, i) => d.classList.toggle('on', i === k));
+  }, { passive: true });
   const artIn = () => { for (const im of document.querySelectorAll('#soon img[data-src]')) { im.src = im.dataset.src; delete im.dataset.src; } };
   if (ART.teaser) $('teaser').dataset.src = 'data:image/webp;base64,' + ART.teaser.data;
   if (ART.banners) { $('labart').src = 'data:image/webp;base64,' + ART.banners.lab.data; $('podart').src = 'data:image/webp;base64,' + ART.banners.podium.data; }

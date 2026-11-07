@@ -564,7 +564,7 @@ async function nftCastScenario(chain, name, viewport, account) {
       assert.ok(msgs.includes(m), `the step "${m}" (${JSON.stringify(msgs)})`);
     assert.ok(!msgs.some((m) => /approve/i.test(m)), 'no approve step');
     assert.match(await p.$eval('#nftimg', (e) => e.src), /^data:image\/svg\+xml;base64,/);
-    assert.match(await txt(p, '#nfttext'), /^✓ Your net is inResult tomorrow at 13:00in \d+ h \d+ min$/, 'the approved card: thumb, ✓ Your net is in, the result\'s time, a countdown');
+    assert.match(await txt(p, '#nfttext'), /^✓ Your net is inResult tomorrow at 13:00in \d+ h \d+ minUntil 13:00 your hamster is in every universe at once\.$/, 'the approved card: thumb, ✓ Your net is in, the result\'s time, a countdown, the wait (lore)');
     assert.ok(await hidden(p, '#act'), 'nothing more to press for this net');
     assert.ok(await p.$eval('#nftbox', (e) => !!e.closest('#actions')), 'the minted net sits where the button was');
     assert.ok(await hidden(p, '#status'), 'nothing under the card (owner: "nothing else")');
@@ -882,6 +882,30 @@ async function nftErrorScenario(chain, name, viewport, account) {
     await p.goto(p.url().split('#')[0], { waitUntil: 'load' }); await sleep(300);
     await noHScroll('phone without a wallet'); await shot('wallet-app');
   });
+  // the story band (owner 11-07): under the prizes, below the first screen; phones swipe its 4 panels (the dots follow)
+  await scenario('lore', { width: 390, height: 844 }, async (p, { shot, noHScroll }) => {
+    assert.ok((await box(p, '#lore')).top >= (await box(p, '#prow')).bottom, 'after the first screen\'s prizes (the first screen itself is unchanged: phone-light / desktop-light fit it)');
+    await scrollTo(p, '#lore'); await sleep(400);
+    await p.waitForFunction(() => [...document.querySelectorAll('#lrow img')].every((i) => i.complete && i.naturalWidth > 0), { timeout: 10000 });
+    assert.equal(await txt(p, '#loreh'), 'How Squeektoshi opened the door');
+    assert.equal((await items(p, '#lrow figcaption')).length, 5);
+    assert.match((await items(p, '#lrow figcaption'))[4], /^Why wait until 13:00\? .* Until then your hamster is in every universe at once\.$/);
+    assert.match(await txt(p, '.lnext'), /^Some say the door is getting wider\./);
+    assert.deepEqual(await p.$$eval('#ldots i', (e) => e.map((d) => d.classList.contains('on'))), [true, false, false, false, false]);
+    await shot('1-lore-390x844');
+    await p.$eval('#lrow', (r) => { r.scrollLeft = r.firstElementChild.getBoundingClientRect().width * 2 + 24; }); await sleep(400);
+    assert.deepEqual(await p.$$eval('#ldots i', (e) => e.map((d) => d.classList.contains('on'))), [false, false, true, false, false], 'the dots follow the swipe');
+    await shot('2-lore-swiped');
+    for (const [w, h] of [[360, 740], [390, 844]]) { await vp(p, w, h); await sleep(300); await noHScroll(`lore ${w}`); }
+  });
+  await scenario('lore-pc', { width: 1280, height: 860 }, async (p, { shot, noHScroll }) => {
+    await scrollTo(p, '#lore'); await sleep(400);
+    await p.waitForFunction(() => [...document.querySelectorAll('#lrow img')].every((i) => i.complete && i.naturalWidth > 0), { timeout: 10000 });
+    const tops = await p.$$eval('#lrow .lp', (e) => e.map((f) => Math.round(f.getBoundingClientRect().top)));
+    assert.ok(tops.length === 5 && tops.every((t) => t === tops[0]), 'a PC: the 5 panels in one row');
+    assert.ok(await hidden(p, '#ldots'), 'no dots on a PC');
+    await noHScroll('lore pc'); await shot('1-lore-1280x860');
+  });
   await scenario('desktop-dark', { width: 1280, height: 800, scheme: 'dark' }, async (p, { shot, noHScroll }) => {
     await noHScroll('desktop dark'); await shot('1-first-screen');
     // the Season 2 grid: every trait line takes the same two lines, so every name sits on one baseline
@@ -973,7 +997,7 @@ async function nftErrorScenario(chain, name, viewport, account) {
     await p.waitForFunction(() => !document.getElementById('sofar').hidden, { timeout: 10000 }); await sleep(200);
     assert.equal(await txt(p, '#stageh'), HEAD5);
     assert.ok(await hidden(p, '#srcbadge'));
-    assert.match(await txt(p, '#nfttext'), /^✓ Your net is inResult tomorrow at 13:00in \d+ h \d+ min$/, 'the net\'s card: the result tomorrow 13:00, a countdown');
+    assert.match(await txt(p, '#nfttext'), /^✓ Your net is inResult tomorrow at 13:00in \d+ h \d+ minUntil 13:00 your hamster is in every universe at once\.$/, 'the net\'s card: the result tomorrow 13:00, a countdown');
     assert.ok(await hidden(p, '#status'), 'nothing under the card');
     assert.equal(await txt(p, '#live'), 'Squeektoshi is running right now · 870 turns', 'his turns tonight go to the ALIVE line, never the deck');
     assert.deepEqual([await txt(p, '#stamp'), await txt(p, '#platen')], ['', '?'], 'the mystery hamster');

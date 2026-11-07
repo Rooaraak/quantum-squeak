@@ -517,3 +517,23 @@ test('the fuel: the deck line, the build\'s burned total (complete or none), QC_
   assert.ok(g > text.indexOf('id="prizes"') && g < text.indexOf('<section class="soon"'), 'under the prizes, above the battles band');
   assert.match(text, /<button class="navl" id="mycount" type="button"><span class="navt">My hamsters<\/span><svg class="myshort"/, 'the header button: My hamsters (an icon on phones)');
 });
+
+// the story band (owner 11-07: "some kind of lore on the first site"): under the prizes, before My hamsters and the battles
+// band; 4 painted panels with ONE sentence each, then the line that leads into the battles
+test('the story band: How Squeektoshi opened the door, 5 panels + one sentence each, its art in the page (lazy, by JS)', () => {
+  const at = text.indexOf('<section class="lore" id="lore" aria-labelledby="loreh">');
+  assert.ok(at > text.indexOf('id="prizes"') && at < text.indexOf('<section class="myham"') && at < text.indexOf('<section class="soon"'), 'under the prizes, above My hamsters and the battles band');
+  const band = text.slice(at, text.indexOf('</section>', at));
+  assert.match(band, /<h2 class="mhh" id="loreh">How Squeektoshi opened the door<\/h2>/);
+  assert.deepEqual([...band.matchAll(/<figcaption>([^<]+)<\/figcaption>/g)].map((m) => m[1]), [
+    'Squeektoshi is a real hamster. Every night he runs his wheel, and Squeekchain writes down every turn.',
+    'One night he ran so fast that his turns reached a real IBM quantum computer. The chip opened a door.',
+    'Behind it: other universes. Tigers in the Wild Worlds, chrome in the Machine Worlds, ghosts in the Dream Worlds, and far away, the Golden World.',
+    'Now every night he runs, the door opens again. At 13:00 the quantum computer shakes it, hamsters tumble through, and your net catches one.',
+    "Why wait until 13:00? While he runs, every turn adds to the door's map. When his night ends, the quantum computer shakes it. Until then your hamster is in every universe at once."]);
+  assert.ok(band.includes('<p class="lnext">Some say the door is getting wider. Some say the hamsters on the other side are getting ready to fight…</p>'));
+  assert.equal((band.match(/<img [^>]*data-k="panel-\d"/g) || []).length, 5, 'five pictures, loaded by JS');
+  assert.ok(!/<img [^>]*\bsrc=/.test(band), 'no picture in the markup: lazy');
+  const L = JSON.parse(fs.readFileSync(path.join(ROOT, 'wheel/art/lore.json'), 'utf8'));
+  for (const [k, v] of Object.entries(L)) { assert.ok(html.includes(v.data.slice(0, 200)), `${k} in the page`); assert.deepEqual([v.w, v.h], [900, 672]); }
+});
