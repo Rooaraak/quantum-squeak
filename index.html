@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="Squeektoshi's run programs a real quantum computer. Catch the hamster it lands on.">
-<meta property="og:title" content="Quantum Catch">
-<meta property="og:description" content="Squeektoshi's run programs a real quantum computer. Catch the hamster it lands on.">
+<meta name="description" content="Catch a hamster from another universe. Every night Squeektoshi's run opens the door, and a real IBM quantum computer shakes it.">
+<meta property="og:title" content="Quantum Squeak">
+<meta property="og:description" content="Catch a hamster from another universe. Every night Squeektoshi's run opens the door, and a real IBM quantum computer shakes it.">
 <meta property="og:type" content="website">
-<title>Quantum Catch</title>
+<title>Quantum Squeak</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -78,7 +78,7 @@ a:hover { color: var(--ink) }
 /* ---------- header: the wordmark, two links, the sound switch, Powered by ---------- */
 .hero { position: relative; z-index: 3; padding: 4px 0 0 }
 .top { position: relative; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px }
-.hero h1 { margin: 0; font: 400 20px/1 var(--display); letter-spacing: .04em; text-transform: uppercase; white-space: nowrap }
+.hero .wm { margin: 0; font: 400 20px/1 var(--display); letter-spacing: .04em; text-transform: uppercase; white-space: nowrap }
 .nav { display: flex; align-items: center; gap: 6px }
 .navl { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-width: 44px; min-height: 44px; margin: 0; padding: 0; border: 0; background: none; color: var(--ink);
   font: 700 13px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; text-decoration: none; transition: color .15s, transform .15s }
@@ -167,6 +167,7 @@ a:hover { color: var(--ink) }
 .hl { grid-column: 2; grid-row: 2; z-index: 2; padding: 6px 8px 6px 0; min-width: 0 }
 .headline { margin: 0; font: 400 20px/1.02 var(--display); letter-spacing: .01em; text-transform: uppercase; color: var(--ink); text-wrap: balance; text-shadow: 0 1px 10px rgba(5, 10, 34, .95) }
 .headline em { font-style: normal; color: var(--cyan) }
+.lede1 { margin: 6px 0 0; font: 400 10.5px/1.35 var(--mono); color: var(--stage-ink, #fff4dc); text-shadow: 0 1px 8px rgba(5, 10, 34, .95) }
 
 /* the name plate: YOUR CATCH, No. N (a '?' until the chip's drop decides), what it wears or when it is decided, the band */
 .plate { grid-column: 2; grid-row: 3; z-index: 2; align-self: end; justify-self: start; width: min(100%, 196px); margin: 4px 8px 8px 0 }
@@ -281,8 +282,7 @@ a:hover { color: var(--ink) }
    Epic 3, Legendary 2), the small tag over the headline, the lock note under the Season 2 heading */
 .pst { position: relative; width: 92%; max-width: 64px; aspect-ratio: 100 / 62 }
 .pst img { position: absolute; top: 0; width: 62%; height: auto; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle at 50% 30%, #3b5be0, var(--navy)); box-shadow: 0 0 0 2px var(--tile) }
-.s2tag { display: block; width: max-content; margin: 0 0 7px; padding: 4px 7px; border-radius: 4px; background: var(--accent); color: var(--cream); font: 700 10px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; rotate: -3deg; box-shadow: 0 3px 0 var(--accent-dd) }
-.s2tag[hidden], .lockn[hidden] { display: none }
+.lockn[hidden] { display: none }
 .lockn { margin: -6px 0 14px; text-align: center; font: 400 var(--fs-xs)/1.3 var(--mono); color: var(--muted) }
 .lockn.on { color: var(--good) }
 /* the one-line odds table fits a 360 px phone: narrow cells, the values may wrap, the tier names never */
@@ -351,6 +351,11 @@ a:hover { color: var(--ink) }
 #nfttext .cdr { font: 700 22px/1.1 var(--mono); color: var(--cyan) }
 .nftmsg { font: 400 11.5px/1.4 var(--mono); color: var(--stage-muted); margin: 0 }
 .nftmsg.err { color: #ffb3a6 }
+/* under tonight's net card: ONE line about the same wallet's earlier net still to see (owner 11-07) */
+.prevnet { margin: 8px 2px 0; font: 400 11.5px/1.4 var(--mono); color: var(--stage-muted); text-align: center }
+.prevnet[hidden] { display: none }
+.prevnet b { color: var(--ink); font-weight: 700 }
+.prevnet a { color: var(--cyan); font-weight: 700; text-underline-offset: 3px; display: inline-block; padding: 12px 4px; margin: -12px 0 }
 
 /* ---------- under the game: the art band ("Hamster battles", coming soon) and a first look at Season 2 ---------- */
 /* one night scene under the game: the cobalt fades into the dark (no hard line), and the footer stays in the dark. The full
@@ -595,7 +600,7 @@ footer a { color: var(--ink) }
   .navl .myshort { display: none }
   .navl.help { width: auto; border: 0; border-radius: 0 }
   .navl.help svg { display: none }
-  .hero h1 { font-size: 26px }
+  .hero .wm { font-size: 26px }
   .nav { gap: 18px }
 }
 /* tablets (and a PC browser without CSS subgrid): the phone layout, the art kept at a fixed size in the left column. The PC
@@ -612,6 +617,7 @@ footer a { color: var(--ink) }
   .stage .ham { left: calc(21cqw - 82px); width: 164px }
   .stage .stamp { left: 21cqw }
   .headline { font-size: 27px }
+  .lede1 { font-size: 12.5px }
   .stage .coreglow { left: calc(21cqw - 90px); top: 10px; width: 180px; height: 180px }
 }
 /* PC from 1100 px (below that the header row does not fit beside the stage): the stage on the left, the header, headline,
@@ -621,7 +627,7 @@ footer a { color: var(--ink) }
   .page { padding-left: max(24px, env(safe-area-inset-left, 0px)); padding-right: max(24px, env(safe-area-inset-right, 0px)) }
   .first { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto auto auto auto 1fr; column-gap: 32px }
   .hero { grid-column: 2; grid-row: 1; padding-top: 10px }
-  .hero h1 { font-size: 28px }
+  .hero .wm { font-size: 28px }
   .brand { margin: -10px 0 -12px; font-size: 11.5px }
   .card.play { grid-column: 1 / -1; grid-row: 1 / -1; grid-template-columns: subgrid; grid-template-rows: subgrid; column-gap: 32px; margin: 0 }
   .stage { grid-column: 1; grid-row: 1 / -1; min-height: 760px; margin: 0 0 14px; border-width: 0 6px 6px; border-radius: 0 0 26px 26px; box-shadow: 0 8px 0 var(--edge), 0 26px 50px -20px rgba(2, 6, 30, .8) }
@@ -658,6 +664,7 @@ footer a { color: var(--ink) }
   .plate .pb p { font-size: 11px; line-height: 1.35 }
   .hl { grid-column: 2; grid-row: 2; padding: 16px 0 0 }
   .headline { font-size: var(--fd-xl); line-height: .98; text-shadow: none }
+  .lede1 { margin-top: 14px; font-size: var(--fs-l); line-height: 1.45; text-shadow: none; max-width: 34em }
   .pick { grid-column: 2; grid-row: 3; margin-top: 22px }
   .pickhead { gap: 6px 12px }
   .pickhead h2 { font-size: 22px }
@@ -742,6 +749,8 @@ footer a { color: var(--ink) }
   .live.run::before, #play.playing .ham, .qc-beam, .qc-idle, .coreglow, .stage .beam.b2, .stage.cast .beam, .stage.cast .beam.b2, .stage.cast .coreglow, .podium.burst .gl, .podium.burst .rg, .nftbox.new, .reveal.go { animation: none }
   .castbar, .gcard, .gcard::after, .mycard, .mycard::after, .stage .wimg { transition: none }
 }
+/* "Quantum Squeak" is longer than the old name: on a narrow PC (1100-1239 px) the wordmark is smaller, so the nav keeps its room */
+@media (min-width: 1100px) and (max-width: 1239px) { .hero .wm { font-size: 24px } }
 </style>
 
 <div class="page">
@@ -749,7 +758,7 @@ footer a { color: var(--ink) }
   <div class="first">
     <header class="hero">
       <div class="top">
-        <h1><span>Quantum Catch</span></h1>
+        <p class="wm"><span>Quantum Squeak</span></p>
         <nav class="nav" aria-label="Site">
           <a class="navl help" id="howlink" href="#how"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 9a3 3 0 1 1 4 3c-1 1-1 1-1 2"/><path d="M12 18h0"/></svg><span class="navt">How it works</span></a>
           <button class="navl" id="mycount" type="button"><span class="navt">My catches</span><span class="myshort" aria-hidden="true">Mine</span> <b id="mycountn">0</b></button>
@@ -777,7 +786,7 @@ footer a { color: var(--ink) }
         <span class="stamp" id="stamp"></span>
       </div>
       <div class="chiptag"><b>IBM quantum computer</b><p class="alive" id="alive" hidden><a class="live" id="live" href="https://squeekchain.com" target="_blank" rel="noopener" hidden><span id="livet"></span></a><span class="netsn" id="netsn" hidden></span></p></div>
-      <div class="hl"><span class="s2tag" id="s2tag" hidden>Season 2</span><p class="headline">A real <em>quantum computer</em> decides which hamster you catch.</p></div>
+      <div class="hl"><h1 class="headline">Catch a hamster from <em>another universe</em>.</h1><p class="lede1" id="lede1">Every night Squeektoshi's run opens the door. At <span class="tend">13:00</span> a real IBM quantum computer shakes it.</p></div>
       <div class="plate" id="plate">
         <span class="pk"><span id="platek">Your catch</span></span>
         <div class="pc"><div class="pci"><p class="pn"><span>No.</span><b id="platen">?</b></p><ul class="pw" id="platew" aria-label="Look"></ul></div><div class="pb"><p id="plateb"></p></div></div>
@@ -798,6 +807,7 @@ footer a { color: var(--ink) }
           <div class="watch" id="watch" hidden><p>Open this page in a crypto wallet to cast a net.</p> <a class="btn ghost" id="needlink" href="#how">What you need</a></div>
           <div class="watch" id="sqkout" hidden><p id="sqkoutt"></p></div>
           <div class="nftbox" id="nftbox" hidden><img id="nftimg" alt="Your net NFT"><div id="nfttext"></div></div>
+          <p class="prevnet" id="prevnet" hidden aria-live="polite"></p>
           <button class="btn ghost" id="alt" type="button" hidden></button>
           <button class="btn ghost" id="skip" type="button" hidden>Skip to the landing &raquo;</button>
         </div>
@@ -811,7 +821,7 @@ footer a { color: var(--ink) }
   <section class="soon" id="soon" aria-labelledby="soonh">
     <div class="sban">
       <img id="teaser" alt="Two hamsters fight in a glowing arena under the quantum computer: a tiger hamster fires laser eyes, a gold one with devil horns swings a ring of fire" width="1400" height="781" decoding="async">
-      <div class="scopy"><span class="chipsoon">Coming soon</span><h2 id="soonh">Hamster battles</h2><p>Your catches will fight. New hamsters are on the way.</p></div>
+      <div class="scopy"><span class="chipsoon">Coming soon</span><h2 id="soonh">Hamster Battles</h2><p>Hamsters from different universes will fight.</p></div>
     </div>
     <p class="gk" id="gk">Coming next: crazy new hamsters</p>
     <p class="lockn" id="lockn" hidden></p>
@@ -822,7 +832,7 @@ footer a { color: var(--ink) }
   </div>
 
   <div class="ln view" id="details" hidden>
-    <div class="dbar"><a class="back" id="back" href="#">&larr; Back</a><span class="dmark">Quantum Catch</span></div>
+    <div class="dbar"><a class="back" id="back" href="#">&larr; Back</a><span class="dmark">Quantum Squeak</span></div>
     <h2 class="dh" id="dh">Details</h2>
     <div class="story">
       <section class="card past" id="past" aria-labelledby="pasth">
@@ -852,13 +862,15 @@ footer a { color: var(--ink) }
       <details class="card more" id="how">
         <summary>How it works</summary>
         <div class="in">
-          <p class="small" id="needs">What you need: a crypto wallet on the Sepolia test network, <span id="needsqk">0.01 test SQK (free here, once per night)</span> and a little free test ETH for the fee (<a id="faucet" href="https://cloud.google.com/application/web3/faucet/ethereum/sepolia" target="_blank" rel="noopener">get free test ETH</a>). Test tokens: no money value. One net per wallet per night.</p>
           <ol class="steps4" id="howsteps">
-            <li><b>Cast a net.</b> Before <span class="tclose">22:00</span> your time. <span id="howcost">A net is a test NFT on Sepolia.</span> One net per wallet per night. Nobody picks a hamster.</li>
-            <li><b>He runs.</b> Squeektoshi, a real hamster, runs his wheel tonight; Squeekchain records it every 10 minutes. His run becomes the quantum program. He usually starts between <span class="tstart">22:10 and 22:40</span>.</li>
-            <li><b>The chip drops 4,000 times.</b> After his night ends (<span class="tend">13:00</span> your time) a real IBM quantum computer runs his program 4,000 times. Each run lands on one hamster: one drop.</li>
-            <li><b>One drop is yours.</b> Your net gets one of those 4,000 drops, drawn at random on-chain once the night's result is posted, so nobody can choose it or know it before. The hamster it landed on is your catch. If your drop is chip noise (a spot he could not reach that night, or one with under 1% of the drops), your hamster got away.</li>
+            <li><b>The door.</b> Every night Squeektoshi, a real hamster, runs his wheel on Squeekchain. His run becomes a program for a real IBM quantum computer.</li>
+            <li><b>The shake.</b> At <span class="tend">13:00</span> the quantum computer runs it 4,000 times. Each run is a drop through the door that lands on one of 16 hamsters.</li>
+            <li><b>Your net.</b> One of the 4,000 drops is yours. The hamster it lands on is your catch. The rarer the hamster, the stranger its universe.</li>
+            <li><b>Got away?</b> Some drops land where no hamster can be. Then your hamster slipped back through the door.</li>
           </ol>
+          <div class="tiers unis" id="unis" aria-label="The universes, by rarity"><div><b>Common</b> the Home Burrow</div><div><b>Uncommon</b> the Wild Worlds</div><div><b>Rare</b> the Machine Worlds</div><div><b>Epic</b> the Dream Worlds</div><div><b>Legendary</b> the Golden World</div></div>
+          <p class="small" id="howfacts">Cast your net before <span class="tclose">22:00</span> your time. <span id="howcost">A net is a test NFT on Sepolia.</span> Nobody picks a hamster.</p>
+          <p class="small" id="needs">What you need: a crypto wallet on the Sepolia test network, <span id="needsqk">0.01 test SQK (free here, once per night)</span> and a little free test ETH for the fee (<a id="faucet" href="https://cloud.google.com/application/web3/faucet/ethereum/sepolia" target="_blank" rel="noopener">get free test ETH</a>). Test tokens: no money value. One net per wallet per night.</p>
           <img class="podart" id="podart" alt="The five prizes on a podium: honey, tiger, circuit, crystal and gold hamsters" width="1200" height="670" loading="lazy" decoding="async">
           <dl class="faq" id="faq">
             <dt>Why 16 hamsters?</dt><dd>The quantum program keeps his place on the ring in 4 qubits, and 4 qubits give exactly 16 different answers: one per hamster.</dd>
@@ -866,9 +878,9 @@ footer a { color: var(--ink) }
             <dt>Which drop is mine?</dt><dd id="whichdrop">After the result is posted, the contract draws one of the 4,000 drops for your net at random (a fingerprint of the night's result and your net's number). Nobody can choose it or know it before.</dd>
           </dl>
           <div class="s2how" id="s2how" hidden>
-            <h4>Season 2: ten trait slots</h4>
+            <h4>Ten trait slots</h4>
             <ol class="steps4 s2steps">
-              <li>In Season 2 your net also gets one drop for each of its hamster's 10 trait slots: face, head, eyes, mouth, neck, hands, back, special, aura and background.</li>
+              <li>Your net also gets one drop for each of its hamster's 10 trait slots: face, head, eyes, mouth, neck, hands, back, special, aura and background.</li>
               <li>Where a slot's drop lands decides it: a common spot or chip noise leaves the slot empty, a rarer spot gives a rarer item, and Legendary items come only on a golden night (about 1 night in 16 to 20).</li>
               <li>Anyone can recheck every trait from the night's posted numbers and the published result file, and the draws wait for the next Sepolia block after the post, so nobody knows them before.</li>
             </ol>
@@ -919,7 +931,7 @@ footer a { color: var(--ink) }
             <li>Start at his own spot: total turns mod 16. Coin (|0&rang; + i|1&rang;)/&radic;2. Each step: tilt the coin, then coin 1 steps +1, coin 0 steps &minus;1, on a ring of 16.</li>
             <li>IBM runs it 4,000 times. A spot is in reach that night if (spot + total turns + steps) is even and it is at most as many spots from his start as he took steps; out of reach: he got away. A spot in reach with at least 1% of the landings is caught; rank those by landings: the fewest is Epic (Legendary if the chip's very first shot landed there), the next Rare, the two after that Uncommon, the rest Common. The spot's 4 bits pick the looks.</li>
             <li id="recipe6">Each net gets one of the night's landings: keccak256 of (the night, the posted result's hash and job id, the net's token id) modulo the number of landings, counted off spot by spot from spot 0. If that spot is caught, the net catches its hamster with its rank; if not (out of reach, or under 1%), the drop was chip noise and the net got away.</li>
-            <li id="recipe7" hidden>Season 2: each trait slot k = 1 to 10 (face, head, eyes, mouth, neck, hands, back, special, aura, background) gets its own landing the same way, keccak256 of (the night, the seed, the token id, k) modulo the landings; that spot's rank is the slot's tier (Common or chip noise: the slot stays empty). The contract's <span class="mono">dnaOf</span> gives each slot's tier, landing and hash; its renderer turns them into the picture (the pictures can change until the contract is locked).</li>
+            <li id="recipe7" hidden>Each trait slot k = 1 to 10 (face, head, eyes, mouth, neck, hands, back, special, aura, background) gets its own landing the same way, keccak256 of (the night, the seed, the token id, k) modulo the landings; that spot's rank is the slot's tier (Common or chip noise: the slot stays empty). The contract's <span class="mono">dnaOf</span> gives each slot's tier, landing and hash; its renderer turns them into the picture (the pictures can change until the contract is locked).</li>
           </ol>
           <details class="sub">
             <summary id="roundsum">All rounds of this night</summary>
@@ -958,7 +970,7 @@ footer a { color: var(--ink) }
 
   <footer>
     <img class="fart" id="labart" alt="Squeektoshi runs his golden wheel under the quantum computer; its drops of light rain onto 16 little stands" width="1400" height="594" loading="lazy" decoding="async">
-    <p class="lede">Squeektoshi's run programs a real quantum computer. Catch the hamster it lands on.</p>
+    <p class="lede">Catch a hamster from another universe. Every night Squeektoshi's run opens the door, and a real IBM quantum computer shakes it.</p>
     <p class="sub">Squeektoshi is a real hamster. Probably the first hamster to program a quantum computer.</p>
     <p>Test tokens only (Sepolia test ETH, Squeekchain test SQK): nothing here has money value.</p>
     <p>A community project. Not made by the Squeekchain team. <a class="ghf" id="ghfoot" href="#" target="_blank" rel="noopener">Code on GitHub</a></p>
@@ -1507,7 +1519,7 @@ footer a { color: var(--ink) }
     if (String(await eth.request({ method: 'eth_chainId' })).toLowerCase() !== SEPOLIA.chainId) throw fail('chain');
   }
   var walletCall = function (eth) { return function (to, data) { return eth.request({ method: 'eth_call', params: [{ to: to, data: data }, 'latest'] }); }; };
-  // a net's result() (null = no such net, or a burned one). opts.dna (Season 2 contracts only): a caught net also gets
+  // a net's result() (null = no such net, or a burned one). opts.dna (v3 contracts only): a caught net also gets
   // .dna, its raw draw (dnaOf). Without opts the call is exactly v2's.
   async function readNet(call, contract, id, opts) {
     var r;
@@ -2326,7 +2338,7 @@ footer a { color: var(--ink) }
       // the viewer's net on a locked night that is not in the page yet: his run is on (live rounds so far), or over and
       // waiting for IBM's chip. Tomorrow's net is one tap away (secondary button).
       const m = store.nets[d], nn = QC.nightOfDay(d), endMs = endOf(d), over = now() >= endMs, so = sofar && sofar.day === d ? sofar : null, sw = QC.startWindow(nn);
-      head = `${isS1(m) ? 'Your Season 1 net' : 'Your net'} · ${dayLabel(d)}`;
+      head = `${isS1(m) ? 'Your early net' : 'Your net'} · ${dayLabel(d)}`;
       // a drop net: the card (✓ Your net is in · Result today at 13:00 · countdown); his turns are on the ALIVE line
       if (isDrop(m)) prompt = over ? staleWords() : '';
       else {
@@ -2339,7 +2351,7 @@ footer a { color: var(--ink) }
       alt = { text: store.nets[w.day] ? `Show ${wn} net` : nftOn() ? `Cast ${wn} net` : `See ${wn} net`, go: () => selectView('tonight') };
     } else {
       const n = N(d), c = chipOf(d), m = mine(d), pr = practiceOpen(d), drop = isDrop(m);
-      head = pr || (m && m.practice) ? `Practice · ${dayLabel(d)}` : m ? `${isS1(m) ? 'Your Season 1 net' : 'Your net'} · ${dayLabel(d)}` : `Night of ${dayLabel(d)}`;
+      head = pr || (m && m.practice) ? `Practice · ${dayLabel(d)}` : m ? `${isS1(m) ? 'Your early net' : 'Your net'} · ${dayLabel(d)}` : `Night of ${dayLabel(d)}`;
       if (S.playing) prompt = m && !drop ? `No. ${m.spot}: here comes his night…` : 'Here comes his night…';
       else if (n.slept) prompt = m ? 'He slept: no catch that night.' : 'He slept that night.';
       else if (pr) { prompt = 'One free try on a night that already ran.'; act = { text: 'Cast a practice net · free', go: castPractice }; }
@@ -2413,7 +2425,7 @@ footer a { color: var(--ink) }
       const r = netResult(d, m.spot), h = r.h, L = look(h), drop = isDrop(m), s2 = !m.practice && isS2(m) && h.tier >= 0, ex = m.practice && drop && h.tier >= 0 ? practiceEx(h.tier, m.spot) : null;
       el.classList.remove('plain'); paintInto($('revcv'), m.spot, L.tier, L.dark, !h.reach);
       $('revt').textContent = h.tier >= 0 ? `${Cap(an(h.name))} ${h.name} ${s2 ? '' : (ex ? ex.skin : SKIN[h.tier]) + ' '}hamster!` : drop ? 'Your hamster got away.' : 'He got away.';
-      if (ex) { el.classList.add('s2'); ri.hidden = false; ri.alt = `${ex.name}: a Season 2 example`; ri.src = ex.src; delete ri.dataset.for; delete ri.dataset.src; }
+      if (ex) { el.classList.add('s2'); ri.hidden = false; ri.alt = `${ex.name}: an example`; ri.src = ex.src; delete ri.dataset.for; delete ri.dataset.src; }
       $('revt').style.color = h.tier >= 0 ? `var(--r${h.tier})` : 'var(--stage-muted)';
       if (s2) {
         // the chain's own picture (its tokenURI: read once, kept in memory), its skin named by the chain's metadata
@@ -2426,7 +2438,7 @@ footer a { color: var(--ink) }
           if (sk) $('revt').textContent = `${Cap(an(h.name))} ${h.name} ${sk} hamster!`;
         });
       }
-      const tag = m.practice ? '<span class="tag2">practice</span>' : isS1(m) ? `<span class="tag2">Season 1${drop ? '' : ' · picked'}</span>` : drop ? '' : `<span class="tag2">${OLD}</span>`;
+      const tag = m.practice ? '<span class="tag2">practice</span>' : isS1(m) ? `<span class="tag2">early net${drop ? '' : ' · picked'}</span>` : drop ? '' : `<span class="tag2">${OLD}</span>`;
       $('revs').innerHTML = tag + (drop
         ? (h.tier >= 0 ? `<b>${fmtInt(h.hits)}</b> of the ${fmtInt(c.wheel_shots)} drops landed on No. ${m.spot}.${rankWords(h, 'there')}`
           : h.reach ? `Only <b>${pct(h.share)}</b> of the drops landed on No. ${m.spot} (a catch needs 1%): chip noise.`
@@ -2443,10 +2455,36 @@ footer a { color: var(--ink) }
   }
   // the net's card in the action slot (approved, 6 Nov: the NFT thumb + "✓ Your net is in" + "Result tomorrow at 13:00" + a
   // countdown, nothing else), on its own night until the chip has looked. An old picked net's NFT keeps its words
+  // the same wallet's earlier nets whose result is not seen yet (newest first): waiting, drawing or ready; not slept / no result
+  const catcherOf = (x) => (x && x.nft && x.nft.tokenId ? BigInt(x.nft.tokenId) & ((1n << 160n) - 1n) : null);
+  function earlierNets(d0) {
+    const me = catcherOf(store.nets[d0]); if (me == null) return [];
+    return Object.keys(store.nets).filter((d) => d < d0 && isDrop(store.nets[d]) && !store.nets[d].seen && catcherOf(store.nets[d]) === me && !(N(d) && N(d).slept)
+      && netResult(d, store.nets[d].spot).status !== 'noresult').sort().reverse();
+  }
+  // ONE line under tonight's net card (owner 11-07: "if you cast for tonight you also see what you are waiting from
+  // yesterday"): "Last night's net: result today at 13:00 · in 58 min" (live), "… Drawing…", or a tap "Last night's catch
+  // is ready →" that opens it; several: the newest one + "+1 more" (Details)
+  function renderPrevNet(show) {
+    const el = $('prevnet'), w = win(), L = show ? earlierNets(w.day) : [];
+    el.hidden = !L.length; if (!L.length) { el.innerHTML = ''; return; }
+    const d = L[0], m = store.nets[d], end = endOf(d), rd = relDay(end), today = rd === 'today' || rd === 'tonight';
+    const who = today ? "Last night's" : rd === 'tomorrow' ? "Tonight's" : `Your ${dayLabel(d)}`;
+    const more = L.length > 1 ? ` · <a href="#tonight" class="pmore">+${L.length - 1} more</a>` : '';
+    let t;
+    if (chipOf(d) && drawn(m)) t = `<a href="#${d}" class="pready">${who} catch is ready →</a>`;
+    else if (chipOf(d)) t = `${who} net: ${S.chain[d] === QC.DRAWING ? 'Drawing…' : 'result posted soon'}`;
+    else if (now() < end) t = `${who} net: result ${rd} at ${tLocal(end)} · <b class="cdr" data-to="${end}">in ${QC.countdown(end - now())}</b>`;
+    else t = `${who} net: waiting for the quantum computer…`;
+    el.innerHTML = t + more;
+    const a = el.querySelector('.pready'); if (a) a.onclick = (e) => { e.preventDefault(); showNight(d); if (readyNow(d)) play(); };
+    const b = el.querySelector('.pmore'); if (b) b.onclick = (e) => { e.preventDefault(); route('tonight'); };
+  }
   function renderNftBox() {
     const w = win(), d = S.view === 'tonight' ? w.day : S.view, net = store.nets[d], box = $('nftbox');
     const on = !S.playing && !!net && (isDrop(net) || !!net.nft) && !chipOf(d) && !(N(d) && N(d).slept) && netResult(d, null).status !== 'noresult';
     box.hidden = !on;
+    renderPrevNet(on && S.view === 'tonight' && isDrop(net));
     if (!on) return;
     if (isDrop(net)) {
       const end = endOf(d), over = now() >= end;
@@ -2708,7 +2746,7 @@ footer a { color: var(--ink) }
     for (const [d, m] of L) {
       const r = netResult(d, m.spot), el = document.createElement('button'); el.type = 'button'; el.className = 'mycard'; el.dataset.night = d;
       el.onclick = () => showNight(d); tilt(el);
-      const dd = dayLabel(d, { weekday: undefined }), no = drawn(m) ? `#${m.spot}` : '#?', kind = m.practice ? 'practice' : isS1(m) ? (isDrop(m) ? 'Season 1' : 'Season 1 · picked') : isDrop(m) ? '' : OLD;
+      const dd = dayLabel(d, { weekday: undefined }), no = drawn(m) ? `#${m.spot}` : '#?', kind = m.practice ? 'practice' : isS1(m) ? (isDrop(m) ? 'early net' : 'early net · picked') : isDrop(m) ? '' : OLD;
       if (r.status === 'slept') { el.dataset.tier = -1; el.innerHTML = `<span class="tn">He slept</span><span class="tp">${dd}${isDrop(m) ? '' : ' · ' + no}</span><span class="tp">no catch</span>`; box.appendChild(el); continue; }
       if (r.status === 'drawing') { const dr = S.chain[d] === QC.DRAWING; el.classList.add('todo'); el.dataset.tier = 'x'; el.innerHTML = `<span class="tn">${dr ? 'Drawing…' : 'Soon'}</span><span class="tp">${dd} · #?</span><span class="tp">${dr ? 'sealed with the next block' : 'your drop is posted soon'}</span>`; box.appendChild(el); continue; }
       if (!m.seen) { el.classList.add('todo'); el.dataset.tier = 'x'; const cv = mk(112, 112); el.appendChild(cv); paintInto(cv, isDrop(m) ? 0 : m.spot, -1, isDrop(m)); el.insertAdjacentHTML('beforeend', `<span class="tn">Ready!</span><span class="tp">${dd}${isDrop(m) ? '' : ' · ' + no}</span><span class="tp">tap to see</span>`); box.appendChild(el); continue; }
@@ -2717,7 +2755,7 @@ footer a { color: var(--ink) }
       const lk = look(h);
       const pex = h.tier >= 0 && m.practice && isDrop(m) ? practiceEx(h.tier, m.spot) : null;
       if (h.tier >= 0 && !m.practice && isS2(m)) { const im = document.createElement('img'); im.alt = `${h.name} hamster, its picture from the contract`; im.dataset.meta = netAddr(m) + ':' + m.nft.tokenId + ':c'; el.appendChild(im); lazyMeta(im); }
-      else if (pex) { const im = document.createElement('img'); im.alt = `${pex.name}: a Season 2 example`; im.src = pex.src; el.appendChild(im); }
+      else if (pex) { const im = document.createElement('img'); im.alt = `${pex.name}: an example`; im.src = pex.src; el.appendChild(im); }
       else { const cv = mk(112, 112); el.appendChild(cv); paintInto(cv, m.spot, lk.tier, lk.dark, !h.reach); }
       el.insertAdjacentHTML('beforeend', `<span class="tn">${h.tier >= 0 ? h.name : 'Got away'}</span><span class="tp">${dd} · ${no}</span><span class="tp">${kind || (h.tier >= 0 ? 'IBM chip' : 'chip noise')}</span>`);
       el.title = isS2(m) ? `${dayLabel(d)} · No. ${m.spot} · ${h.tier >= 0 ? h.name + ' hamster' : 'got away'} · ${pct(h.share)} of the chip's drops`
@@ -2731,7 +2769,8 @@ footer a { color: var(--ink) }
   }
   $('mycount').onclick = () => route('mine');
   $('howlink').onclick = (e) => { e.preventDefault(); route('how'); };
-  $('needlink').onclick = (e) => { e.preventDefault(); route('how'); };
+  // "What you need" opens How it works at What you need (the story comes first in it since 11-07)
+  $('needlink').onclick = (e) => { e.preventDefault(); route('how'); try { $('needs').scrollIntoView({ block: 'center' }); } catch (x) { /* fine */ } };
   // a phone browser has no wallet inside it (owner 11-06 on his phone: "where is wallet connection"): one button opens this
   // very page in the MetaMask app's own browser, where the cast button connects; "What you need" becomes a quiet link under it
   if (/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) && !window.ethereum && /^https?:$/.test(location.protocol) && location.host) {
@@ -2798,12 +2837,12 @@ footer a { color: var(--ink) }
     const box = $('prow'), S2S = S2ON && Array.isArray(ART.s2skins) && ART.s2skins.length === 5 ? ART.s2skins : null;
     if (box.children.length !== 5) {
       // Season 2: each tier's skins (Common 1, Uncommon 3, Rare 2, Epic 3, Legendary 2) as a small stack of round heads, the
-      // middle one in front; one name, or "3 skins" (the names are in the label). Season 1: the tier's one skin, painted here
+      // middle one in front; no skin names or counts (owner 11-07: "it should be surprise"). Season 1: the tier's one skin + name
       const pic = (t) => (S2S ? `<span class="pst" aria-hidden="true">${S2S[t].map(([k], i) => `<img alt="" data-k="${esc(k)}" style="left:${S2S[t].length === 1 ? 19 : i * 38 / (S2S[t].length - 1)}%;z-index:${S2S[t].length === 3 ? [1, 3, 2][i] : i + 1}">`).join('')}</span>`
         : '<canvas width="112" height="112" aria-hidden="true"></canvas>');
       const sk = (t) => (S2S ? (S2S[t].length === 1 ? Cap(S2S[t][0][0]) : `${S2S[t].length} skins`) : SKIN[t]);
-      box.innerHTML = TIER.map((n, t) => `<div class="prz" role="listitem" data-t="${t}">${pic(t)}<b>${n}</b><span class="ps">${sk(t)}</span><span class="po"></span></div>`).join('');
-      if (S2S) [...box.children].forEach((el, t) => { el.querySelectorAll('.pst img').forEach((im, i) => { im.src = 'data:image/webp;base64,' + S2S[t][i][1]; }); el.title = `${TIER[t]}: ${S2S[t].map(([k]) => Cap(k)).join(', ')}`; });
+      box.innerHTML = TIER.map((n, t) => `<div class="prz" role="listitem" data-t="${t}">${pic(t)}<b>${n}</b>${S2S ? '' : `<span class="ps">${sk(t)}</span>`}<span class="po"></span></div>`).join('');
+      if (S2S) [...box.children].forEach((el, t) => { el.querySelectorAll('.pst img').forEach((im, i) => { im.src = 'data:image/webp;base64,' + S2S[t][i][1]; }); });
       else [...box.children].forEach((el, t) => paintInto(el.querySelector('canvas'), 8, t, false));
     }
     const skinWords = (t) => (S2S ? `${S2S[t].map(([k]) => Cap(k)).join(', ')} skin${S2S[t].length > 1 ? 's' : ''}` : `${SKIN[t]} skin`);
@@ -2812,7 +2851,7 @@ footer a { color: var(--ink) }
     const e = (O.by[4].hits + O.by[5].hits) / O.shots, inN = e > 0 ? 1 / (e * e) : Infinity;
     const zero = (t) => (t === 4 ? (inN < 1000 ? `~1 in ${fmtInt(Number(inN.toPrecision(2)))}` : 'rare') : t === 3 && O.by[5].hits ? '→ Legendary' : pct(0));
     [...box.children].forEach((el, t) => { const x = O.by[t + 1], p = x.hits ? pct(x.hits / O.shots) : zero(t), po = el.querySelector('.po'); po.textContent = p; po.classList.toggle('w', p.length > 9);
-      el.setAttribute('aria-label', `${TIER[t]}, ${skinWords(t)}: ${x.hits ? `${p} of the drops ${when}` : t === 4 ? `none ${when}; ${p === 'rare' ? 'rare' : `about ${p.replace('~', '')}`} per net` : t === 3 && O.by[5].hits ? `none ${when}: the first drop made the Epic hamster Legendary` : `none ${when}`}`); });
+      el.setAttribute('aria-label', `${TIER[t]}${S2S ? '' : `, ${skinWords(t)}`}: ${x.hits ? `${p} of the drops ${when}` : t === 4 ? `none ${when}; ${p === 'rare' ? 'rare' : `about ${p.replace('~', '')}`} per net` : t === 3 && O.by[5].hits ? `none ${when}: the first drop made the Epic hamster Legendary` : `none ${when}`}`); });
     $('podds').textContent = d === prevDay(win().day) ? 'Chances from last night.' : `Chances from ${dayLabel(d)}.`;
     if (!S2S) box.children[4].title = "Legendary: the Epic hamster, when the chip's very first drop of the night lands on it";
   }
@@ -3058,11 +3097,11 @@ footer a { color: var(--ink) }
       for (const x of nets) {
         const el = document.createElement('div'); el.className = 'mycard'; el.dataset.tier = x.tier ? x.tier - 1 : -1;
         el.innerHTML = `<img alt="Net NFT, night of ${esc(dayLabel(x.day))}"><span class="tn">${x.status === 1 && x.tier ? TIER[x.tier - 1] : esc(ST[x.status] || '')}</span><span class="tp">${dayLabel(x.day, { weekday: undefined })} · ${x.status !== 0 && isSpot(x.spot) ? '#' + x.spot : '#?'}</span>` +
-          (x.season === 1 ? '<span class="tp">Season 1</span>' : '');
+          (x.season === 1 ? '<span class="tp">early net</span>' : '');
         const im = el.querySelector('img'); im.dataset.meta = x.contract + ':' + x.tokenId + ':' + x.status; lazyMeta(im);       // the chain's own picture, once in view
         box.appendChild(el);
       }
-      $('nftnote').textContent = nets.length ? `Read from the QuantumCatch contract${S2ON ? 's' : ''} on Sepolia (result and on-chain picture of each net).` : '';
+      $('nftnote').textContent = nets.length ? `Read from the contract${S2ON ? 's' : ''} on Sepolia (result and on-chain picture of each net).` : '';
     } catch (e) { /* no wallet answer: nothing to show */ }
   }
 
@@ -3249,7 +3288,7 @@ footer a { color: var(--ink) }
   const GALLERY = S2ON && ART.s2examples && Object.keys(ART.s2examples).length ? ART.s2examples : ART.showcase;
   function renderGallery() {
     const box = $('gallery'); if (box.children.length || !GALLERY) return;
-    if (S2ON) $('gk').textContent = GALLERY === ART.showcase ? 'A first look at Season 2' : 'Season 2 hamsters';
+    if (S2ON) $('gk').textContent = 'Hamsters from other universes';
     box.classList.toggle('s2ex', GALLERY !== ART.showcase);
     for (const [name, x] of Object.entries(GALLERY)) {
       const f = document.createElement('figure'); f.className = 'gcard'; f.setAttribute('role', 'listitem'); f.tabIndex = 0;
@@ -3290,7 +3329,7 @@ footer a { color: var(--ink) }
     try { metaIO = metaIO || new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { metaIO.unobserve(e.target); loadImg(e.target); } }), { rootMargin: '200px' }); metaIO.observe(im); }
     catch (e) { loadImg(im); }
   }
-  // locked(): until the owner locks the Season 2 contract its pictures (never the draws) can still change; one read on load
+  // locked(): until the owner locks the v3 contract its pictures (never the draws) can still change; one read on load
   let lockState = null;
   async function readLock() {
     if (!S2ON) return;
@@ -3300,12 +3339,12 @@ footer a { color: var(--ink) }
     }
     const el = $('lockn'); el.hidden = lockState == null;
     el.textContent = lockState ? 'Locked forever ✓' : 'Pictures still changing'; el.classList.toggle('on', !!lockState);
-    el.title = lockState ? 'The Season 2 contract is locked: its pictures can never change again.' : 'Until the Season 2 contract is locked, its pictures can still be improved. What you caught never changes.';
+    el.title = lockState ? 'The contract is locked: its pictures can never change again.' : 'Until the contract is locked, its pictures can still be improved. What you caught never changes.';
   }
   if (S2ON) {
-    $('s2tag').hidden = false; $('s2how').hidden = false; $('recipe7').hidden = false;
+    $('s2how').hidden = false; $('recipe7').hidden = false;
     $('recipeh').textContent = 'The recipe in 7 lines';
-    $('recipe6').textContent = "Each net gets one of the night's landings. Season 2 seals the night first: once the result is posted, the hash of the next Sepolia block, the result's hash and the job id give the night's seed (keccak256). Then keccak256 of (the night, the seed, the net's token id) modulo the number of landings, counted off spot by spot from spot 0. If that spot is caught, the net catches its hamster with its rank; if not (out of reach, or under 1%), the drop was chip noise and the net got away. (Season 1 nets: keccak256 of the night, the posted result's hash and job id, and the token id.)";
+    $('recipe6').textContent = "Each net gets one of the night's landings. The night is sealed first: once the result is posted, the hash of the next Sepolia block, the result's hash and the job id give the night's seed (keccak256). Then keccak256 of (the night, the seed, the net's token id) modulo the number of landings, counted off spot by spot from spot 0. If that spot is caught, the net catches its hamster with its rank; if not (out of reach, or under 1%), the drop was chip noise and the net got away. (Early nets: keccak256 of the night, the posted result's hash and job id, and the token id.)";
     $('whichdrop').textContent = "After the result is posted and the next Sepolia block seals it, the contract draws one of the 4,000 drops for your net at random (a fingerprint of the night's result, that block and your net's number). Nobody can choose it or know it before.";
   }
 
@@ -3316,6 +3355,8 @@ footer a { color: var(--ink) }
     const ready = DAYS.filter((d) => store.nets[d] && chipOf(d) && !store.nets[d].seen && drawn(store.nets[d]));
     if (ready.length) return ready[ready.length - 1];
     if (keep && S.view && canView(S.view)) return S.view;
+    // tonight's net is cast: tonight's screen (its line under the card says how the earlier net is doing; owner 11-07)
+    if (store.nets[win().day] && isDrop(store.nets[win().day])) return 'tonight';
     const pend = pendingDays();
     if (pend.length) return pend[pend.length - 1];
     if (store.practice && !store.practice.seen && N(store.practice.day)) return store.practice.day;
@@ -3326,10 +3367,10 @@ footer a { color: var(--ink) }
   for (const a of [$('ghlink'), $('ghfoot')]) a.href = CFG.repoUrl;
   const scan = (a, t) => `<a class="addr" href="https://sepolia.etherscan.io/address/${a}" target="_blank" rel="noopener">${t || a}</a>`;
   if (CFG.catchAddress && S2ON) { const k = $('contract'), a = CFG.catchAddress, b = CFG.season1Address; k.hidden = false;
-    k.innerHTML = `Each net is a test NFT: Season 2 contract ${scan(a)} on Sepolia (no money value; one net per wallet per night; its catch and its traits are drawn on-chain from the night's drops). Season 1 nets: ${scan(b)}.`;
-    const f = $('footc'); f.hidden = false; f.innerHTML = `Contracts ${scan(a, `Season 2 ${a.slice(0, 6)}…${a.slice(-4)}`)} · ${scan(b, `Season 1 ${b.slice(0, 6)}…${b.slice(-4)}`)} on Sepolia`; }
-  else if (CFG.catchAddress) { const k = $('contract'); k.hidden = false; k.innerHTML = `Each net is a test NFT: QuantumCatch contract <a class="addr" href="https://sepolia.etherscan.io/address/${CFG.catchAddress}" target="_blank" rel="noopener">${CFG.catchAddress}</a> on Sepolia (no money value; one net per wallet per night; its catch is drawn on-chain from the night's drops).`;
-    const f = $('footc'), a = CFG.catchAddress; f.hidden = false; f.innerHTML = `Contract <a href="https://sepolia.etherscan.io/address/${a}" target="_blank" rel="noopener">QuantumCatch ${a.slice(0, 6)}…${a.slice(-4)}</a> on Sepolia`; }
+    k.innerHTML = `Each net is a test NFT: contract ${scan(a)} on Sepolia (no money value; one net per wallet per night; its catch and its traits are drawn on-chain from the night's drops). Early nets: ${scan(b)}.`;
+    const f = $('footc'); f.hidden = false; f.innerHTML = `Contract ${scan(a, `Quantum Squeak ${a.slice(0, 6)}…${a.slice(-4)}`)} · early nets ${scan(b, `${b.slice(0, 6)}…${b.slice(-4)}`)} on Sepolia`; }
+  else if (CFG.catchAddress) { const k = $('contract'); k.hidden = false; k.innerHTML = `Each net is a test NFT: contract <a class="addr" href="https://sepolia.etherscan.io/address/${CFG.catchAddress}" target="_blank" rel="noopener">${CFG.catchAddress}</a> on Sepolia (no money value; one net per wallet per night; its catch is drawn on-chain from the night's drops).`;
+    const f = $('footc'), a = CFG.catchAddress; f.hidden = false; f.innerHTML = `Contract <a href="https://sepolia.etherscan.io/address/${a}" target="_blank" rel="noopener">Quantum Squeak ${a.slice(0, 6)}…${a.slice(-4)}</a> on Sepolia`; }
   S.view = startView(false);
   renderAll(); livePoll(); fetchResults(); readSoFar(); readNets(); walletNets(false); readSqk(); readDrops(); readLock();
   // a Details hash on load (a shared link, the browser's back button): that view; else the game

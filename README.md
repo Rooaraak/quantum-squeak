@@ -1,8 +1,16 @@
-# Quantum Catch
+# Quantum Squeak
 
-**Squeektoshi's run programs a real quantum computer. Catch the hamster it lands on.**
+**Catch a hamster from another universe. Every night Squeektoshi's run opens the door, and a real IBM quantum computer
+shakes it.**
 
-A browser game on the Sepolia test network (test tokens only, no money value). Squeektoshi is a real hamster on
+The story in four steps: **the door** (every night Squeektoshi, a real hamster, runs his wheel on Squeekchain, and his
+run becomes a program for a real IBM quantum computer); **the shake** (the quantum computer runs it 4,000 times: each
+run is a drop through the door that lands on one of 16 hamsters); **your net** (one of the 4,000 drops is yours, and the
+hamster it lands on is your catch: the rarer the hamster, the stranger its universe); **got away?** (some drops land
+where no hamster can be, and then your hamster slipped back through the door). The universes, by rarity: Common the
+Home Burrow, Uncommon the Wild Worlds, Rare the Machine Worlds, Epic the Dream Worlds, Legendary the Golden World.
+
+The facts: a browser game on the Sepolia test network (test tokens only, no money value). Squeektoshi is a real hamster on
 [Squeekchain](https://squeekchain.com): his wheel turns are measured and settled on Sepolia in 10-minute rounds. Each
 night his run becomes a small quantum program, a quantum walk on a ring of 16 spots. After his night, a real IBM quantum
 computer runs that program 4,000 times. Cast a net before he runs (0.01 test SQK, burned); nobody picks a spot: one of
@@ -30,8 +38,9 @@ A community project. Not made by the Squeekchain team.
    With 8 catchable spots that is 4 Common, 2 Uncommon, 1 Rare, 1 Epic. Legendary needs the night's first shot and the
    net's own shot both on the Epic spot, so per net it is about the Epic spot's share squared: about 1 in 250 on the
    10-step nights so far (1 in 190 to 1 in 1,700 on all the real nights).
-6. **The hamster**: a spot's 4 bits choose what it wears (bit 0 party hat, bit 1 glasses, bit 2 scarf, bit 3 grin or
-   honey face), and the tier chooses its skin. The NFT draws the painted hamster fully on-chain.
+6. **The hamster**: the tier chooses its skin, and each of its 10 trait slots draws its own shot (below). The NFT draws
+   the painted hamster fully on-chain. (The first nets, 6-7 Nov 2026, on the earlier contracts below: a spot's 4 bits
+   chose what it wore.)
 7. **Your net**: one net per wallet per night, cast before 21:00 UTC. Each net costs 0.01 Squeekchain test SQK, burned
    when you cast (`contracts/src/SqkFaucet.sol` gives 0.01 per wallet per net night), and is a Sepolia test NFT
    (`contracts/src/QuantumCatch.sol`), cast from a browser wallet with one permit signature and one transaction (test
@@ -39,15 +48,15 @@ A community project. Not made by the Squeekchain team.
    posted, each net gets one of the night's landings: keccak256(the night, the result's sha256, the IBM job id, the net's
    token id) modulo the number of landings. A night that is not posted within 14 days reads "No chip result" for good.
 
-## Season 2
+## The seal and the trait slots
 
-From the Season 2 switch (`season2Address` in `wheel/config.json`), nets are cast on QuantumCatchV3
-(`contracts/src/QuantumCatchV3.sol`): the same cost, faucet, clock and one net per wallet per night. Two things change:
+Since 7 Nov 2026, nets are cast on QuantumCatchV3 (`contracts/src/QuantumCatchV3.sol`): the same cost, faucet, clock and
+one net per wallet per night as the earlier contract, with two more things:
 
 - **The seal.** After a night is posted, anyone calls `seal(night)` in a later block: the night's seed is
   keccak256(the hash of the block after the post, the result's sha256, the IBM job id), so nobody, the poster included,
   knows any draw before the post is on chain. Until then a net reads "drawing" (status 5). Each net's main shot is
-  keccak256(the night, the seed, the token id) modulo the landings, counted off spot by spot, as in Season 1.
+  keccak256(the night, the seed, the token id) modulo the landings, counted off spot by spot, as before.
 - **Trait slots.** A caught hamster also draws one shot for each of 10 slots (face, head, eyes, mouth, neck, hands,
   back, special, aura, background): keccak256(the night, the seed, the token id, k) for slot k. Where that shot lands
   gives the slot's tier with the same rarity rule (Common or chip noise: the slot stays empty). `dnaOf(id)` returns
@@ -56,8 +65,9 @@ From the Season 2 switch (`season2Address` in `wheel/config.json`), nets are cas
 
 QuantumCatchV3 has an owner with exactly two powers: `setRenderer` (how every hamster looks) and `lock()`, which removes
 the owner for good (`locked()` is then true and the page says "Locked forever"). Nothing else can be changed by anyone:
-not the draws, the cost, the clock, the hatcher or a single net. Season 1 nets (QuantumCatch below, and v1) stay exactly
-as they are, and the page still shows them, labelled "Season 1".
+not the draws, the cost, the clock, the hatcher or a single net. The early nets (QuantumCatch below, and v1) stay exactly
+as they are, and the page still shows them, labelled "early net". (The contracts and the NFTs' own on-chain texts keep the
+name QuantumCatch; the website is Quantum Squeak.)
 
 A normal computer can simulate this small walk. What is real is that every chip result here ran on real IBM hardware,
 with real noise, on his real run. The page says for each night whether the chip's landings were closer to the perfect
@@ -100,8 +110,8 @@ node wheel/test/page.test.cjs                                  # needs puppeteer
 
 | | Address |
 |---|---|
-| QuantumCatchV3 (Season 2: the nets from the switch; 0.01 test SQK each, burned) | [`0x5331631708adff57965aab4bba5453be35e30b30`](https://sepolia.etherscan.io/address/0x5331631708adff57965aab4bba5453be35e30b30) |
-| QuantumCatch (Season 1: the nets until the switch; 0.01 test SQK each, burned) | [`0x151ec033c914252358bdcdba0548ac6a7b4f7f49`](https://sepolia.etherscan.io/address/0x151ec033c914252358bdcdba0548ac6a7b4f7f49) |
+| QuantumCatchV3 (the nets since 7 Nov 2026; 0.01 test SQK each, burned) | [`0x5331631708adff57965aab4bba5453be35e30b30`](https://sepolia.etherscan.io/address/0x5331631708adff57965aab4bba5453be35e30b30) |
+| QuantumCatch (the early nets, 6-7 Nov 2026; 0.01 test SQK each, burned) | [`0x151ec033c914252358bdcdba0548ac6a7b4f7f49`](https://sepolia.etherscan.io/address/0x151ec033c914252358bdcdba0548ac6a7b4f7f49) |
 | SQK (Squeekchain's test token, what a net burns) | [`0xd78a3956cf63164d1fa1c622ad3c66623162fa1e`](https://sepolia.etherscan.io/address/0xd78a3956cf63164d1fa1c622ad3c66623162fa1e) |
 | SqkFaucet (0.01 test SQK per wallet per night) | `faucetAddress` in `wheel/config.json` |
 | QuantumCatch v1 (6 Nov 2026: free nets on a picked spot; stays on chain, its nets keep their results) | [`0xa0b3352b3a436c845e3bf2d251abeda3d474dfe0`](https://sepolia.etherscan.io/address/0xa0b3352b3a436c845e3bf2d251abeda3d474dfe0) |

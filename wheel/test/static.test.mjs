@@ -13,7 +13,8 @@ const ROOT = path.resolve(here, '../..');
 const OUT = process.env.QW_PAGE || path.join(ROOT, 'wheel/out/quantum-catch.html');
 const QW = createRequire(import.meta.url)(path.join(ROOT, 'wheel/engine.js'));
 const CFG = JSON.parse(fs.readFileSync(path.join(ROOT, 'wheel/config.json'), 'utf8'));
-const TAGLINE = "Squeektoshi's run programs a real quantum computer. Catch the hamster it lands on.";
+// the website is Quantum Squeak (owner 11-07 "B yes rename"; the contracts and their on-chain texts keep QuantumCatch)
+const TAGLINE = "Catch a hamster from another universe. Every night Squeektoshi's run opens the door, and a real IBM quantum computer shakes it.";
 const html = fs.readFileSync(OUT, 'utf8');
 const css = html.slice(html.indexOf('<style>'), html.indexOf('</style>'));
 const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]).join('\n');
@@ -23,7 +24,7 @@ const block = (start) => { const i = css.indexOf(start); assert.ok(i >= 0, `miss
 test('page head: starts with <meta charset>, then the title and the viewport-fit meta; no document wrapper tags', () => {
   const lines = html.split('\n');
   assert.equal(lines[0], '<meta charset="utf-8">');
-  assert.equal(lines[1], '<title>Quantum Catch</title>');
+  assert.equal(lines[1], '<title>Quantum Squeak</title>');
   assert.equal(lines[2], '<meta name="claude:viewport-fit-sides" content="cover">');
   assert.ok(!/<!doctype|<html[\s>]|<head[\s>]|<body[\s>]|<\/body>|<\/html>/i.test(html), 'no doctype/html/head/body tags');
   assert.ok(!html.startsWith('\uFEFF'));
@@ -102,10 +103,17 @@ test('leak gate on the page (server paths, household words, emails, IPs, tokens,
   if (WORDS.includes(ACCOUNT.toLowerCase())) assert.ok(leakHits(`see ${ACCOUNT.toLowerCase()} here`, new Set()).some((h) => /household word/.test(h)), 'the gate still catches the name outside the link');
 });
 
-test('Quantum Catch: the name, the tagline verbatim, Powered by Squeekchain, GitHub links; no egg and no hatch anywhere', () => {
-  assert.match(text, /<h1>.*<span>Quantum Catch<\/span><\/h1>/);
-  assert.ok(text.includes(`<p class="lede">${TAGLINE}</p>`), 'the tagline, verbatim, under the name');
-  assert.ok(text.includes('<p class="headline">A real <em>quantum computer</em> decides which hamster you catch.</p>'), 'the headline: no picking (owner, 6 Nov)');
+test('Quantum Squeak: the name, the story (the h1 + one line), the tagline verbatim, Powered by Squeekchain, GitHub links; no egg, no hatch, no season, no old name anywhere a visitor sees', () => {
+  assert.match(text, /<p class="wm"><span>Quantum Squeak<\/span><\/p>/);
+  assert.ok(text.includes(`<p class="lede">${TAGLINE}</p>`), 'the tagline, verbatim, in the footer');
+  assert.ok(text.includes('<h1 class="headline">Catch a hamster from <em>another universe</em>.</h1>'), 'the headline is the page\'s h1: the story (owner 11-07)');
+  assert.ok(text.includes(`<p class="lede1" id="lede1">Every night Squeektoshi's run opens the door. At <span class="tend">13:00</span> a real IBM quantum computer shakes it.</p>`), 'one story line (13:00 = his night\'s end, in your time)');
+  assert.equal((text.match(/<h1\b/g) || []).length, 1, 'one h1');
+  const words = text.replace(/<[^>]+>/g, ' ').replace(/[A-Za-z0-9+/=]{200,}/g, '');
+  assert.ok(!/quantum catch|quantumcatch/i.test(words), `the old name nowhere in the markup: ${(words.match(/.{30}quantum ?catch.{30}/i) || [''])[0]}`);
+  assert.ok(!/season|\bS2\b/i.test(words), `no season words in the markup: ${(words.match(/.{30}season.{30}/i) || [''])[0]}`);
+  for (const w of ["'Your Season", "'Season 1", '>Season 1', 'Season 2 contract', 'Season 2 hamsters', 'A first look at Season 2', 'a Season 2 example', 'Season 2 seals', '(Season 1 nets', 'QuantumCatch contract', '>QuantumCatch ${'])
+    assert.ok(!scripts.includes(w), `no season or old-name words in what the scripts write: ${w}`);
   assert.match(text, /Powered by Squeektoshi's real wheel on <b>Squeekchain<\/b>/);
   const plain = html.replace(/[A-Za-z0-9+/=]{200,}/g, '');               // base64 art can spell anything by chance
   assert.ok(!/hatch/i.test(plain), `no "hatch": ${(plain.match(/.{30}hatch.{30}/i) || [''])[0]}`);
@@ -200,9 +208,12 @@ test('no picking: the claw-machine words, the 4 steps of How it works, last nigh
   const how = text.slice(text.indexOf('<details class="card more" id="how">'), text.indexOf('<details class="card more" id="check">'));
   const steps = how.match(/<ol class="steps4" id="howsteps">([\s\S]*?)<\/ol>/);
   assert.ok(steps, 'How it works: the steps');
-  assert.deepEqual([...steps[1].matchAll(/<li><b>([^<]+)<\/b>/g)].map((m) => m[1]), ['Cast a net.', 'He runs.', 'The chip drops 4,000 times.', 'One drop is yours.'], 'the 4 claw-machine steps');
-  assert.match(plain(steps[1]), /If your drop is chip noise \(a spot he could not reach that night, or one with under 1% of the drops\), your hamster got away\./);
-  assert.match(plain(steps[1]), /drawn at random on-chain once the night's result is posted, so nobody can choose it or know it before/);
+  assert.deepEqual([...steps[1].matchAll(/<li><b>([^<]+)<\/b>/g)].map((m) => m[1]), ['The door.', 'The shake.', 'Your net.', 'Got away?'], 'How it works opens with the story (owner 11-07)');
+  assert.ok(how.indexOf('id="howsteps"') < how.indexOf('id="needs"'), 'the story first, then what you need');
+  assert.match(plain(steps[1]), /One of the 4,000 drops is yours\. The hamster it lands on is your catch\. The rarer the hamster, the stranger its universe\./);
+  assert.match(plain(steps[1]), /Some drops land where no hamster can be\. Then your hamster slipped back through the door\./);
+  assert.deepEqual([...how.matchAll(/<div><b>(\w+)<\/b> (the [\w ]+)<\/div>/g)].slice(0, 5).map((m) => `${m[1]} ${m[2]}`), ['Common the Home Burrow', 'Uncommon the Wild Worlds', 'Rare the Machine Worlds', 'Epic the Dream Worlds', 'Legendary the Golden World'], 'the universes per tier (How it works only)');
+  assert.match(how, /Nobody can choose it or know it before\./, 'the draw stays unknowable (Which drop is mine?)');
   assert.match(how, /<h4 id="oddsh">Last night's odds<\/h4>[\s\S]*<tbody id="oddsrows"><\/tbody>/, 'last night\'s odds table (JS from DATA)');
   const check = text.slice(text.indexOf('<details class="card more" id="check">'), text.indexOf('</details>\n    </div>\n  </div>'));
   assert.match(plain(check), /Each net gets one of the night's landings: keccak256 of \(the night, the posted result's hash and job id, the net's token id\) modulo the number of landings/, 'the draw, in the recipe');
@@ -224,7 +235,7 @@ test('v3 structure: the game view and the Details view, the art band and the Sea
   assert.ok(bar > endPlay, 'the sticky cast bar sits outside #play');
   assert.ok(!/class="spot"/.test(first), 'no tile markup in the slice');
   for (const id of ['lcd', 'nfthint', 'chipline', 'deckrow', 'watchsqk']) assert.ok(!text.includes(`id="${id}"`), `no #${id} (owner: "make it simple")`);
-  assert.match(first, /<span class="chipsoon">Coming soon<\/span><h2 id="soonh">Hamster battles<\/h2><p>Your catches will fight\. New hamsters are on the way\.<\/p>/, 'the art band words');
+  assert.match(first, /<span class="chipsoon">Coming soon<\/span><h2 id="soonh">Hamster Battles<\/h2><p>Hamsters from different universes will fight\.<\/p>/, 'the art band words (the story)');
   assert.match(first, /<a class="morel" id="morelink" href="#details">How it works · Details/, 'one link to Details');
   const how = text.slice(text.indexOf('<details class="card more" id="how">'), text.indexOf('<details class="card more" id="check">'));
   assert.match(how, /<dl class="faq" id="faq">/, "the owner's plain answers in How it works");
@@ -385,15 +396,15 @@ test('export-public.sh: index.html + results.json (the site) + README.md + LICEN
     const idx = fs.readFileSync(path.join(dir, 'index.html'), 'utf8');
     assert.ok(idx.includes(`<meta name="description" content="${TAGLINE}">`), 'meta description = the tagline');
     assert.ok(idx.includes(`<meta property="og:description" content="${TAGLINE}">`));
-    assert.ok(idx.includes('<meta property="og:title" content="Quantum Catch">'));
+    assert.ok(idx.includes('<meta property="og:title" content="Quantum Squeak">'));
     assert.match(idx, /^<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n/);
-    assert.ok(idx.includes('<title>Quantum Catch</title>'));
+    assert.ok(idx.includes('<title>Quantum Squeak</title>'));
     assert.equal(idx.slice(idx.indexOf('<title>')), html.slice(html.indexOf('<title>')), 'index.html = the built page under a standard head');
     assert.equal(fs.readFileSync(path.join(dir, 'results.json'), 'utf8'), fs.readFileSync(path.join(path.dirname(OUT), 'results.json'), 'utf8'), 'results.json next to the page');
     const readme = fs.readFileSync(path.join(dir, 'README.md'), 'utf8');
     const ln = (v) => (v ? `[\`${v}\`](https://sepolia.etherscan.io/address/${v})` : 'not deployed yet');
     assert.equal(readme, fs.readFileSync(path.join(ROOT, 'tools/public-README.md'), 'utf8').replace('{{REPO_URL}}', CFG.repoUrl).replace('{{SEASON_2}}', ln(CFG.season2Address)).replace('{{QUANTUM_CATCH}}', ln(CFG.season1Address || CFG.catchAddress)).replace('{{PAINTED_ART}}', ln(CFG.paintedArtAddress)), 'README.md = tools/public-README.md, filled');
-    assert.match(readme, /^# Quantum Catch/); assert.ok(!/hatch(?!er\b)|\beggs?\b/i.test(readme), 'README: no hatch (only the contract\'s hatcher role), no eggs');
+    assert.match(readme, /^# Quantum Squeak/); assert.ok(!/season/i.test(readme), 'README: no season words'); assert.ok(!/hatch(?!er\b)|\beggs?\b/i.test(readme), 'README: no hatch (only the contract\'s hatcher role), no eggs');
     assert.match(readme, /ranked by landings,\s+most\s+first/); assert.ok(!/10%\+ Common|1-1\.5 Legendary|>= 10 % Common/.test(readme), 'README: the rank rule, not the share tiers');
     assert.ok(!/squeekchain-project/.test(readme + idx), 'no project id configured: no tag, no line');
   } finally { done(); }
@@ -459,13 +470,13 @@ test('Season 2 build (one switch): casts on v3, Season 1 from v2, the tag, the s
     assert.ok(leakHits(t, new Set([...CORES, CFG.sqkAddress, CFG.faucetAddress, V2A])).some((h) => h.includes(V3A)), 'the gate would stop an address it does not know');
     const vis = t.replace(/<style>[\s\S]*?<\/style>/, '').replace(/<script>[\s\S]*?<\/script>/g, '');
     const first = vis.slice(vis.indexOf('<section class="card play"'), vis.indexOf('<section class="soon"'));
-    // the only new first-screen markup: the hidden tag (JS shows it); How it works's three sentences + the one-line odds table
-    assert.equal((first.match(/Season 2/g) || []).length, 1, 'one "Season 2" on the first screen: the tag');
+    // no season words (owner 11-07); How it works's three sentences + the one-line odds table
+    assert.ok(!/season/i.test(vis.replace(/<[^>]+>/g, ' ')), 'no season words anywhere in the markup');
     const how = vis.slice(vis.indexOf('<div class="s2how" id="s2how" hidden>'), vis.indexOf('<details class="card more" id="check">'));
     assert.equal((how.match(/<li>/g) || []).length, 3, 'three sentences');
     assert.match(how, /<tr><td>Chance<\/td><td>64 in 100<\/td><td>23 in 100<\/td><td>7 in 100<\/td><td>6 in 100<\/td><td>~1 in 260<\/td><\/tr>/, 'the one-line odds table');
     assert.ok(!/hatch/i.test(how) && !/qubit/i.test(how));
-    assert.match(vis, /<li id="recipe7" hidden>Season 2: each trait slot k = 1 to 10 .*keccak256 of \(the night, the seed, the token id, k\)/, 'the 7th recipe line');
+    assert.match(vis, /<li id="recipe7" hidden>Each trait slot k = 1 to 10 .*keccak256 of \(the night, the seed, the token id, k\)/, 'the 7th recipe line');
   } finally { b.done(); }
   // the switch also works with catchAddress moved to the v3 address; anything else is refused before a byte is written
   const c = s2Build([], { season2Address: V3A, catchAddress: V3A }); try { assert.equal(c.r.status, 0, c.r.stderr); } finally { c.done(); }

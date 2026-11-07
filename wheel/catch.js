@@ -388,7 +388,7 @@
     if (String(await eth.request({ method: 'eth_chainId' })).toLowerCase() !== SEPOLIA.chainId) throw fail('chain');
   }
   var walletCall = function (eth) { return function (to, data) { return eth.request({ method: 'eth_call', params: [{ to: to, data: data }, 'latest'] }); }; };
-  // a net's result() (null = no such net, or a burned one). opts.dna (Season 2 contracts only): a caught net also gets
+  // a net's result() (null = no such net, or a burned one). opts.dna (v3 contracts only): a caught net also gets
   // .dna, its raw draw (dnaOf). Without opts the call is exactly v2's.
   async function readNet(call, contract, id, opts) {
     var r;
