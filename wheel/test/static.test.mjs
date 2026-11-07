@@ -295,9 +295,12 @@ test('results.json next to the page: the same nights and chip results (the stand
   assert.deepEqual(leakHits(JSON.stringify(R), new Set(CORES)), []);
 });
 
-test('embedded data: 7 nights, every healthy chip run in quantum/ (the night\'s result or a re-run), every run NOT shown disclosed on its night, the twin job', () => {
+test('embedded data: every night (8+), every healthy chip run in quantum/ (the night\'s result or a re-run), every run NOT shown disclosed on its night, the twin job', () => {
   const D = DATA_;
-  assert.equal(Object.keys(D.nights).length, 7);
+  // grows by one every morning (7 on 11-06, 8 with the 6 Nov night on 11-07): every night in data/chain-nights.json that is complete
+  const CN = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/chain-nights.json'), 'utf8'));
+  assert.ok(Object.keys(D.nights).length >= 8, 'at least the 8 nights through 6 Nov');
+  for (const d of Object.keys(D.nights)) assert.ok(JSON.stringify(CN).includes(d), `${d} comes from data/chain-nights.json`);
   for (const n of Object.values(D.nights)) assert.ok(n.genesis && n.core && n.rounds.length && n.steps.length && !n.perfectTrace, 'walks are computed by the engine in the page');
   const healthy = fs.readdirSync(path.join(ROOT, 'quantum')).filter((f) => /^wheel-.*\.json$/.test(f)).map((f) => JSON.parse(fs.readFileSync(path.join(ROOT, 'quantum', f), 'utf8')))
     .filter((r) => r.kind === 'quantum_wheel' && r.healthy !== false && r.twin.reduce((a, p) => a + p.wins, 0) / r.twin.reduce((a, p) => a + p.shots, 0) >= 0.79);
@@ -306,7 +309,7 @@ test('embedded data: 7 nights, every healthy chip run in quantum/ (the night\'s 
     if (own) assert.ok(D.chips[r.night].job_id === r.job_id || D.not_shown.some((x) => x.job_id === r.job_id && x.why === 'replaced'), `chip run ${r.job_id} for ${r.night} embedded or listed as replaced`);
     else assert.ok(D.reruns.some((x) => x.job_id === r.job_id), `re-run ${r.job_id} (${r.recipe}) listed for comparison`);
   }
-  assert.equal(Object.keys(D.chips).length, 7, 'all 7 archive nights have their v1.1 chip result');
+  assert.ok(Object.keys(D.chips).length >= 8, 'every night through 6 Nov has its chip result (7 archive v1.1 + the v1.2 nights)');
   assert.deepEqual(D.reruns.map((r) => [r.night, r.recipe]), [['2026-11-01', 'v1.2'], ['2026-11-04', 'v1.2']]);
   // review fix (post-selection): the health gate used to drop runs silently. Now every rejected run is listed with its job id
   // and twin score, never as a night's result, and the page states the gate's number.
@@ -331,7 +334,8 @@ test('the first shot of every chip run (the night\'s result and the re-runs) is 
   const D = DATA_, ref = JSON.parse(execFileSync('python3', [path.join(here, 'tier_ref.py')], { encoding: 'utf8', maxBuffer: 64 << 20 }));
   const files = Object.fromEntries(fs.readdirSync(path.join(ROOT, 'quantum')).filter((f) => /^wheel-2026-.*\.json$/.test(f)).map((f) => { const R = JSON.parse(fs.readFileSync(path.join(ROOT, 'quantum', f), 'utf8')); return [R.job_id, R]; }));
   const all = [...Object.values(D.chips), ...D.reruns];
-  assert.equal(all.length, 9);
+  assert.ok(all.length >= 10, 'every shown chip run (10 through the 6 Nov night) carries its first shot');
+  for (const c of all) assert.ok(files[c.job_id], `${c.job_id}: its result file is in quantum/`);
   for (const c of all) {
     const R = files[c.job_id], T = QW.ringTurn(R.rounds.map((r) => r[1]));
     assert.ok(Number.isInteger(c.first_shot), `${c.job_id}: first_shot`);

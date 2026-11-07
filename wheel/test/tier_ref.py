@@ -146,5 +146,5 @@ for x in real + synth:
     legend += 5 in t
 assert all(per_n.get(n, 0) >= 3 for n in range(9)), per_n
 assert legend >= 30, legend
-assert len(real) == 9, [x['file'] for x in real]
+assert len(real) >= 10, [x['file'] for x in real]  # grows by one each posted night (10 through the 6 Nov night)
 print(json.dumps({'source': 'wheel/test/tier_ref.py', 'real': real, 'synth': synth}, separators=(',', ':')))
