@@ -882,6 +882,7 @@ test('rpc call: a plain JSON-RPC eth_call POST; errors come back as errors', asy
 // guard would ship a dead NFT button and is refused. The page v2 template has the guard (const NOT_WIRED: it reads NET_COST()
 // and says "Casting opens soon" instead of a button, RULINGS 52/58), so it builds, with a note. The switch is one step:
 // catchAddress to the v2 deploy, or null (watch-only).
+// Season 1 test builds (--season2-address null): since the 7 Nov switch wheel/config.json names the Season 2 contract
 test('build.py: v2 catch.js with the v1 catchAddress: refused without the not-wired guard (nothing written); this page has it; null (watch-only) builds', () => {
   const dir = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'qc-build-')), out = path.join(dir, 'p.html'), V1 = '0xa0B3352b3a436c845E3BF2D251ABeda3D474Dfe0';
   // build.py with the template read through a filter (here: the guard taken out)
@@ -892,17 +893,173 @@ test('build.py: v2 catch.js with the v1 catchAddress: refused without the not-wi
     '    return real(p, *a, **k)',
     'builtins.open = fake', 'sys.argv = sys.argv[1:]', 'runpy.run_path(sys.argv[0], run_name="__main__")'].join('\n'), path.join(ROOT, 'wheel/build.py')];
   try {
-    const bad = spawnSync('python3', [...noGuard, '--catch-address', V1, '--out', out], { encoding: 'utf8' });
+    const bad = spawnSync('python3', [...noGuard, '--catch-address', V1, '--season2-address', 'null', '--out', out], { encoding: 'utf8' });
     assert.notEqual(bad.status, 0, bad.stdout + bad.stderr);
     assert.match(bad.stderr, /refused: wheel\/catch\.js is the v2 wallet code .* catchAddress 0xa0b3352b3a436c845e3bf2d251abeda3d474dfe0 is the v1 contract .* this page has no not-wired guard/);
     assert.ok(!fs.existsSync(out), 'nothing written');
-    const v1 = spawnSync('python3', [path.join(ROOT, 'wheel/build.py'), '--catch-address', V1, '--out', out], { encoding: 'utf8' });
+    const v1 = spawnSync('python3', [path.join(ROOT, 'wheel/build.py'), '--catch-address', V1, '--season2-address', 'null', '--out', out], { encoding: 'utf8' });
     assert.equal(v1.status, 0, v1.stdout + v1.stderr);
     assert.match(v1.stderr, /^note: catchAddress 0xa0b3352b3a436c845e3bf2d251abeda3d474dfe0 is the v1 contract: wallet visitors see the not-wired line/m);
     assert.ok(fs.readFileSync(out, 'utf8').includes('const NOT_WIRED = '), 'the built page has the guard');
     fs.rmSync(out);
-    const ok = spawnSync('python3', [path.join(ROOT, 'wheel/build.py'), '--catch-address', 'null', '--out', out], { encoding: 'utf8' });
+    const ok = spawnSync('python3', [path.join(ROOT, 'wheel/build.py'), '--catch-address', 'null', '--season2-address', 'null', '--out', out], { encoding: 'utf8' });
     assert.equal(ok.status, 0, ok.stdout + ok.stderr);
     assert.match(ok.stdout, /NFT button: off/);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+// ---------- Season 2 (QuantumCatchV3): the reads the page adds. The same castNet / castNetWithPermit / result() as v2; a
+// night is posted, then SEALED (result() status 5 = drawing until then); a caught net has its raw draw (dnaOf) and its
+// picture is the chain's own (tokenURI, a big read: the public RPC first, the wallet only if that fails) ----------
+// the v3 build: QC3_ARTIFACT, else contracts/out (after a forge build that has QuantumCatchV3)
+const V3_JSON = process.env.QC3_ARTIFACT || path.join(ROOT, 'contracts/out/QuantumCatchV3.sol/QuantumCatchV3.json');
+const V3 = fs.existsSync(V3_JSON) ? JSON.parse(fs.readFileSync(V3_JSON, 'utf8')) : null;
+const S2 = '0xe7f1725e7734ce288f8367e1bb143e90bb3f0512';                 // a made-up v3 address (anvil's 2nd contract of account 0)
+// a Dna as dnaOf returns it: 45 static words
+const DNA = { status: 1, tier: 4, spot: 7, shots: 4000, word: '0x' + 'ab'.repeat(32), tiers: [0, 2, 1, 3, 0, 4, 0, 0, 5, 2], spots: [1, 3, 5, 7, 9, 11, 13, 15, 0, 2],
+  landings: [10, 3999, 0, 1234, 77, 2500, 1, 2, 3, 4], words: Array.from({ length: 10 }, (_, k) => '0x' + (k + 1).toString(16).padStart(2, '0').repeat(32)) };
+const dnaHex = (d) => '0x' + [d.status, d.tier, d.spot, d.shots].map(pad).join('') + d.word.slice(2) + d.tiers.map(pad).join('') + d.spots.map(pad).join('') + d.landings.map(pad).join('') + d.words.map((w) => w.slice(2)).join('');
+
+test('Season 2 selectors: keccak of the signatures (ethers), and the v3 build (QC3_ARTIFACT / contracts/out) when present', (ctx) => {
+  const fns = { dnaOf: 'dnaOf(uint256)', traitsOf: 'traitsOf(uint256)', locked: 'locked()', sealOf: 'sealOf(uint32)' };
+  if (ethers) for (const [k, s] of Object.entries(fns)) assert.equal(QC.SEL[k], ethers.id(s).slice(0, 10), s);
+  assert.equal(QC.enc.dnaOf(QC.netId(20765, ADDR)), QC.SEL.dnaOf + QC.netId(20765, ADDR).slice(2));
+  assert.equal(QC.enc.sealOf(20765), QC.SEL.sealOf + pad(20765));
+  assert.equal(QC.DRAWING, 5);
+  if (!V3) { ctx.diagnostic(`no v3 build at ${V3_JSON}: selectors checked against ethers only`); return; }
+  const ids = V3.methodIdentifiers;
+  for (const [k, s] of Object.entries(fns)) assert.equal(QC.SEL[k], '0x' + ids[s], `QuantumCatchV3 ${s}`);
+  // everything the page calls on a v2 contract has the same selector on v3 (casting, paying, the result, the picture)
+  for (const k of ['castNet', 'castNetWithPermit', 'netCost', 'sqk', 'result', 'tokenURI']) assert.ok(Object.entries(ids).some(([s, h]) => '0x' + h === QC.SEL[k]), `v3 has ${k}`);
+  const fn = (n) => V3.abi.find((a) => a.type === 'function' && a.name === n);
+  // the shapes the decoders read: dnaOf = one static tuple (45 words), traitsOf = 16 words, result() = v2's 7 words
+  const flat = (o) => (o.type === 'tuple' ? o.components.map(flat).reduce((a, b) => a + b, 0) : /\[(\d+)\]$/.test(o.type) ? Number(o.type.match(/\[(\d+)\]$/)[1]) : 1);
+  assert.equal(fn('dnaOf').outputs.map(flat).reduce((a, b) => a + b, 0), 45, 'dnaOf: 45 static words');
+  assert.deepEqual(fn('dnaOf').outputs[0].components.map((c) => `${c.type} ${c.name}`), ['uint8 status', 'uint8 tier', 'uint8 spot', 'uint32 shots', 'bytes32 word', 'uint8[10] tiers', 'uint8[10] spots', 'uint32[10] landings', 'bytes32[10] words']);
+  assert.deepEqual(fn('traitsOf').outputs.map((o) => o.type), ['uint32', 'bool', 'bool', 'uint8', 'uint8', 'uint8', 'uint8[10]']);
+  assert.deepEqual(fn('result').outputs.map((o) => o.type), ['uint8', 'uint32', 'uint8', 'uint16', 'uint32', 'uint8', 'uint8']);
+  assert.deepEqual(fn('sealOf').outputs.map((o) => o.type), ['uint64', 'uint64', 'bytes32']);
+  assert.deepEqual(fn('locked').outputs.map((o) => o.type), ['bool']);
+});
+
+test('Season 2 decoding: dnaOf (45 static words), traitsOf (the S2 shape), sealOf; ethers encodes the same bytes', () => {
+  assert.deepEqual(QC.dec.dna(dnaHex(DNA)), DNA);
+  assert.throws(() => QC.dec.dna('0x' + pad(1).repeat(44)), /too short/);
+  const tr = '0x' + [20765, 1, 1, 7, 4, 6, 3, 0, 1, 2, 0, 1, 0, 0, 4, 1].map(pad).join('');
+  assert.deepEqual(QC.dec.traits(tr), { night: 20765, drawn: true, caught: true, spot: 7, tier: 4, skin: 6, slots: [3, 0, 1, 2, 0, 1, 0, 0, 4, 1] });
+  assert.deepEqual(QC.dec.seal('0x' + pad(9001) + pad(9002) + 'cd'.repeat(32)), { postBlock: 9001, seedBlock: 9002, seed: '0x' + 'cd'.repeat(32) });
+  if (ethers) {
+    const c = ethers.AbiCoder.defaultAbiCoder();
+    assert.equal(c.encode(['tuple(uint8,uint8,uint8,uint32,bytes32,uint8[10],uint8[10],uint32[10],bytes32[10])'], [[DNA.status, DNA.tier, DNA.spot, DNA.shots, DNA.word, DNA.tiers, DNA.spots, DNA.landings, DNA.words]]), dnaHex(DNA), 'a static tuple is flat: no offset word');
+  }
+});
+
+// a mock chain: v3 (S2) + Season 1 v2 (CONTRACT) answering result / dnaOf / tokenURI by token id
+function chainOf(nets) {
+  const log = [];
+  const strHex = (s) => '0x' + pad(32) + pad(Buffer.byteLength(s)) + Buffer.from(s).toString('hex').padEnd(Math.ceil(Buffer.byteLength(s) / 32) * 64, '0');
+  const call = async (to, data) => {
+    log.push([to, data.slice(0, 10)]);
+    const n = nets[to + ':' + '0x' + data.slice(10)];
+    if (!n) throw Object.assign(new Error('execution reverted'), { code: 3, data: QC.ERR.NonexistentToken + data.slice(10) });
+    if (data.startsWith(QC.SEL.result)) return '0x' + n.r.map(pad).join('');
+    if (data.startsWith(QC.SEL.dnaOf)) { if (to !== S2) throw Object.assign(new Error('execution reverted'), { code: 3, data: '0x' }); return dnaHex(n.dna); }
+    if (data.startsWith(QC.SEL.tokenURI)) return strHex('data:application/json;base64,' + Buffer.from(JSON.stringify({ name: n.name, attributes: [{ trait_type: 'Skin', value: 'Galaxy' }], image: 'data:image/svg+xml;base64,' + Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>').toString('base64') })).toString('base64'));
+    throw new Error('unexpected ' + data.slice(0, 10));
+  };
+  return { call, log };
+}
+
+test('Season 2 readNet: opts.dna reads dnaOf only for a caught net; drawing (status 5) has no spot; no opts = v2 exactly', async () => {
+  const id = QC.netId(20765, ADDR), id2 = QC.netId(20764, ADDR), id3 = QC.netId(20763, ADDR);
+  const { call, log } = chainOf({ [S2 + ':' + id]: { r: [1, 20765, 7, 300, 4000, 4, 0], dna: DNA }, [S2 + ':' + id2]: { r: [5, 20764, 255, 0, 4000, 0, 0] }, [CONTRACT + ':' + id3]: { r: [1, 20763, 3, 120, 4000, 2, 3] } });
+  const r = await QC.readNet(call, S2, id, { dna: true });
+  assert.deepEqual([r.status, r.spot, r.tier, r.looks], [1, 7, 4, 0]); assert.deepEqual(r.dna, DNA);
+  const d = await QC.readNet(call, S2, id2, { dna: true });
+  assert.deepEqual([d.status, d.spot, d.dna], [QC.DRAWING, null, undefined], 'posted, not sealed: drawing, nothing drawn, no dnaOf asked');
+  assert.equal(log.filter(([, s]) => s === QC.SEL.dnaOf).length, 1, 'dnaOf only for the caught net');
+  await assert.rejects(QC.readNet(call, CONTRACT, id3, { dna: true }), /revert/, '{ dna: true } is for Season 2 contracts only (myNets never asks Season 1 for it)');
+  assert.deepEqual(await QC.readNet(call, CONTRACT, id3), { status: 1, night: 20763, spot: 3, hits: 120, shots: 4000, tier: 2, looks: 3 }, 'no opts: exactly v2 (no dna key)');
+  assert.equal(await QC.readNet(call, S2, QC.netId(20760, ADDR), { dna: true }), null, 'no net: null');
+});
+
+test('Season 2 myNets: v3 then the Season 1 contract for each night (season 2 / 1), no tokenURI with images: false, dna for caught v3 nets', async () => {
+  const n = (k) => QC.netId(k, ADDR);
+  const { call, log } = chainOf({
+    [S2 + ':' + n(20766)]: { r: [0, 20766, 255, 0, 0, 0, 0] },
+    [S2 + ':' + n(20765)]: { r: [1, 20765, 7, 300, 4000, 4, 0], dna: DNA },
+    [CONTRACT + ':' + n(20765)]: { r: [2, 20765, 2, 9, 4000, 0, 0] },              // the same wallet and night on v2 too (v2 stays castable)
+    [CONTRACT + ':' + n(20763)]: { r: [1, 20763, 3, 120, 4000, 2, 3] },
+  });
+  const nets = await QC.myNets(call, S2, ADDR, [20766, 20765, 20764, 20763], { season1: CONTRACT, images: false, dna: true });
+  assert.deepEqual(nets.map((x) => [x.night, x.season, x.contract, x.status, x.spot]), [[20766, 2, S2, 0, null], [20765, 2, S2, 1, 7], [20765, 1, CONTRACT, 2, 2], [20763, 1, CONTRACT, 1, 3]]);
+  assert.equal(nets[1].tokenId, nets[2].tokenId, 'the same token id on both contracts');
+  assert.deepEqual(nets[1].dna, DNA); assert.equal(nets[3].dna, undefined, 'no dnaOf on the Season 1 contract');
+  assert.equal(log.filter(([, s]) => s === QC.SEL.tokenURI).length, 0, 'images: false: no tokenURI (the page reads pictures lazily)');
+  assert.ok(nets.every((x) => x.image === null));
+  const old = await QC.myNets(call, CONTRACT, ADDR, [20765, 20763]);
+  assert.deepEqual(old.map((x) => [x.night, x.season, x.image && x.image.slice(0, 26)]), [[20765, undefined, 'data:image/svg+xml;base64,'], [20763, undefined, 'data:image/svg+xml;base64,']], 'without opts: as before (v2, with the picture)');
+});
+
+test('Season 2 netMeta: the public RPC first, the wallet only if it fails (gas cap, network, RendererFailed); NonexistentToken = null; lockedOf', async () => {
+  const id = QC.netId(20765, ADDR);
+  const { call } = chainOf({ [S2 + ':' + id]: { r: [1, 20765, 7, 300, 4000, 4, 0], dna: DNA, name: 'Quantum Catch S2 · Epic Galaxy hamster' } });
+  const used = [];
+  const pub = async (to, data) => { used.push('pub'); return call(to, data); };
+  const m = await QC.netMeta([pub, null], S2, id);
+  assert.equal(m.name, 'Quantum Catch S2 · Epic Galaxy hamster'); assert.equal(m.attr.Skin, 'Galaxy'); assert.match(m.image, /^data:image\/svg\+xml;base64,/);
+  const capped = async () => { used.push('capped'); throw Object.assign(new Error('out of gas'), { code: -32000 }); };
+  const failed = async () => { used.push('failed'); throw Object.assign(new Error('execution reverted'), { code: 3, data: '0x0d1a3a5e' }); };   // RendererFailed()
+  const wallet = async (to, data) => { used.push('wallet'); return call(to, data); };
+  used.length = 0; assert.equal((await QC.netMeta([capped, wallet], S2, id)).attr.Skin, 'Galaxy'); assert.deepEqual(used, ['capped', 'wallet']);
+  used.length = 0; assert.equal((await QC.netMeta([failed, wallet], S2, id)).attr.Skin, 'Galaxy'); assert.deepEqual(used, ['failed', 'wallet']);
+  assert.equal(await QC.netMeta([pub, wallet], S2, QC.netId(20760, ADDR)), null, 'no such net: null, the wallet is not asked');
+  await assert.rejects(QC.netMeta([capped, capped], S2, id), /out of gas/, 'every source failing: thrown');
+  // locked(): true / false on v3; a contract without it (v2) reverts: null
+  const lk = (v) => async (to, data) => { assert.equal(data, QC.enc.locked()); if (v == null) throw Object.assign(new Error('execution reverted'), { code: 3, data: '0x' }); return '0x' + pad(v ? 1 : 0); };
+  assert.equal(await QC.lockedOf(lk(true), S2), true); assert.equal(await QC.lockedOf(lk(false), S2), false); assert.equal(await QC.lockedOf(lk(null), CONTRACT), null);
+  await assert.rejects(QC.lockedOf(async () => { throw new Error('Failed to fetch'); }, S2), /Failed to fetch/, 'a network error is not "no lock"');
+});
+
+test('Season 2 reads: dnaOf / locked selectors (= forge methodIdentifiers), the raw DNA decoded, readNet with dna', async () => {
+  const out = path.join(ROOT, 'contracts/out/QuantumCatchV3.sol/QuantumCatchV3.json');
+  if (fs.existsSync(out)) {
+    const m = JSON.parse(fs.readFileSync(out, 'utf8')).methodIdentifiers;
+    assert.equal(QC.SEL.dnaOf, '0x' + m['dnaOf(uint256)']);
+    assert.equal(QC.SEL.locked, '0x' + m['locked()']);
+    assert.equal(QC.SEL.result, '0x' + m['result(uint256)'], 'v3 keeps result(uint256): readNet reads both seasons');
+    assert.equal(QC.SEL.tokenURI, '0x' + m['tokenURI(uint256)']);
+  }
+  if (ethers) for (const [k, sig] of [['dnaOf', 'dnaOf(uint256)'], ['locked', 'locked()']]) assert.equal(QC.SEL[k], ethers.id(sig).slice(0, 10), sig);
+  const id = QC.netId(20761, ADDR);
+  assert.equal(QC.enc.dnaOf(id), QC.SEL.dnaOf + id.slice(2));
+  // a caught net's DNA as the contract returns it (a static struct: 45 words in order)
+  const w = (i) => '0x' + (BigInt(i) * 0x1111n).toString(16).padStart(64, '0');
+  const d = { status: 1, tier: 4, spot: 7, shots: 4000, word: w(99), tiers: [0, 1, 2, 3, 4, 5, 1, 1, 0, 2], spots: [3, 0, 1, 5, 7, 9, 11, 13, 15, 2],
+    landings: [10, 20, 30, 40, 50, 60, 70, 80, 90, 3999], words: Array.from({ length: 10 }, (_, k) => w(k + 1)) };
+  const hex = '0x' + [d.status, d.tier, d.spot, d.shots, d.word, ...d.tiers, ...d.spots, ...d.landings, ...d.words].map((x) => (typeof x === 'string' ? x.slice(2) : pad(x))).join('');
+  if (ethers) {
+    const DNA = 'tuple(uint8 status,uint8 tier,uint8 spot,uint32 shots,bytes32 word,uint8[10] tiers,uint8[10] spots,uint32[10] landings,bytes32[10] words)';
+    assert.equal(hex, ethers.AbiCoder.defaultAbiCoder().encode([DNA], [d]), 'the same bytes as the ABI encoder');
+  }
+  assert.deepEqual(QC.dec.dna(hex), d);
+  assert.throws(() => QC.dec.dna(hex.slice(0, hex.length - 64)), /too short/);
+  // readNet: status 5 (drawing) passes through; a caught net with { dna: true } also reads dnaOf
+  const calls = [];
+  const call = (status) => async (to, data) => {
+    calls.push(data.slice(0, 10));
+    if (data.startsWith(QC.SEL.result)) return '0x' + [status, 20761, status === 1 ? 7 : 255, 254, 4000, status === 1 ? 4 : 0, 0].map(pad).join('');
+    if (data.startsWith(QC.SEL.dnaOf)) return hex;
+    throw new Error('unexpected call ' + data.slice(0, 10));
+  };
+  const drawing = await QC.readNet(call(5), CONTRACT, id, { dna: true });
+  assert.equal(drawing.status, 5);
+  assert.equal(drawing.spot, null, 'nothing drawn until sealed');
+  assert.equal(drawing.dna, undefined);
+  const caught = await QC.readNet(call(1), CONTRACT, id, { dna: true });
+  assert.deepEqual(caught.dna, d);
+  calls.length = 0;
+  const plain = await QC.readNet(call(1), CONTRACT, id);
+  assert.equal(plain.dna, undefined, 'no dnaOf call without { dna: true } (Season 1 contracts have none)');
+  assert.deepEqual(calls, [QC.SEL.result]);
 });

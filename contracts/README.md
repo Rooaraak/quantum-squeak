@@ -129,7 +129,8 @@ the holder can burn a net, and `src/SqkFaucet.sol` hands out the test SQK.
   code (`SqkHasNoCode`), a cost of 0 with `sqk` set or above 0 without it (`BadNetCost`), and creates the renderer
   (`src/CatchArt.sol`, a contract of its own only to keep QuantumCatch under EIP-170: QuantumCatch runtime 11,344
   bytes, initcode 31,133; renderer 19,090; PaintedArt 3,198; SqkFaucet 1,713).
-- **Gas and size of tokenURI** (the eth_call a wallet makes; the cap that matters is 30,000,000): the heaviest image
+- **Gas and size of tokenURI** (the eth_call a wallet makes; measured caps: 16,762,214 gas on publicnode, tenderly and
+  Alchemy, not the 30,000,000 this line used to say): the heaviest image
   is looks 15 (hat, glasses, scarf, grin) in the circuit skin (Rare), a 99,541-byte fragment: tokenURI 12.4M gas and
   185,581 bytes (`test/Painted.t.sol`, every looks x tier measured; the least is 2.5M). On the local anvil with the
   real 4 Nov v1.2 night: Common spot 15 10.6M gas / 166,605 bytes, Uncommon spot 3 7.4M / 124,085, Rare spot 11
@@ -169,6 +170,46 @@ the holder can burn a net, and `src/SqkFaucet.sol` hands out the test SQK.
   `chunkCodehash`). The scripts here that name this machine's tool paths (`script/*.mjs`: Chrome, puppeteer, Foundry)
   are exported with those paths rewritten to the plain command (the export prints every rewrite).
 
+## Season 2 (QuantumCatchV3, S2Renderer: built 7 Nov 2026, not deployed)
+
+- **The game** (`src/QuantumCatchV3.sol`): Season 1's game (v2) with a hamster generator. Clock, nets, SQK payment and
+  permit, burn, `postNight` and `tiersOf` are v2's; `openNightAt` / `nightOf` / `DAY` / `DAY_OFFSET` / `LOCK` are byte
+  for byte v2's (fuzzed against v2), so v2's `SqkFaucet` serves it. Name "Quantum Catch Season 2", symbol `QCATCH2`.
+- **The seal**: `postNight` records its block P; from block P + 2 on anyone can call `seal(n)` once: seed =
+  `keccak256(abi.encode(h, resultSha256, jobId))`, h = the hash of block P + 1: from BLOCKHASH to block P + 257,
+  then from the EIP-2935 block-history contract to P + 8192 (about 27 hours), so a late seal gives the same seed;
+  only after that the hash of the newest block P + 1 + 256 k before the seal (one new choice per 256 blocks:
+  `sealBlockFor(postBlock)` tells which). Until then the night's nets read status 5, Drawing. Every draw uses the seed:
+  the main one `keccak256(abi.encode(uint32 night, bytes32 seed, uint256 tokenId))` and slot k = 1..10 (Face, Head,
+  Eyes, Mouth, Neck, Hands, Back, Special, Aura, Background) the same with `uint256 k` appended, each walked over the
+  night's landings (x = word % shots). So nobody, the hatcher included, knows a draw when the numbers are posted.
+  A wallet's net on v2 and on v3 for the same night draws differently.
+- **The raw DNA** (`dnaOf`, `dnaFor`): status, tier, spot, shots, the main word, and per slot the drawn tier, spot,
+  landing and word. Only numbers the chip and the seal decided.
+- **The owner** (the deployer) can do two things: `setRenderer(r)` (how every net looks: art, trait lists, names,
+  metadata text) and `lock()` (owner = 0 for good; then nothing can change). The draw never reads the renderer
+  (`dnaOf`, `result`, `drawOf`, `tiersOf`, `spotOf`, `reachOf`, `sealOf`; tested before and after a swap). `traitsOf`
+  gives the current renderer's skin and item ids (they change until lock).
+- **The renderer** (`src/S2Renderer.sol` + `src/S2Text.sol` + the data contracts `src/S2Directory.sol` and
+  `src/S2Art000.sol` .. `S2Art116.sol`, which start with 0xfe so no call or ETH can stick): the looks rule (skin from the
+  main tier and word; per slot: Common or noise = nothing, else the tier's list, an Epic shot shows a Rare item when the
+  word's top bit is 0, a Legendary shot without its own list uses the Epic list; a face not painted for the skin shows
+  honey, no astronaut helmet on stuffed cheeks, the Schroedinger box hides neck and hands when it outranks them, else
+  it goes) and the card: Season 1's frame with the painted 224 x 300 hamster (background, aura, the skin x face cut by
+  the worn items' erase layers, the items back to front). tokenURI is v1's format (base64 JSON with a base64 SVG) built
+  from elements stored base64 twice (each padded to 9 bytes), so nothing is encoded per call: the heaviest card
+  (every slot's heaviest element) is 324,761 bytes and 1.48M gas cold; a typical card 1.04M gas through the game.
+- **The launch art**: the builder spec's lists (sec. 2.1, sprout on the Head's Rare list so that every Uncommon item
+  stays more common than every Rare one with half-crazy: `tools/s2_odds.py`), 11 skins with 80 skin x face pictures
+  (a missing pair shows the honey face), 61 items, 6 auras, 9 backgrounds.
+- **Sizes** (runtime): QuantumCatchV3 14,409, S2Renderer 11,301, S2Text 20,297, S2Directory 6,915, 117 art chunks
+  (2,861,296 bytes of art).
+- **Tests**: `test/V3Core.t.sol`, `test/V3More.t.sol`, `test/S2Render.t.sol` (tokenURI byte for byte against the
+  reference renderer for every stored element and every state, 2,700 simulated draws, the worst card's gas, sizes,
+  honesty, invariants, the faucet, slot frequencies over 20,000 nets) and `script/anvil-e2e-s2.mjs` (local anvil:
+  deploy, faucet and permit casts, a real post, the seal, a golden night, every card, the page reader, a renderer swap,
+  lock, burn).
+
 ## Run
 
 ```
@@ -193,6 +234,7 @@ node script/art-render-check.mjs      # Chrome: PaintedArt vs the page's composi
 forge script script/Preview.s.sol --offline   # tokenURIs, every state,
                                                           # without the painted art (short output)
 node --test ../quantum/tests/post_night.test.mjs          # the poster's checks
+node script/anvil-e2e-s2.mjs <dir>   # Season 2 end to end on a local anvil
 ```
 
 The poster `../quantum/post_night.mjs` is dry by default. It posts the first shot with the counts (a file without

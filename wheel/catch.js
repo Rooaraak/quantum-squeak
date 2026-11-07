@@ -7,6 +7,10 @@
      wallet casts it with NO spot; once the night's chip result is posted the contract draws the net's shot over all
      the night's landings (QuantumCatch.drawOf), and result() / readNet / myNets give the drawn spot and its tier (spot null
      until then). The live v1 contract (castNet(uint8 spot)) cannot be cast through this code: it stops with code 'config'.
+   - Season 2 (QuantumCatchV3, the same cast and the same result()): once a night is posted it is SEALED by a later block's
+     hash before anything is drawn (result() status 5 = drawing until then); a caught net has its raw draw (dnaOf: per
+     trait slot the tier and landing its own drop hit) and its picture is the chain's own (tokenURI, read lazily: netMeta).
+     The pictures may change until the owner calls lock() (lockedOf). myNets reads v3 and the Season 1 contract (v2).
    - ABI encoding/decoding by hand for the few calls the page makes: QuantumCatch castNet()/castNetWithPermit/result/tokenURI/
      NET_COST/SQK and the NetCast/NetPaid logs, the test SQK token (balanceOf/allowance/nonces/eip712Domain/name/approve), the
      SqkFaucet (claim/canClaim/remaining/DRIP/TOKEN and its Claimed log), SqueekCore state/roundPage (read-only, settled rounds
@@ -150,8 +154,15 @@
     // the test SQK token (ERC-20 + EIP-2612 + EIP-5267): balanceOf, allowance, approve, nonces, eip712Domain, name
     balanceOf: '0x70a08231', allowance: '0xdd62ed3e', approve: '0x095ea7b3', nonces: '0x7ecebe00', eip712Domain: '0x84b0196e', name: '0x06fdde03',
     // SqkFaucet: claim(), canClaim(address), remaining(), DRIP(), TOKEN()
-    claim: '0x4e71d92d', canClaim: '0xbf3506c1', remaining: '0x55234ec0', drip: '0xa437c45e', token: '0x82bfefc8' };
+    claim: '0x4e71d92d', canClaim: '0xbf3506c1', remaining: '0x55234ec0', drip: '0xa437c45e', token: '0x82bfefc8',
+    // Season 2 (QuantumCatchV3): dnaOf(uint256) (the raw draw of a net), locked() (true once its pictures are final),
+    // traitsOf(uint256) (the S2 shape), sealOf(uint32) (the night's seal)
+    dnaOf: '0x3e39d638', locked: '0xcf309012', traitsOf: '0x5efab6e4', sealOf: '0xd22a0c46' };
   var NO_SPOT = 255;                                                 // result().spot before the night's draw
+  // result().status: 0 waiting, 1 caught, 2 got away, 3 he slept, 4 no chip result, and on QuantumCatchV3 (Season 2) also
+  // 5 = DRAWING: the night is posted but not sealed yet (the draw waits for the next block's hash), spot NO_SPOT
+  var DRAWING = 5, SLOTS = 10;
+  var SLOT_NAMES = ['Face', 'Head', 'Eyes', 'Mouth', 'Neck', 'Hands', 'Back', 'Special', 'Aura', 'Background'];
   // (written in two halves so the publish leak gate's address / long-hex patterns do not take these public hashes for one)
   var TOPIC_NETCAST = '0x47da66d5fbdfcc6a510d1c24f7b43cac' + '0cb48668c47012e703f49818d22c157b';   // NetCast(uint32,address,uint256)
   var TOPIC_NETPAID = '0x100db5ea1f9223afdc01a632bcfeea16' + '5e5be9e69a705ff5a0f3602c4eb65ef0';   // NetPaid(uint32,address,uint256)
@@ -180,7 +191,11 @@
     drip: function () { return SEL.drip; },
     token: function () { return SEL.token; },
     result: function (id) { return SEL.result + u256(BigInt(id)); },
+    dnaOf: function (id) { return SEL.dnaOf + u256(BigInt(id)); },
+    locked: function () { return SEL.locked; },
     tokenURI: function (id) { return SEL.tokenURI + u256(BigInt(id)); },
+    traitsOf: function (id) { return SEL.traitsOf + u256(BigInt(id)); },
+    sealOf: function (n) { return SEL.sealOf + u256(n); },
     state: function () { return SEL.state; },
     roundPage: function (after, through, max) {
       if (!(max >= 1 && max <= 16)) throw new Error('roundPage: max 1-16');
@@ -193,7 +208,18 @@
     return new TextDecoder('utf-8').decode(b);
   }
   var dec = {
-    // result(): status 0 waiting, 1 caught, 2 got away, 3 he slept, 4 no chip result; spot = the spot of the net's drawn
+    // Season 2 dnaOf(): one static struct, 45 words: status, tier, spot, shots, word, then per slot (Face, Head, Eyes, Mouth,
+    // Neck, Hands, Back, Special, Aura, Background) 10 drawn tiers, 10 spots, 10 landings, 10 words. All 0 unless caught.
+    dna: function (hex) {
+      var w = words(hex);
+      if (w.length < 45) throw new Error('dnaOf: data too short');
+      var run = function (at, f) { var a = []; for (var k = 0; k < 10; k++) a.push(f(w[at + k])); return a; };
+      var word = function (x) { return '0x' + x; };
+      return { status: num(w[0]), tier: num(w[1]), spot: num(w[2]), shots: num(w[3]), word: word(w[4]),
+        tiers: run(5, num), spots: run(15, num), landings: run(25, num), words: run(35, word) };
+    },
+    // result(): status 0 waiting, 1 caught, 2 got away, 3 he slept, 4 no chip result, 5 drawing (Season 2: posted, waiting
+    // for the seal); spot = the spot of the net's drawn
     // shot, null until the night is posted (and when he slept / no result: NO_SPOT on chain); looks = the caught hamster's
     // 4 bits (0 unless caught)
     result: function (hex) {
@@ -201,6 +227,19 @@
       if (w.length < 7) throw new Error('result: data too short');
       var spot = num(w[2]);
       return { status: num(w[0]), night: num(w[1]), spot: spot === NO_SPOT ? null : spot, hits: num(w[3]), shots: num(w[4]), tier: num(w[5]), looks: num(w[6]) };
+    },
+    // QuantumCatchV3.traitsOf (the S2 shape): night, drawn, caught, spot, tier, skin, slots[10] (item ids from the renderer)
+    traits: function (hex) {
+      var w = words(hex);
+      if (w.length < 16) throw new Error('traitsOf: data too short');
+      var slots = []; for (var i = 0; i < SLOTS; i++) slots.push(num(w[6 + i]));
+      return { night: num(w[0]), drawn: num(w[1]) === 1, caught: num(w[2]) === 1, spot: num(w[3]), tier: num(w[4]), skin: num(w[5]), slots: slots };
+    },
+    // QuantumCatchV3.sealOf(night): the post's block, the block whose hash sealed the draws (0 = not sealed yet), the seed
+    seal: function (hex) {
+      var w = words(hex);
+      if (w.length < 3) throw new Error('sealOf: data too short');
+      return { postBlock: num(w[0]), seedBlock: num(w[1]), seed: '0x' + w[2] };
     },
     string: function (hex) {
       var h = strip(hex), off = num(h.slice(0, 64)) * 2, len = num(h.slice(off, off + 64)) * 2;
@@ -349,9 +388,33 @@
     if (String(await eth.request({ method: 'eth_chainId' })).toLowerCase() !== SEPOLIA.chainId) throw fail('chain');
   }
   var walletCall = function (eth) { return function (to, data) { return eth.request({ method: 'eth_call', params: [{ to: to, data: data }, 'latest'] }); }; };
-  async function readNet(call, contract, id) {
-    try { return dec.result(await call(contract, enc.result(id))); }
+  // a net's result() (null = no such net, or a burned one). opts.dna (Season 2 contracts only): a caught net also gets
+  // .dna, its raw draw (dnaOf). Without opts the call is exactly v2's.
+  async function readNet(call, contract, id, opts) {
+    var r;
+    try { r = dec.result(await call(contract, enc.result(id))); }
     catch (e) { if (isRevert(e)) return null; throw e; }
+    if (opts && opts.dna && r.status === 1) r.dna = dec.dna(await call(contract, enc.dnaOf(id)));
+    return r;
+  }
+  // locked() of QuantumCatchV3: true once its owner gave up the renderer for good (the pictures can never change again),
+  // false while they still can; null = a contract without locked() (Season 1)
+  async function lockedOf(call, contract) {
+    try { return dec.bool(await call(addr(contract), enc.locked())); }
+    catch (e) { if (isRevert(e)) return null; throw e; }
+  }
+  // a net's on-chain metadata (tokenURI, decoded: tokenMeta), the BIG read of Season 2 (a caught card is ~0.2-0.5 MB of
+  // JSON-RPC answer, ~2M gas): tried on each call function in order (the page: its public read-only RPC first, the wallet's
+  // provider only if that fails). null = no such net (NonexistentToken) or not on-chain JSON + SVG; any other failure
+  // (a node's gas cap, RendererFailed, the network) goes on to the next source; every source failing = thrown
+  async function netMeta(calls, contract, id) {
+    var last = null, to = addr(contract);
+    for (var i = 0; i < calls.length; i++) {
+      if (!calls[i]) continue;
+      try { return tokenMeta(dec.string(await calls[i](to, enc.tokenURI(id)))); }
+      catch (e) { if (errData(e, 0).toLowerCase().indexOf(ERR.NonexistentToken) === 0) return null; last = e; }
+    }
+    throw last || new Error('netMeta: no way to read the chain');
   }
   // a transaction's receipt, polled; status 0x1 or the plain-word error. what = 'net' | 'approve' | 'faucet' (the timeout's words)
   async function waitReceipt(eth, hash, opts, what) {
@@ -568,15 +631,26 @@
     return res;
   }
   // a wallet's nets for the given nights (newest first as given): result() for each token id (spot = the drawn shot's spot,
-  // null until the night is posted; tier); reverts = no net that night (or it was burned)
-  async function myNets(call, contract, catcher, nights) {
-    var out = [], to = addr(contract), me = addr(catcher);
+  // null until the night is posted; tier); reverts = no net that night (or it was burned). Each net says its `contract`.
+  // opts (Season 2, all optional): season1 = the Season 1 contract (QuantumCatch v2), read too, after `contract` (v3) for
+  // each night: its nets come with season 1, the others with season 2 (the same wallet and night have the SAME token id
+  // on both, so a night can have one of each); dna = read dnaOf() for caught nets of `contract`; images === false = no
+  // tokenURI here (a caught Season 2 card is ~0.2-0.5 MB: the page reads each picture lazily, netMeta). Without opts:
+  // exactly as before (v2: result() + tokenURI of each net, image/name from it).
+  async function myNets(call, contract, catcher, nights, opts) {
+    opts = opts || {};
+    var out = [], me = addr(catcher), s1 = opts.season1 ? addr(opts.season1) : null;
+    var games = [[addr(contract), s1 ? 2 : null]]; if (s1) games.push([s1, 1]);
     for (var i = 0; i < nights.length; i++) {
-      var id = netId(nights[i], me), r = await readNet(call, to, id);
-      if (!r) continue;
-      var meta = null;
-      try { meta = tokenMeta(dec.string(await call(to, enc.tokenURI(id)))); } catch (e) { if (!isRevert(e)) throw e; }
-      out.push(Object.assign({ tokenId: id, day: dayOf(r.night), image: meta ? meta.image : null, name: meta ? meta.name : '' }, r));
+      var id = netId(nights[i], me);
+      for (var g = 0; g < games.length; g++) {
+        var to = games[g][0], r = await readNet(call, to, id, opts.dna && to !== s1 ? { dna: true } : undefined);
+        if (!r) continue;
+        var meta = null;
+        if (opts.images !== false) { try { meta = tokenMeta(dec.string(await call(to, enc.tokenURI(id)))); } catch (e) { if (!isRevert(e)) throw e; } }
+        out.push(Object.assign({ tokenId: id, day: dayOf(r.night), contract: to, image: meta ? meta.image : null, name: meta ? meta.name : '' },
+          games[g][1] ? { season: games[g][1] } : {}, r));
+      }
     }
     return out;
   }
@@ -618,6 +692,7 @@
   }
 
   return { DAY: DAY, OFFSET: OFFSET, LOCK: LOCK, POST_WINDOW: POST_WINDOW, postDeadline: postDeadline, noResult: noResult, SEPOLIA: SEPOLIA, SEL: SEL, ERR: ERR, NO_SPOT: NO_SPOT, TOPIC_NETCAST: TOPIC_NETCAST,
+    DRAWING: DRAWING, SLOTS: SLOTS, SLOT_NAMES: SLOT_NAMES, lockedOf: lockedOf, netMeta: netMeta,
     TOPIC_NETPAID: TOPIC_NETPAID, TOPIC_CLAIMED: TOPIC_CLAIMED, PERMIT_TTL: PERMIT_TTL, units: units, netCostOf: netCostOf, tokenDomain: tokenDomain, permitTypedData: permitTypedData,
     splitSig: splitSig, claimFaucet: claimFaucet, sqkInfo: sqkInfo,
     nightOf: nightOf, nightStart: nightStart, startWindow: startWindow, closeAt: closeAt, openNight: openNight, dayOf: dayOf, nightOfDay: nightOfDay,

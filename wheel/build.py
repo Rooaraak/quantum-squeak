@@ -9,6 +9,9 @@ result reaches the page without a rebuild of the page; the claude.ai preview blo
   python3 wheel/build.py --sqk-address 0x... --faucet-address 0x...   (the test SQK and its faucet: test builds on a
                                                    local anvil only; else wheel/config.json sqkAddress / faucetAddress)
   python3 wheel/build.py --repo-url https://github.com/<owner>/<repo>   (else wheel/config.json repoUrl)
+  python3 wheel/build.py --season1-address 0x... --season2-address 0x...   (Season 2 test builds on a local anvil: casts
+                                                   to the v3 game, Season 1 nets read from v2; else wheel/config.json
+                                                   season1Address / season2Address: the switch is season2Address)
 Recipe per night (quantum/wheel_spec.md): the 29 Oct - 4 Nov archive is v1.1 (up to 16 steps), nights from 5 Nov are v1.2
 (at most 10 steps). A night's chip result must be a run of the night's own recipe, with exactly the steps that recipe
 makes from his rounds; runs of the other recipe (the v1.2 re-runs of archive nights) are kept as comparisons, never as
@@ -48,6 +51,35 @@ for k, flag in (('sqkAddress', '--sqk-address'), ('faucetAddress', '--faucet-add
 if 'netCost' in CFG:
     assert re.fullmatch(r'\d+(\.\d+)?', str(CFG['netCost'])), 'netCost must be a decimal string like "0.01"'
     SQK_CFG['netCost'] = str(CFG['netCost'])
+
+# ---- Season 2 (QuantumCatchV3): ONE switch, wheel/config.json season2Address (null until the deploy). Set to the v3
+# address, the page casts on v3 only and still shows the nets of season1Address (QuantumCatch v2, labelled "Season 1"; the
+# v1 picked nets stay as they are in each browser). catchAddress may stay the v2 address or become the v3 one; anything else
+# is refused, as is a v3 address without season1Address (Season 1 nets would vanish from the page).
+#   test builds: --season1-address / --season2-address (a local anvil chain; then no check against the live addresses)
+V1_CATCH = '0xa0b3352b3a436c845e3bf2d251abeda3d474dfe0'   # QuantumCatch v1 (Sepolia, 6 Nov 2026: castNet(uint8 spot), free)
+V2_CATCH = '0x151ec033c914252358bdcdba0548ac6a7b4f7f49'   # QuantumCatch v2 (Sepolia, 6 Nov 2026: Season 1, test SQK, no picking)
+def opt_addr(key, flag):
+    v = arg(flag, CFG.get(key))
+    v = None if v in (None, '', 'null') else v
+    assert v is None or re.fullmatch(r'0x[0-9a-fA-F]{40}', v), f'{key} must be an address or null'
+    return v.lower() if v else None
+S1 = opt_addr('season1Address', '--season1-address')
+S2 = opt_addr('season2Address', '--season2-address')
+if S1 and '--season1-address' not in sys.argv:
+    assert S1 == V2_CATCH, f'season1Address must be the Season 1 contract (QuantumCatch v2) {V2_CATCH}, not {S1}'
+SEASON2 = bool(S2)
+if SEASON2:
+    assert S1, 'season2Address (the Season 2 contract) needs season1Address (the Season 1 contract whose nets the page still shows)'
+    assert S2 not in (S1, V1_CATCH, V2_CATCH), f'season2Address {S2} is a Season 1 contract'
+    if '--season2-address' not in sys.argv and '--catch-address' not in sys.argv:
+        assert CATCH and CATCH.lower() in (S1, S2), f'catchAddress {CATCH} is neither season1Address nor season2Address'
+    CATCH = S2                                            # casts go to v3 only
+S2_SKINS = None
+if SEASON2:   # the prizes row: each tier's Season 2 skins (wheel/art/s2/make_skins.py)
+    S2_SKINS = json.load(open(os.path.join(HERE, 'art', 's2', 'skins.json')))
+    assert [len(t) for t in S2_SKINS] == [1, 3, 2, 3, 2], 'skins.json: Common 1, Uncommon 3, Rare 2, Epic 3, Legendary 2'
+    assert all(re.fullmatch(r'[a-z]+', n) and base64.b64decode(d[:16])[:4] == b'RIFF' for t in S2_SKINS for n, d in t)
 
 RECIPES = {'v1.1': 16, 'v1.2': 10}
 ARCHIVE_LAST = '2026-11-04'           # nights up to here are recipe v1.1; from 5 Nov on, v1.2
@@ -136,7 +168,8 @@ newest = nights[max(nights)]
 results = {'kind': 'quantum_catch_results', 'v': 1, 'recipes': RECIPES, 'archive_last': ARCHIVE_LAST,
            'nights': nights, 'chips': chips, 'reruns': reruns, 'not_shown': not_shown}
 data = {**results, 'twin': twin, 'health_min': HEALTH_MIN,
-        'config': {'repoUrl': REPO, 'catchAddress': CATCH.lower() if CATCH else None, 'chainId': '0xaa36a7', **SQK_CFG},
+        'config': {'repoUrl': REPO, 'catchAddress': CATCH.lower() if CATCH else None, 'chainId': '0xaa36a7', **SQK_CFG,
+                   'season2': SEASON2, 'season1Address': S1 if SEASON2 else None},
         'core': {'address': newest['core'], 'genesis': newest['genesis']}}
 art = json.load(open(os.path.join(HERE, 'art', 'art.json')))
 SHOWCASE = json.load(open(os.path.join(HERE, 'art', 'showcase.json'), encoding='utf-8'))   # Season 2 preview cards (12 webp)
@@ -145,6 +178,16 @@ BANNERS = json.load(open(os.path.join(HERE, 'art', 'banners.json')))            
 assert len(SHOWCASE) == 12 and all(base64.b64decode(v['data'][:16])[:4] == b'RIFF' and v['traits'] for v in SHOWCASE.values())
 assert base64.b64decode(TEASER['data'][:16])[:4] == b'RIFF'
 art = {**art, 'showcase': SHOWCASE, 'teaser': TEASER, 'banners': BANNERS}        # in memory only: art.json (packed on-chain) is not rewritten
+if S2_SKINS: art['s2skins'] = S2_SKINS
+# Season 2 gallery: real hamsters drawn by the contract's own renderer (wheel/art/s2/examples.json, same shape as
+# showcase.json); without it the page keeps the 12 painted previews under "A first look at Season 2"
+S2_EX = os.path.join(HERE, 'art', 's2', 'examples.json')
+if SEASON2 and os.path.exists(S2_EX):
+    EX = json.load(open(S2_EX, encoding='utf-8'))
+    assert 4 <= len(EX) <= 16 and all(base64.b64decode(v['data'][:16])[:4] == b'RIFF' and v['traits'] for v in EX.values()), 'examples.json: 4-16 webp hamsters with traits'
+    art['s2examples'] = EX
+elif SEASON2:
+    print('note: no wheel/art/s2/examples.json: the Season 2 gallery shows the painted previews ("A first look at Season 2")', file=sys.stderr)
 
 T = rd(os.path.join(HERE, 'page.template.html'))
 rep = {'/*__ENGINE__*/': rd(os.path.join(HERE, 'engine.js')), '/*__CATCH__*/': rd(os.path.join(HERE, 'catch.js')),
@@ -157,7 +200,6 @@ for k, v in rep.items():
 # template reads the contract's NET_COST() and shows its NOT_WIRED line instead (RULINGS 52, 58), so it is built (with a
 # note); any other page is refused, before anything is written, so the morning stops loudly. The switch is one step:
 # wheel/config.json catchAddress (and faucetAddress) to the v2 deploy (from its deploy record), or null (watch-only).
-V1_CATCH = '0xa0b3352b3a436c845e3bf2d251abeda3d474dfe0'   # QuantumCatch v1 (Sepolia, 6 Nov 2026: castNet(uint8 spot), free)
 if '266ab9cf' in rep['/*__CATCH__*/'].lower() and CATCH and CATCH.lower() == V1_CATCH:   # castNetWithPermit's selector
     if 'const NOT_WIRED = ' not in T:
         sys.exit(f'refused: wheel/catch.js is the v2 wallet code (castNet() with no spot, test SQK) but catchAddress {V1_CATCH} '
@@ -177,4 +219,5 @@ print(f'{rel(OUT)}: {len(T.encode())} bytes, {rel(RES)}: {os.path.getsize(RES)} 
       f'({", ".join(f"{d} {n["recipe"]}" for d, n in nights.items())}), chip results for {sorted(chips) or "no night yet"}; '
       f're-runs with the other recipe: {[(x["night"], x["recipe"], x["job_id"]) for x in reruns] or "none"}; '
       f'runs not shown (listed on the page): {[(x["night"], x["job_id"], x["why"]) for x in not_shown] or "none"}; '
-      f'NFT button: {"on, " + CATCH if CATCH else "off (no contract address)"}')
+      f'NFT button: {"on, " + CATCH if CATCH else "off (no contract address)"}; '
+      f'Season 2: {"on (casts to " + S2 + ", Season 1 nets from " + S1 + ")" if SEASON2 else "off (season2Address null)"}')

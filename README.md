@@ -39,6 +39,26 @@ A community project. Not made by the Squeekchain team.
    posted, each net gets one of the night's landings: keccak256(the night, the result's sha256, the IBM job id, the net's
    token id) modulo the number of landings. A night that is not posted within 14 days reads "No chip result" for good.
 
+## Season 2
+
+From the Season 2 switch (`season2Address` in `wheel/config.json`), nets are cast on QuantumCatchV3
+(`contracts/src/QuantumCatchV3.sol`): the same cost, faucet, clock and one net per wallet per night. Two things change:
+
+- **The seal.** After a night is posted, anyone calls `seal(night)` in a later block: the night's seed is
+  keccak256(the hash of the block after the post, the result's sha256, the IBM job id), so nobody, the poster included,
+  knows any draw before the post is on chain. Until then a net reads "drawing" (status 5). Each net's main shot is
+  keccak256(the night, the seed, the token id) modulo the landings, counted off spot by spot, as in Season 1.
+- **Trait slots.** A caught hamster also draws one shot for each of 10 slots (face, head, eyes, mouth, neck, hands,
+  back, special, aura, background): keccak256(the night, the seed, the token id, k) for slot k. Where that shot lands
+  gives the slot's tier with the same rarity rule (Common or chip noise: the slot stays empty). `dnaOf(id)` returns
+  every slot's tier, landing and hash. Which item a tier shows, the skins, the names and the pictures belong to the
+  renderer; the page shows each catch's picture straight from `tokenURI`.
+
+QuantumCatchV3 has an owner with exactly two powers: `setRenderer` (how every hamster looks) and `lock()`, which removes
+the owner for good (`locked()` is then true and the page says "Locked forever"). Nothing else can be changed by anyone:
+not the draws, the cost, the clock, the hatcher or a single net. Season 1 nets (QuantumCatch below, and v1) stay exactly
+as they are, and the page still shows them, labelled "Season 1".
+
 A normal computer can simulate this small walk. What is real is that every chip result here ran on real IBM hardware,
 with real noise, on his real run. The page says for each night whether the chip's landings were closer to the perfect
 quantum walk or to a normal (classical) hamster.
@@ -80,7 +100,8 @@ node wheel/test/page.test.cjs                                  # needs puppeteer
 
 | | Address |
 |---|---|
-| QuantumCatch (the nets; 0.01 test SQK each, burned) | [`0x151ec033c914252358bdcdba0548ac6a7b4f7f49`](https://sepolia.etherscan.io/address/0x151ec033c914252358bdcdba0548ac6a7b4f7f49) |
+| QuantumCatchV3 (Season 2: the nets from the switch; 0.01 test SQK each, burned) | [`0x5331631708adff57965aab4bba5453be35e30b30`](https://sepolia.etherscan.io/address/0x5331631708adff57965aab4bba5453be35e30b30) |
+| QuantumCatch (Season 1: the nets until the switch; 0.01 test SQK each, burned) | [`0x151ec033c914252358bdcdba0548ac6a7b4f7f49`](https://sepolia.etherscan.io/address/0x151ec033c914252358bdcdba0548ac6a7b4f7f49) |
 | SQK (Squeekchain's test token, what a net burns) | [`0xd78a3956cf63164d1fa1c622ad3c66623162fa1e`](https://sepolia.etherscan.io/address/0xd78a3956cf63164d1fa1c622ad3c66623162fa1e) |
 | SqkFaucet (0.01 test SQK per wallet per night) | `faucetAddress` in `wheel/config.json` |
 | QuantumCatch v1 (6 Nov 2026: free nets on a picked spot; stays on chain, its nets keep their results) | [`0xa0b3352b3a436c845e3bf2d251abeda3d474dfe0`](https://sepolia.etherscan.io/address/0xa0b3352b3a436c845e3bf2d251abeda3d474dfe0) |

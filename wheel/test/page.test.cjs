@@ -36,6 +36,13 @@ fs.mkdirSync(SHOTS, { recursive: true });
 const html = fs.readFileSync(PAGE), RESULTS = fs.readFileSync(path.join(path.dirname(PAGE), 'results.json'));
 const DATA = JSON.parse(html.toString().match(/const DATA = (\{.*?\});\n/s)[1]);
 const DAYS = Object.keys(DATA.nights).sort(), NEWEST = DAYS[DAYS.length - 1];
+// the page under test may be a Season 2 build (QW_PAGE, or the real build after the switch): old picked nets are then
+// "Season 1 · picked", the night's heading "Your Season 1 net", a practice catch shows a Season 2 example of its tier
+const S2PAGE = !!(DATA.config && DATA.config.season2);
+const OLD_RE = S2PAGE ? 'Season 1 · picked' : 'old net \\(picked\\)', HEAD5 = S2PAGE ? 'Your Season 1 net · Thu 5 Nov' : 'Your net · Thu 5 Nov';
+const S2EX = S2PAGE ? Object.entries(JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'art', 's2', 'examples.json'), 'utf8'))) : [];
+const practiceTitle = (tier, skin, spot) => { if (!S2PAGE) return `${/^[AEIOU]/.test(tier) ? 'An' : 'A'} ${tier} ${skin} hamster!`;
+  const L = S2EX.filter(([n]) => n.startsWith(tier + ' ')); return `${/^[AEIOU]/.test(tier) ? 'An' : 'A'} ${tier} ${L[spot % L.length][0].slice(tier.length + 1).split(',')[0]} hamster!`; };
 const T0 = Date.parse('2026-11-05T17:30:00Z');
 const KEY = 'quantum-catch-v1';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -313,7 +320,7 @@ function v2Problem() {
 // a page built for the local chain: its QuantumCatch, the mock SQK and the faucet in DATA.config (build.py's test flags)
 function buildFor(catchAddr, sqk, faucet, name) {
   const page = path.join(tmp, name);
-  execFileSync('python3', [path.join(ROOT, 'wheel/build.py'), '--catch-address', catchAddr, '--sqk-address', sqk, '--faucet-address', faucet, '--out', page], { encoding: 'utf8' });
+  execFileSync('python3', [path.join(ROOT, 'wheel/build.py'), '--catch-address', catchAddr, '--season2-address', 'null', '--sqk-address', sqk, '--faucet-address', faucet, '--out', page], { encoding: 'utf8' });
   return fs.readFileSync(page);
 }
 async function startAnvil() {
@@ -378,6 +385,81 @@ function sleptNightResults(day = '2026-11-05', base = RESULTS.toString()) {
   return JSON.stringify(J);
 }
 
+// ---------- Season 2: the REAL QuantumCatchV3 on its own local anvil chain ----------
+// v3 (forge build: QC3_ARTIFACT=<out>/QuantumCatchV3.sol/QuantumCatchV3.json, else contracts/out) with a stand-in renderer
+// (contracts/test/mocks/MockS2Renderer.sol, QC3_RENDERER, else next to the v3 build: a small recognisable on-chain card, the
+// same call as the real S2Renderer, without its ~70 art data contracts), and Season 1 next to it: the real v2 (QC_ARTIFACT),
+// the mock test SQK and the SqkFaucet (whose clock v3 shares). The page is built with the ONE switch (--season1-address v2
+// --season2-address v3). Missing = a failed run, unless QW_NO_S2=1.
+const QC3_JSON = process.env.QC3_ARTIFACT || path.join(ROOT, 'contracts/out/QuantumCatchV3.sol/QuantumCatchV3.json');
+const R3_JSON = process.env.QC3_RENDERER || path.join(path.resolve(path.dirname(QC3_JSON), '..'), 'MockS2Renderer.sol/MockS2Renderer.json');
+const SEAL_SIG = 'seal(uint32)', MOCK_SKIN = ['Plain', 'Tiger', 'Circuit', 'Galaxy', 'Rainbow'];       // the stand-in's skin per tier
+let s2Skip = 'no anvil';
+function v3Problem() {
+  for (const f of [QC3_JSON, R3_JSON]) if (!fs.existsSync(f)) return `no build at ${f} (forge build in contracts/ with QuantumCatchV3, or QC3_ARTIFACT / QC3_RENDERER)`;
+  const ids = JSON.parse(fs.readFileSync(QC3_JSON, 'utf8')).methodIdentifiers;
+  for (const sig of ['castNet()', 'castNetWithPermit(uint256,uint8,bytes32,bytes32)', 'NET_COST()', POST_SIG, SEAL_SIG, 'dnaOf(uint256)', 'locked()', 'lock()', 'setRenderer(address)', 'result(uint256)', 'tokenURI(uint256)'])
+    if (!ids[sig]) return `the build at ${QC3_JSON} is not QuantumCatchV3 (no ${sig})`;
+  const r = JSON.parse(fs.readFileSync(R3_JSON, 'utf8')).methodIdentifiers;
+  if (!Object.keys(r).some((k) => k.startsWith('tokenURI((')) || !Object.keys(r).some((k) => k.startsWith('itemsOf(('))) return `${R3_JSON} is not a Season 2 renderer`;
+  return v2Problem();
+}
+async function startS2Anvil() {
+  try { execFileSync(ANVIL, ['--version'], { stdio: 'ignore' }); } catch (e) { s2Skip = 'no anvil'; return null; }
+  const bad = v3Problem(); if (bad) { s2Skip = bad; return null; }
+  const port = 21000 + (process.pid % 1000), url = `http://127.0.0.1:${port}`;
+  const proc = spawn(ANVIL, ['--host', '127.0.0.1', '--port', String(port), '--chain-id', '11155111', '--timestamp', String(T0 / 1000), '--accounts', '20', '--silent'], { stdio: 'ignore' });
+  let id = 0;
+  const rpc = async (method, params = []) => { const r = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: ++id, method, params }) }); const j = await r.json(); if (j.error) throw Object.assign(new Error(j.error.message), { data: j.error.data }); return j.result; };
+  for (let i = 0; ; i++) { try { await rpc('eth_chainId'); break; } catch (e) { if (i > 100) { proc.kill(); s2Skip = 'anvil did not start'; return null; } await sleep(100); } }
+  try {
+    const receipt = async (h) => { for (let i = 0; i < 200; i++) { const rc = await rpc('eth_getTransactionReceipt', [h]); if (rc) return rc; await sleep(30); } throw new Error('no receipt'); };
+    const send = async (from, to, data) => { const rc = await receipt(await rpc('eth_sendTransaction', [{ from, to, data }])); assert.equal(rc.status, '0x1', `tx ${data.slice(0, 10)} from ${from} failed`); return rc; };
+    const call = (to, data) => rpc('eth_call', [{ to, data }, 'latest']);
+    const deploy = async (from, file, args = '') => {
+      const rc = await receipt(await rpc('eth_sendTransaction', [{ from, data: JSON.parse(fs.readFileSync(file, 'utf8')).bytecode.object + args, gas: '0xe4e1c0' }]));
+      if (rc.status !== '0x1' || (await rpc('eth_getCode', [rc.contractAddress, 'latest'])) === '0x') throw new Error(`the deploy of ${path.basename(file)} failed on anvil`);
+      return rc.contractAddress.toLowerCase();
+    };
+    const at = async (ms) => { const b = await rpc('eth_getBlockByNumber', ['latest', false]); const t = Math.floor(ms / 1000); if (Number(b.timestamp) < t) { await rpc('evm_setNextBlockTimestamp', ['0x' + t.toString(16)]); await rpc('evm_mine'); } };
+    const impersonate = async (a) => { await rpc('anvil_impersonateAccount', [a]); await rpc('anvil_setBalance', [a, '0x56bc75e2d63100000']); };
+    const acc = (await rpc('eth_accounts')).map((a) => a.toLowerCase()), hatcher = acc[0], deployer = acc[19];
+    const ids2 = JSON.parse(fs.readFileSync(QC_JSON, 'utf8')).methodIdentifiers, ids3 = JSON.parse(fs.readFileSync(QC3_JSON, 'utf8')).methodIdentifiers, mids = JSON.parse(fs.readFileSync(MOCK_JSON, 'utf8')).methodIdentifiers;
+    const sqk = await deploy(deployer, MOCK_JSON);
+    const v2 = await deploy(deployer, QC_JSON, pad(hatcher) + pad(0) + pad(sqk) + pad(CENT));                // Season 1: QuantumCatch v2
+    const faucet = await deploy(deployer, FAUCET_JSON, pad(sqk) + pad(CENT) + pad(v2));
+    const renderer = await deploy(deployer, R3_JSON);
+    const v3 = await deploy(deployer, QC3_JSON, pad(hatcher) + pad(renderer) + pad(sqk) + pad(CENT));         // QuantumCatchV3(hatcher, renderer, SQK, 0.01)
+    const mint = (to, v) => '0x' + mids['mint(address,uint256)'] + pad(to) + pad(v);
+    await send(deployer, sqk, mint(faucet, 500n * 10n ** 18n));
+    const ch = { proc, url, rpc, send, call, at, impersonate, accounts: acc, hatcher, deployer, sqk, faucet, v2, v3, renderer };
+    ch.mint = (a, v) => send(deployer, sqk, mint(a, v));
+    ch.castOn = async (game, a, minted = true) => { if (minted) await ch.mint(a, CENT); await send(a, sqk, QC.enc.approve(game, CENT)); await send(a, game, QC.enc.castNet()); };
+    ch.post = (game, n, x) => send(hatcher, game, '0x' + (game === v3 ? ids3 : ids2)[POST_SIG] + pad(n) + x.perSpot.map(pad).join('') + pad(x.turns) + pad(x.steps) + x.job + x.sha + pad(x.first));
+    ch.seal = (n) => send(acc[9], v3, '0x' + ids3[SEAL_SIG] + pad(n));
+    ch.lock = () => send(deployer, v3, '0x' + ids3['lock()']);
+    ch.result = async (game, tid) => QC.readNet(call, game, tid, { dna: game === v3 });
+    ch.meta = async (game, tid) => QC.tokenMeta(QC.dec.string(await call(game, QC.enc.tokenURI(tid))));
+    // the REAL Season 2 renderer (when the v3 build has it next to it: S2Art00..NN, S2Directory, S2Text, S2Renderer), deployed
+    // on demand and set by the owner (before lock): every net's picture becomes the real painted card
+    // (the chunks are S2Art000.sol .. since the 7 Nov art, S2Art00.sol .. before)
+    const OUT3 = path.resolve(path.dirname(QC3_JSON), '..'), art3 = (n) => path.join(OUT3, `${n}.sol/${n}.json`);
+    const W3 = fs.existsSync(art3('S2Art000')) ? 3 : 2, nn = (k) => `S2Art${String(k).padStart(W3, '0')}`;
+    ch.realRenderer = async () => {
+      if (!['S2Renderer', 'S2Directory', 'S2Text', nn(0)].every((n) => fs.existsSync(art3(n)))) return null;
+      const chunks = []; for (let k = 0; fs.existsSync(art3(nn(k))); k++) chunks.push(await deploy(deployer, art3(nn(k))));
+      const dir = await deploy(deployer, art3('S2Directory')), text = await deploy(deployer, art3('S2Text'));
+      const r = await deploy(deployer, art3('S2Renderer'), pad(dir) + pad(96) + pad(text) + pad(chunks.length) + chunks.map(pad).join(''));
+      await send(deployer, v3, '0x' + ids3['setRenderer(address)'] + pad(r));
+      return { address: r, chunks: chunks.length };
+    };
+    const page = path.join(tmp, 's2.html');
+    execFileSync('python3', [path.join(ROOT, 'wheel/build.py'), '--season1-address', v2, '--season2-address', v3, '--sqk-address', sqk, '--faucet-address', faucet, '--out', page], { encoding: 'utf8' });
+    ch.html = fs.readFileSync(page);
+    return ch;
+  } catch (e) { proc.kill('SIGTERM'); s2Skip = 'the Season 2 setup failed on anvil: ' + e.message; return null; }
+}
+
 const ALLOWED_WALLET = ['eth_requestAccounts', 'eth_accounts', 'eth_chainId', 'eth_call', 'eth_getBalance', 'eth_getBlockByNumber', 'eth_sendTransaction', 'eth_getTransactionReceipt', 'eth_signTypedData_v4', 'wallet_switchEthereumChain', 'wallet_addEthereumChain'];
 const PRESET = (nets = {}) => ({ practice: { day: NEWEST, spot: 15, at: 1, seen: true }, nets });     // an old picked practice, seen
 const asked = (p) => p.evaluate(() => window.__walletLog.filter((m) => m === 'eth_sendTransaction' || m === 'eth_requestAccounts' || m === 'eth_signTypedData_v4'));
@@ -394,6 +476,14 @@ const CAST_BTN = ['Cast a net · 0.01 test SQK', 'test token · no money value']
 // every line #nftmsg showed, in order (the wallet steps pass quickly)
 const watchMsgs = (p) => p.evaluate(() => { window.__msgs = []; const e = document.getElementById('nftmsg'); new MutationObserver(() => { const t = e.textContent; if (t && window.__msgs[window.__msgs.length - 1] !== t) window.__msgs.push(t); }).observe(e, { childList: true, characterData: true, subtree: true }); });
 const sqkRead = (p, f) => p.waitForFunction(f, { timeout: 15000 });
+// the same state at the owner's phone (390x844) and a PC (1280x860), for the review screenshots (sel: scrolled into view)
+async function shots2(p, shot, name, sel) {
+  for (const [w, h] of [[390, 844], [1280, 860]]) {
+    await vp(p, w, h); await sleep(400);
+    if (sel) await scrollTo(p, sel); else await p.evaluate(() => window.scrollTo(0, 0));
+    await sleep(300); await shot(`${name}-${w}x${h}`);
+  }
+}
 
 // the cast with a wallet that signs typed data (the permit path, real v2 on anvil): ONE signature + ONE transaction
 // (castNetWithPermit), exactly 0.01 test SQK burned; the first screen (stage, button, prizes; no tiles) fits; the net recorded
@@ -598,7 +688,7 @@ async function nftErrorScenario(chain, name, viewport, account) {
     assert.deepEqual(ref4.counts, counts);
     const st = await stored(p); assert.deepEqual([st.practice.day, st.practice.spot, st.practice.seen, st.practice.drop], [NEWEST, 11, true, true], 'the drawn drop: the Epic of 4 Nov');
     assert.equal(EPIC4.spot, 11);
-    assert.equal(await txt(p, '#revt'), 'An Epic Crystal hamster!');
+    assert.equal(await txt(p, '#revt'), practiceTitle('Epic', 'Crystal', EPIC4.spot));
     assert.equal(await txt(p, '#prompt'), 'That was practice. Real nets are cast before he runs.');
     assert.match(await txt(p, '#revs'), /^practice ?289 of the 4,000 drops landed on No\. 11\. The rarest catch of the night\.$/);
     assert.ok(await hidden(p, '#revq'), 'the result card: the catch and one line (the night\'s quantumness is in How it works)');
@@ -649,7 +739,8 @@ async function nftErrorScenario(chain, name, viewport, account) {
     assert.equal(await txt(p, '#howrules'), 'Free practice: one net on the newest night, under Past nights.');
     assert.match(await txt(p, '#needs'), /^What you need: a crypto wallet on the Sepolia test network, 0\.01 test SQK.*One net per wallet per night\.$/);
     assert.match(await txt(p, '#needs'), REAL_FAUCET ? /once per night/ : /test SQK/, 'the faucet: once per NIGHT');
-    assert.match(await txt(p, '#contract'), /^Each net is a test NFT: QuantumCatch contract 0x[0-9a-f]{40} on Sepolia \(no money value; one net per wallet per night; its catch is drawn on-chain from the night's drops\)\.$/);
+    assert.match(await txt(p, '#contract'), S2PAGE ? /^Each net is a test NFT: Season 2 contract 0x[0-9a-f]{40} on Sepolia \(no money value; one net per wallet per night; its catch and its traits are drawn on-chain from the night's drops\)\. Season 1 nets: 0x[0-9a-f]{40}\.$/
+      : /^Each net is a test NFT: QuantumCatch contract 0x[0-9a-f]{40} on Sepolia \(no money value; one net per wallet per night; its catch is drawn on-chain from the night's drops\)\.$/);
     await scrollTo(p, '#how'); await sleep(200); await shot('4-how-it-works');
     assert.equal(await p.$eval('#ghlink', (e) => e.href), DATA.config.repoUrl);
     assert.equal(await p.$eval('#ghfoot', (e) => e.href), DATA.config.repoUrl);
@@ -681,7 +772,7 @@ async function nftErrorScenario(chain, name, viewport, account) {
     assert.ok(stageT <= 0.5, 'the computer hangs from the top edge');
     assert.ok(actB <= 860 && prizeB <= 860, `the deck and the prizes on the 1280x860 first screen (${Math.round(actB)}, ${Math.round(prizeB)})`);
     // no tiles on the right: the prizes take their room as cards (skin, tier, skin name, chance), not a strip of 30 px skins
-    const prz = await p.$$eval('#prow .prz', (e) => e.map((z) => [Math.round(z.querySelector('canvas').getBoundingClientRect().width), getComputedStyle(z.querySelector('.ps')).display]));
+    const prz = await p.$$eval('#prow .prz', (e) => e.map((z) => [Math.round(z.querySelector('canvas, .pst').getBoundingClientRect().width), getComputedStyle(z.querySelector('.ps')).display]));
     assert.ok(prz.every(([w, d]) => w >= 60 && d !== 'none'), `the prize cards on the PC flat view (${JSON.stringify(prz)})`);
     await ctx.shot('0-1280x860');
     await vp(p, 1280, 800); await sleep(250);
@@ -781,7 +872,7 @@ async function nftErrorScenario(chain, name, viewport, account) {
   const OLDNET = (spot) => ({ practice: { day: NEWEST, spot: 15, at: 1, seen: true }, nets: { '2026-11-05': { spot, at: 1 } } });
   await scenario('resolve', { width: 375, height: 667, at: Date.parse('2026-11-06T13:00:00Z'), results: NX.body, storage: OLDNET(S5) }, async (p, { shot }) => {
     await p.waitForFunction(() => QCP.stage === '2026-11-05' && !!QCP.data.chips['2026-11-05'], { timeout: 10000 }); await sleep(300);
-    assert.equal(await txt(p, '#stageh'), 'Your net · Thu 5 Nov');
+    assert.equal(await txt(p, '#stageh'), HEAD5);
     assert.match(await txt(p, '#prompt'), new RegExp(`^Your old net \\(picked\\) is on No\\. ${S5}\\. Did the chip find him there\\?`));
     assert.equal(await txt(p, '#act'), 'See if you caught him');
     assert.deepEqual([await txt(p, '#platek'), await txt(p, '#platen')], ['Old net (picked)', String(S5)]);
@@ -794,7 +885,7 @@ async function nftErrorScenario(chain, name, viewport, account) {
     assert.deepEqual(NX.tiers, REFX.tiers.map((c) => c - 1), 'the relabelled night ranks as its run');
     assert.equal(tier, 'Common');
     assert.match(await txt(p, '#prompt'), new RegExp(`^You caught an? ${tier} hamster!`));
-    assert.match(await txt(p, '#revs'), new RegExp(`^old net \\(picked\\) ?Spot ${S5} \\(.*\\): the chip found him there in`));
+    assert.match(await txt(p, '#revs'), new RegExp(`^${OLD_RE} ?Spot ${S5} \\(.*\\): the chip found him there in`));
     await rosterIs(p, REFX, 'resolved 5 Nov');
     assert.equal(await p.$eval('.spot[data-spot="7"] .lnd b', (e) => e.textContent), 'Epic', 'its first shot landed on spot 3: the Epic spot 7 stays Epic');
     assert.ok(await hidden(p, '#revq'), 'one line on the result card');
@@ -802,7 +893,7 @@ async function nftErrorScenario(chain, name, viewport, account) {
     assert.equal(await p.$$eval('.spot.out', (e) => e.length), 8, 'after the replay the out-of-reach half is shown');
     assert.equal((await stored(p)).nets['2026-11-05'].seen, true);
     assert.equal(await p.$eval('#mycountn', (e) => e.textContent), '2', 'practice + the real catch');
-    assert.match(await txt(p, '#mygrid'), /old net \(picked\)/);
+    assert.match(await txt(p, '#mygrid'), new RegExp(OLD_RE));
     await shot('1-resolved');
   });
   await scenario('resolve-tampered', { width: 360, height: 740, at: Date.parse('2026-11-06T13:00:00Z'), results: nextNightResults(true).body, storage: OLDNET(S5) }, async (p) => {
@@ -827,7 +918,7 @@ async function nftErrorScenario(chain, name, viewport, account) {
     await p.click('#act'); await revealed(p);
     assert.equal(await txt(p, '#revt'), 'A Legendary Gold hamster!');
     assert.match(await txt(p, '#prompt'), /^You caught a Legendary hamster!/);
-    assert.match(await txt(p, '#revs'), /^old net \(picked\) ?Spot 7 \(.*\): the chip found him there in 6\.3% of its 4,000 looks\. The rarest catch of the night, and the chip's very first drop landed there\.$/);
+    assert.match(await txt(p, '#revs'), new RegExp(`^${OLD_RE} ?Spot 7 \\(.*\\): the chip found him there in 6\\.3% of its 4,000 looks\\. The rarest catch of the night, and the chip's very first drop landed there\\.$`));
     assert.deepEqual(await p.$eval('.spot[data-spot="7"]', (e) => [e.dataset.tier, e.querySelector('.lnd b').textContent, getComputedStyle(e.querySelector('.lnd b')).backgroundColor]), ['4', 'Legendary', 'rgb(255, 214, 107)'], 'a gold Legendary word on the roster');
     assert.equal(await p.$$eval('.spot[data-tier="4"]', (e) => e.length), 1, 'one Legendary');
     assert.equal(await p.$$eval('.spot[data-tier="3"]', (e) => e.length), 0, 'and so no Epic that night');
@@ -841,7 +932,8 @@ async function nftErrorScenario(chain, name, viewport, account) {
   await scenario('sofar', { width: 360, height: 740, at: Date.parse('2026-11-05T22:30:00Z'), rpc: fakeCore, storage: PRESET() }, async (p, { shot, rpcLog }) => {
     await p.waitForFunction(() => !document.getElementById('sofar').hidden, { timeout: 10000 });
     assert.match(await txt(p, '#sofar'), /^Tonight so far: 3 rounds, 870 turns \(his night of Thu 5 Nov, settled on-chain up to 23:20 your time\)$/);
-    assert.deepEqual(rpcLog.filter((x) => x.startsWith('0x')), [QC.enc.state(), QC.enc.roundPage(241, 303, 16)], 'only settled rounds are asked for');
+    // (a Season 2 page also asks its contract's locked() once: not a SqueekCore call)
+    assert.deepEqual(rpcLog.filter((x) => x.startsWith('0x') && x !== QC.enc.locked()), [QC.enc.state(), QC.enc.roundPage(241, 303, 16)], 'only settled rounds are asked for');
     assert.equal(await txt(p, '#stageh'), "Tomorrow's net");
     assert.ok(await rosterHidden(p), 'tomorrow\'s net: no tiles');
     assert.equal(await txt(p, '#tnk'), "Tomorrow's net");
@@ -855,7 +947,7 @@ async function nftErrorScenario(chain, name, viewport, account) {
   await scenario('running', { width: 360, height: 740, at: Date.parse('2026-11-05T22:30:00Z'), rpc: fakeCore, storage: PRESET({ '2026-11-05': DROP5() }) }, async (p, { shot }) => {
     assert.equal(await p.evaluate(() => QCP.stage), '2026-11-05', 'the running night with the viewer\'s net is the first screen');
     await p.waitForFunction(() => !document.getElementById('sofar').hidden, { timeout: 10000 }); await sleep(200);
-    assert.equal(await txt(p, '#stageh'), 'Your net · Thu 5 Nov');
+    assert.equal(await txt(p, '#stageh'), HEAD5);
     assert.ok(await hidden(p, '#srcbadge'));
     assert.match(await txt(p, '#nfttext'), /^✓ Your net is inResult tomorrow at 13:00in \d+ h \d+ min$/, 'the net\'s card: the result tomorrow 13:00, a countdown');
     assert.ok(await hidden(p, '#status'), 'nothing under the card');
@@ -907,10 +999,10 @@ async function nftErrorScenario(chain, name, viewport, account) {
     await p.click('#act'); await revealed(p);
     assert.match(await txt(p, '#prompt'), /^He got away\./);
     assert.equal(await txt(p, '#revt'), 'He got away.');
-    assert.match(await txt(p, '#revs'), new RegExp(`^old net \\(picked\\) ?Spot ${OUT5} was out of reach that night: he could not land there\\. The chip's 55 landings there are its noise\\.$`));
+    assert.match(await txt(p, '#revs'), new RegExp(`^${OLD_RE} ?Spot ${OUT5} was out of reach that night: he could not land there\\. The chip's 55 landings there are its noise\\.$`));
     assert.deepEqual(await p.evaluate((s) => { const r = QCP.netResult('2026-11-05', s); return [r.status, r.o.status, r.o.tier, r.o.reach, r.h.tier]; }, OUT5), ['away', 2, 0, 2, -1]);
     assert.equal(await p.$eval('#mycountn', (e) => e.textContent), '1', 'only the practice catch counts');
-    assert.match(await txt(p, '#mygrid'), /Got away.*old net \(picked\)/);
+    assert.match(await txt(p, '#mygrid'), new RegExp(`Got away.*${OLD_RE}`));
     assert.ok(!/Legendary/.test(await txt(p, '#mygrid')));
     await shot('1-got-away-out-of-reach');
   });
@@ -1224,6 +1316,221 @@ async function nftErrorScenario(chain, name, viewport, account) {
       });
     } finally { chain.proc.kill('SIGTERM'); }
   } else results.push(['skip', 'nft-*, sqk-*, already, not-wired, short-*, no-address, lock, drop-*', 'no chain']);
+
+  // ===================== Season 2: the REAL QuantumCatchV3 (+ the stand-in renderer) and Season 1 (v2) on one anvil chain =====
+  // Missing = a failed run, unless opted out (QW_NO_S2=1)
+  const s2 = await startS2Anvil();
+  if (!s2) results.push([process.env.QW_NO_S2 === '1' ? 'skip' : 'FAIL', 's2-*', `${s2Skip}: the Season 2 scenarios cannot run${process.env.QW_NO_S2 === '1' ? ' (QW_NO_S2=1)' : ' (QC3_ARTIFACT / QC3_RENDERER, or QW_NO_S2=1 on purpose)'}`]);
+  if (s2) {
+    try {
+      const acc = s2.accounts, V3 = s2.v3, V2 = s2.v2;
+      const DROP3 = (day, a, game = V3) => ({ drop: true, spot: null, at: 1, seen: false, nft: { tokenId: QC.netId(QC.nightOfDay(day), a), day, contract: game, image: null } });
+      // who plays what: 1 s2-cast (casts on v3 through the page), 4 a Season 1 net (v2, cast elsewhere), 0 the hatcher, 9 seals,
+      // 19 the deployer (= the owner until lock); casters ca5700..13 cast on v3 for 5 Nov (the seal decides their draws)
+      await s2.mint(acc[1], 5n * CENT);
+      await s2.castOn(V2, acc[4]);
+      const C = []; for (let k = 0; k < 20; k++) { const a = '0x' + 'ca57' + k.toString(16).padStart(36, '0'); await s2.impersonate(a); await s2.castOn(V3, a); C.push(a); }
+
+      // S2-1. the first screen of Season 2 (no wallet): the small "Season 2" tag (the only new first-screen text), the prizes as
+      //       each tier's skins (Uncommon 3, Rare 2, Epic 3, Legendary 2) fitting with the stage and the ONE line at 360x740,
+      //       390x844 and 1280x860; the gallery and How it works say Season 2; the lock note below the first screen
+      await scenario('s2-first', { width: 360, height: 740, page: s2.html, rpcUrl: s2.url }, async (p, { shot, noHScroll }) => {
+        assert.equal(await txt(p, '#s2tag'), 'Season 2'); assert.ok(!(await hidden(p, '#s2tag')), 'the tag shows');
+        const first = await firstScreenText(p);
+        assert.ok(!BANNED_FIRST.test(first), 'no math on the first screen');
+        assert.equal((first.match(/season 2/gi) || []).length, 1, 'one "Season 2" on the first screen: the tag');
+        assert.deepEqual(await items(p, '.prz b'), QW.TIER_NAMES);
+        assert.deepEqual(await items(p, '.prz .ps'), ['Plain', '3 skins', '2 skins', '3 skins', '2 skins']);
+        assert.deepEqual(await p.$$eval('.prz', (e) => e.map((z) => z.querySelectorAll('.pst img').length)), [1, 3, 2, 3, 2], 'each tier\'s skins');
+        assert.match(await p.$eval('.prz[data-t="3"]', (e) => e.getAttribute('aria-label')), /^Epic, Crystal, Galaxy, Ghost skins: /);
+        const inTiles = () => p.$$eval('.prz', (e) => e.map((z) => { const a = z.getBoundingClientRect(); return [...z.querySelectorAll('.pst img')].every((im) => { const b = im.getBoundingClientRect(); return im.complete && im.naturalWidth > 0 && b.width >= 16 && b.left >= a.left - 0.5 && b.right <= a.right + 0.5 && b.top >= a.top - 0.5; }); }));
+        for (const [w, h] of [[360, 740], [390, 844], [1280, 860]]) {
+          await vp(p, w, h); await sleep(300);
+          await fits(p, h, '#watch', '#prow');
+          assert.deepEqual(await inTiles(), [true, true, true, true, true], `${w}x${h}: every skin inside its tile`);
+          await noHScroll(`season 2 first screen ${w}x${h}`); await shot(`1-first-${w}x${h}`);
+        }
+        await vp(p, 360, 740); await sleep(200);
+        await p.waitForFunction(() => !document.getElementById('lockn').hidden, { timeout: 15000 });
+        assert.equal(await txt(p, '#lockn'), 'Pictures still changing', 'locked() = false: the owner can still change the pictures');
+        // the gallery: real Season 2 cards (wheel/art/s2/examples.json, drawn by the renderer's reference), "Season 2 hamsters"
+        const EX = JSON.parse(fs.readFileSync(path.join(ROOT, 'wheel/art/s2/examples.json'), 'utf8'));
+        assert.equal(await txt(p, '#gk'), 'Season 2 hamsters');
+        await scrollTo(p, '#gk'); await sleep(500);
+        assert.deepEqual(await p.$$eval('#gallery .gcard b', (e) => e.map((b) => b.textContent)), Object.keys(EX), 'the real examples, in order');
+        assert.ok(await p.$eval('#gallery', (e) => e.classList.contains('s2ex')));
+        await p.waitForFunction(() => [...document.querySelectorAll('#gallery .gcard img')].every((i) => i.complete && i.naturalWidth > 0), { timeout: 10000 });
+        await shot('1b-gallery-360');
+        await openDetails(p, 'how');
+        assert.ok(!(await hidden(p, '#s2how')));
+        assert.equal((await items(p, '#s2how li')).length, 3, 'three sentences');
+        assert.deepEqual(await items(p, '.s2odds tbody td'), ['Chance', '64 in 100', '23 in 100', '7 in 100', '6 in 100', '~1 in 260'], 'the one-line odds table');
+        assert.equal(await p.$$eval('.s2odds tbody tr', (e) => e.length), 1);
+        assert.ok(await p.$eval('.s2odds', (t) => t.getBoundingClientRect().right <= t.parentElement.getBoundingClientRect().right + 0.5), 'the odds table fits the phone (no sideways scroll in its box)');
+        await openDetails(p, 'check');
+        assert.equal(await txt(p, '#recipeh'), 'The recipe in 7 lines'); assert.ok(!(await hidden(p, '#recipe7')));
+        assert.match(await txt(p, '#recipe6'), /the hash of the next Sepolia block/);
+        assert.match(await txt(p, '#contract'), new RegExp(`Season 2 contract ${V3} .* Season 1 nets: ${V2}\\.$`));
+        await noHScroll('season 2 details'); await shot('2-check');
+        await openDetails(p, 'how'); await shots2(p, shot, '3-how', '#s2how');
+        await backToMain(p); await shots2(p, shot, '4-gallery', '#gk'); await shots2(p, shot, '5-prizes', '#prizes');
+      });
+      // S2-1b. the free practice net once Season 2 is live (it draws no traits): a real Season 2 example of the drawn tier
+      //        (wheel/art/s2/examples.json, picked by the spot) on the result card, the podium and My catches; never the
+      //        Season 1 look
+      await scenario('s2-practice', { width: 390, height: 844, page: s2.html, random: EPIC4.random }, async (p, { shot }) => {
+        await openPractice(p);
+        assert.equal(await practice(p), EPIC4.spot);
+        const L = Object.entries(JSON.parse(fs.readFileSync(path.join(ROOT, 'wheel/art/s2/examples.json'), 'utf8'))).filter(([n]) => n.startsWith('Epic '));
+        const [name, x] = L[EPIC4.spot % L.length];
+        assert.ok(await p.$eval('#reveal', (e) => e.classList.contains('s2')), 'the Season 2 result card');
+        assert.equal(await p.$eval('#revimg', (e) => e.getAttribute('src')), 'data:image/webp;base64,' + x.data, `the example ${name}`);
+        assert.equal(await txt(p, '#revt'), `An Epic ${name.slice(5).split(',')[0]} hamster!`);
+        assert.match(await txt(p, '#revs'), /^practice/);
+        assert.ok(await p.$eval('#ham', (e) => e.classList.contains('s2')), 'the podium: the example');
+        assert.deepEqual(await items(p, '#platew li'), [], 'no Season 1 wears');
+        assert.equal(await p.$eval('#mygrid img', (e) => e.getAttribute('src')), 'data:image/webp;base64,' + x.data, 'My catches: the same example');
+        await shot('1-practice');
+      });
+      // S2-2. the cast: ONE signature + ONE transaction, castNetWithPermit on v3 (never v2); the net remembers its contract
+      await scenario('s2-cast', { width: 360, height: 740, page: s2.html, storage: PRESET(), wallet: { account: acc[1], rpc: s2.url } }, async (p, { shot }) => {
+        await sqkRead(p, () => QCP.sqk.balance != null);
+        assert.deepEqual(await p.$eval('#act', (e) => [e.hidden, e.textContent]), [false, CAST_BTN[0]]);
+        await fits(p, 740, '#act', '#prow');
+        await p.click('#act');
+        await p.waitForFunction(() => !document.getElementById('nftbox').hidden, { timeout: 30000 });
+        assert.deepEqual((await p.evaluate(() => window.__sent)).map(([to, d]) => [to, d.slice(0, 10)]), [[V3, QC.SEL.castNetWithPermit]], 'the one transaction goes to the Season 2 contract');
+        const n = (await stored(p)).nets['2026-11-05'];
+        assert.deepEqual([n.drop, n.spot, n.nft.contract, n.nft.tokenId], [true, null, V3, QC.netId(N5, acc[1])]);
+        assert.equal((await s2.result(V3, QC.netId(N5, acc[1]))).status, 0, 'on chain: waiting');
+        assert.equal(await s2.result(V2, QC.netId(N5, acc[1])), null, 'nothing on Season 1');
+        await p.waitForFunction(() => !document.getElementById('nftnets').hidden, { timeout: 20000 });
+        assert.match(await txt(p, '#nftgrid'), /^waiting for the chip5 Nov · #\?$/, 'the chain: one net, Season 2 (no label)');
+        await shot('1-net-in');
+      });
+      // the 5 Nov night is over; the hatcher posts it on both games (v3 waits for its seal)
+      await s2.at(Date.parse('2026-11-06T12:30:00Z'));
+      const P5 = postOf(NX);
+      await s2.post(V3, N5, P5); await s2.post(V2, N5, P5);
+      assert.equal((await s2.result(V3, QC.netId(N5, C[0]))).status, QC.DRAWING, 'v3: posted, not sealed = drawing');
+      // S2-3. posted, not sealed: "Drawing…" (one line); no wallet: the public RPC (here: the local chain)
+      await scenario('s2-drawing', { width: 360, height: 740, at: Date.parse('2026-11-06T13:00:00Z'), page: s2.html, results: NX.body, storage: PRESET({ '2026-11-05': DROP3('2026-11-05', C[0]) }), rpcUrl: s2.url }, async (p, { shot, rpcLog }) => {
+        await p.waitForFunction(() => document.getElementById('prompt').textContent === 'Drawing…', { timeout: 15000 });
+        assert.ok(rpcLog.includes(QC.enc.result(QC.netId(N5, C[0]))), 'result() of the net, on its own contract');
+        assert.equal(await p.evaluate(() => QCP.stage), '2026-11-05');
+        assert.equal(await txt(p, '#stageh'), 'Your net · Thu 5 Nov');
+        assert.match(await txt(p, '#mygrid'), /Drawing….*sealed with the next block/);
+        assert.equal(await txt(p, '#plateb'), '5 Nov · drawing', 'the plate says it too');
+        await shot('1-drawing'); await shots2(p, shot, '2-drawing', '#play');
+      });
+      // the seal (anyone, a later block): every v3 net of the night is drawn now
+      await s2.rpc('evm_mine'); await s2.seal(N5);
+      const R = []; for (const a of C) R.push([a, await s2.result(V3, QC.netId(N5, a))]);
+      const caught = R.filter(([, r]) => r.status === 1).sort((a, b) => b[1].tier - a[1].tier), away = R.filter(([, r]) => r.status === 2);
+      assert.ok(caught.length, 'a caught net among 20 casters');
+      const [CC, RC] = caught[0];
+      assert.deepEqual([RC.dna.status, RC.dna.tier, RC.dna.spot], [1, RC.tier, RC.spot], 'dnaOf agrees with result()');
+      const want = await s2.meta(V3, QC.netId(N5, CC));
+      assert.match(want.image, /^data:image\/svg\+xml;base64,/);
+      // S2-4. caught: the result card and the podium show the chain's own picture (tokenURI, read once over the public RPC);
+      //       My catches too; still "Pictures still changing"
+      for (const [w, h] of [[390, 844], [1280, 860]]) {
+        await scenario(`s2-caught-${w}`, { width: w, height: h, at: Date.parse('2026-11-06T13:00:00Z'), page: s2.html, results: NX.body, storage: PRESET({ '2026-11-05': DROP3('2026-11-05', CC) }), rpcUrl: s2.url }, async (p, { shot, noHScroll, rpcLog }) => {
+          await p.waitForFunction((sp) => QCP.store().nets['2026-11-05'].spot === sp, { timeout: 15000 }, RC.spot); await sleep(300);
+          assert.equal(await txt(p, '#prompt'), 'Your result is ready.');
+          await p.click('#act'); await revealed(p);
+          const tier = QW.TIER_NAMES[RC.tier - 1];
+          await p.waitForFunction(() => document.getElementById('revimg').getAttribute('src'), { timeout: 20000 }); await sleep(200);
+          assert.ok(await p.$eval('#reveal', (e) => e.classList.contains('s2')), 'the Season 2 result card');
+          assert.equal(await p.$eval('#revimg', (e) => e.getAttribute('src')), want.image, 'the picture IS the chain\'s tokenURI image');
+          assert.ok(await p.$eval('#revimg', (e) => e.complete && e.naturalWidth > 0 && e.getBoundingClientRect().width >= 90), 'and it draws');
+          assert.equal(await txt(p, '#revt'), `${/^[AEIOU]/.test(tier) ? 'An' : 'A'} ${tier} ${MOCK_SKIN[RC.tier - 1]} hamster!`, 'its skin named by the chain\'s metadata');
+          assert.ok(await p.$eval('#ham', (e) => e.classList.contains('s2')), 'the podium: the chain\'s own picture');
+          assert.ok(await p.$eval('#ham', (e) => { const g = e.getContext('2d').getImageData(e.width / 2 - 2, e.height * 0.4, 4, 4).data; return g[3] > 0; }), 'painted');
+          assert.deepEqual(await items(p, '#platew li'), [RC.dna.tiers[1] > 1 ? 'Wizard hat' : 'plain look'], 'what it wears, from the metadata');
+          // the other 15 tiles: each tier's Season 2 skin (the prizes row's heads), never a Season 1 look; yours: your picture
+          assert.deepEqual(await p.$$eval('.spot canvas', (e) => e.map((c) => c.dataset.want.split(':')[0])), [...Array(16).keys()].map((s) => (s === RC.spot ? 's2' : 't2')));
+          await noHScroll('s2 caught'); await shot('1-caught');
+          await openDetails(p, 'mine');
+          await p.waitForFunction(() => document.querySelector('#mygrid img[src]'), { timeout: 20000 });
+          assert.equal(await p.$eval('#mygrid img', (e) => e.getAttribute('src')), want.image, 'My catches: the same on-chain picture');
+          assert.equal(rpcLog.filter((d) => d === QC.enc.tokenURI(QC.netId(N5, CC))).length, 1, 'the big read happens once (kept in memory)');
+          assert.equal(JSON.stringify(await stored(p)).includes(want.image.slice(30, 90)), false, 'never in localStorage');
+          await shot('2-my-catches');
+          await backToMain(p); await scrollTo(p, '#gk'); await sleep(300);
+          assert.equal(await txt(p, '#lockn'), 'Pictures still changing');
+          await shot('3-gallery-not-locked');
+        });
+      }
+      if (away.length) {
+        await scenario('s2-away', { width: 360, height: 740, at: Date.parse('2026-11-06T13:00:00Z'), page: s2.html, results: NX.body, storage: PRESET({ '2026-11-05': DROP3('2026-11-05', away[0][0]) }), rpcUrl: s2.url }, async (p) => {
+          await p.waitForFunction(() => QCP.store().nets['2026-11-05'].spot != null, { timeout: 15000 }); await sleep(300);
+          await p.click('#act'); await revealed(p);
+          assert.match(await txt(p, '#revt'), /^Your hamster got away\.$/);
+          assert.ok(!(await p.$eval('#reveal', (e) => e.classList.contains('s2'))), 'no picture to show: got away');
+        });
+      } else results.push(['skip', 's2-away', 'none of the 20 casters got away']);
+      // S2-4b. the REAL renderer (the painted Season 2 art, ~0.2 MB cards) set by the owner: the same net now shows the real
+      //        card, straight from tokenURI, on the result card, the podium and its tile
+      const real = await s2.realRenderer();
+      if (!real) results.push([process.env.QW_NO_S2 === '1' ? 'skip' : 'FAIL', 's2-real', `no S2Renderer build next to ${QC3_JSON} (forge build in contracts/)`]);
+      else {
+        const big = await s2.meta(V3, QC.netId(N5, CC));
+        const svg = Buffer.from(big.image.slice(26), 'base64').toString('utf8');
+        assert.ok(big.image !== want.image && /<g id='painted'/.test(svg) && (svg.match(/href='data:image\/webp;base64,/g) || []).length >= 2, `the real painted card (${big.image.length} chars), not the stand-in's`);
+        assert.equal((await s2.result(V3, QC.netId(N5, CC))).spot, RC.spot, 'a new renderer changes the picture, never the draw');
+        for (const [w, h] of [[390, 844], [1280, 860]]) {
+          await scenario(`s2-real-${w}`, { width: w, height: h, at: Date.parse('2026-11-06T13:00:00Z'), page: s2.html, results: NX.body, storage: PRESET({ '2026-11-05': DROP3('2026-11-05', CC) }), rpcUrl: s2.url }, async (p, { shot, noHScroll }) => {
+            await p.waitForFunction((sp) => QCP.store().nets['2026-11-05'].spot === sp, { timeout: 15000 }, RC.spot); await sleep(300);
+            await p.click('#act'); await revealed(p);
+            await p.waitForFunction(() => document.getElementById('revimg').getAttribute('src'), { timeout: 30000 }); await sleep(600);
+            assert.equal(await p.$eval('#revimg', (e) => e.getAttribute('src')), big.image, 'the real card, straight from tokenURI');
+            assert.ok(await p.$eval('#revimg', (e) => e.complete && e.naturalWidth > 0), 'it draws');
+            const tier = QW.TIER_NAMES[RC.tier - 1];
+            assert.equal(await txt(p, '#revt'), `${/^[AEIOU]/.test(tier) ? 'An' : 'A'} ${tier} ${big.attr.Skin} hamster!`, 'the skin as the chain names it');
+            assert.ok(await p.$eval(`.spot[data-spot="${RC.spot}"] canvas`, (e) => e.dataset.want.startsWith('s2:')), 'its tile: the chain\'s picture too');
+            // the picture on the podium is whole on the first screen (a PC night view: the stage's floor is below the fold)
+            await p.evaluate(() => window.scrollTo(0, 0)); await sleep(150);
+            const cut = await p.evaluate(() => { const c = document.getElementById('ham'), r = c.getBoundingClientRect(), H = c.height, W = c.width, g = c.getContext('2d');
+              const y = Math.floor((innerHeight - r.top) * H / r.height), row = (yy) => (yy >= 0 && yy < H ? g.getImageData(W / 2 - 60, yy, 120, 1).data.some((v, i) => i % 4 === 3 && v > 0) : false);
+              return { below: row(y + 2), inside: row(Math.max(0, y - 60)) || y >= H }; });
+            assert.deepEqual(cut, { below: false, inside: true }, 'nothing of the picture below the fold');
+            await noHScroll('s2 real'); await shot('1-real-card');
+            await scrollTo(p, '#reveal'); await sleep(200); await shot('2-real-card-result');
+          });
+        }
+      }
+      // S2-5. Season 1 still shows: a v2 net of this wallet (this browser knew nothing): read from the Season 1 contract,
+      //       its result and its old look, labelled "Season 1"
+      await scenario('s2-season1', { width: 360, height: 740, at: Date.parse('2026-11-06T13:00:00Z'), page: s2.html, results: NX.body, storage: PRESET(), wallet: { account: acc[4], rpc: s2.url } }, async (p, { shot }) => {
+        await p.waitForFunction(() => { const n = QCP.store().nets['2026-11-05']; return !!n && n.spot != null && QCP.stage === '2026-11-05'; }, { timeout: 20000 }); await sleep(300);
+        const n = (await stored(p)).nets['2026-11-05'], r1 = await s2.result(V2, QC.netId(N5, acc[4]));
+        assert.deepEqual([n.nft.contract, n.spot], [V2, r1.spot], 'the Season 1 net, from the Season 1 contract');
+        assert.equal(await txt(p, '#stageh'), 'Your Season 1 net · Thu 5 Nov');
+        await p.click('#act'); await revealed(p);
+        assert.match(await txt(p, '#revs'), /^Season 1/, 'the result card says Season 1');
+        assert.ok(!(await p.$eval('#reveal', (e) => e.classList.contains('s2'))), 'Season 1: its old look (no Season 2 picture)');
+        await p.waitForFunction(() => !document.getElementById('nftnets').hidden, { timeout: 15000 });
+        assert.match(await txt(p, '#nftgrid'), /5 Nov · #\d+Season 1$/, 'My net NFTs: labelled Season 1');
+        assert.match(await txt(p, '#mygrid'), /Season 1/);
+        assert.deepEqual(await asked(p), [], 'reading asks nothing');
+        await shot('1-season1'); await shots2(p, shot, '2-season1');
+      });
+      // S2-6. lock(): the owner gives up the renderer for good; the page says so
+      await s2.lock();
+      await scenario('s2-locked', { width: 390, height: 844, page: s2.html, rpcUrl: s2.url }, async (p, { shot }) => {
+        await p.waitForFunction(() => !document.getElementById('lockn').hidden, { timeout: 15000 });
+        assert.equal(await txt(p, '#lockn'), 'Locked forever ✓');
+        await scrollTo(p, '#gk'); await sleep(300); await shot('1-locked'); await shots2(p, shot, '2-locked', '#gk');
+      });
+      // S2-7. a phone browser without a wallet: still the one MetaMask button (Season 2 build)
+      await scenario('s2-wallet-app', { width: 390, height: 844, page: s2.html, ua: IPHONE }, async (p, { shot, noHScroll }) => {
+        assert.equal(await txt(p, '#watch'), 'Open this page in your wallet app to cast a net. Open in MetaMask What you need');
+        assert.ok((await p.$eval('#mmlink', (e) => e.getBoundingClientRect().bottom)) <= 844, 'the MetaMask button is on the first screen');
+        await noHScroll('s2 wallet app'); await shot('1-wallet-app');
+      });
+    } finally { s2.proc.kill('SIGTERM'); }
+  }
 
   // 15. fetch blocked (as in the claude.ai preview: no wallet either) AND no localStorage: watch mode, the practice works (here
   //     its drop is chip noise: got away), nothing live is shown

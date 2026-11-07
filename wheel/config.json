@@ -1,6 +1,8 @@
 {
  "repoUrl": "https://github.com/Rooaraak/quantum-squeak",
  "catchAddress": "0x151ec033c914252358bdcdba0548ac6a7b4f7f49",
+ "season1Address": "0x151ec033c914252358bdcdba0548ac6a7b4f7f49",
+ "season2Address": "0x5331631708adff57965aab4bba5453be35e30b30",
  "paintedArtAddress": "0x76f4416475e5e3b26f8b4780efeb69b7a34262cb",
  "squeekchainProjectId": null,
  "sqkAddress": "0xd78a3956cf63164d1fa1c622ad3c66623162fa1e",

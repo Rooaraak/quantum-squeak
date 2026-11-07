@@ -11,7 +11,9 @@ optimizer_runs = 200
 bytecode_hash = "none"
 cbor_metadata = false
 offline = true
-fs_permissions = [{ access = "read", path = "./test/data" }]
+# the Season 2 byte-for-byte tests render ~200 full cards in one test (tests only; contracts keep their EIP limits)
+gas_limit = 9223372036854775807
+fs_permissions = [{ access = "read", path = "./test/data" }, { access = "read", path = "./out" }]
 
 [fuzz]
 runs = 256

@@ -95,7 +95,7 @@ test('leak gate on the page (server paths, household words, emails, IPs, tokens,
   if (!WORDS.length) ctx.diagnostic('no private leak words configured (wheel/test/local.json): household-word check skipped');
   assert.equal(CFG.repoUrl, 'https://github.com/Rooaraak/quantum-squeak');
   assert.ok(html.includes(CFG.repoUrl), 'the repo link is in the page');
-  const own = [CFG.catchAddress, CFG.sqkAddress, CFG.faucetAddress].filter(Boolean).map((a) => a.toLowerCase());      // (v2: the test SQK token + its faucet)
+  const own = [CFG.catchAddress, CFG.sqkAddress, CFG.faucetAddress, CFG.season1Address, CFG.season2Address].filter(Boolean).map((a) => a.toLowerCase());      // (v2: the test SQK token + its faucet; Season 1 / 2)
   assert.deepEqual(leakHits(html, new Set([...CORES, ...own])), []);
   assert.ok(!html.split(CFG.repoUrl).join('').toLowerCase().includes(ACCOUNT.toLowerCase()), 'the account name appears nowhere but in the repo link');
   assert.ok(!/TESTFIXTURE/.test(html), 'no test fixture in the real build');
@@ -264,9 +264,13 @@ test('recipe per night: the archive is v1.1 (up to 16 steps), each night\'s step
   for (const r of D.reruns) { assert.notEqual(r.recipe, D.nights[r.night].recipe, 're-runs are the other recipe'); assert.deepEqual(r.steps, QW.steps(D.nights[r.night].rounds.map((x) => x[1]), QW.capOf(r.recipe))); }
   // v2 keys (the test SQK token, its faucet, the cost label) only when wheel/config.json has them
   const v2 = Object.fromEntries(['sqkAddress', 'faucetAddress', 'netCost'].filter((k) => k in CFG).map((k) => [k, k === 'netCost' ? String(CFG[k]) : CFG[k] ? CFG[k].toLowerCase() : null]));
-  assert.deepEqual(D.config, { repoUrl: CFG.repoUrl, catchAddress: CFG.catchAddress, chainId: '0xaa36a7', ...v2 }, 'config straight from wheel/config.json');
+  // Season 2: ONE switch, season2Address (null until the deploy): then the page casts on it and reads season1Address too
+  const S2 = CFG.season2Address ? CFG.season2Address.toLowerCase() : null;
+  assert.deepEqual(D.config, { repoUrl: CFG.repoUrl, catchAddress: S2 || CFG.catchAddress, chainId: '0xaa36a7', ...v2, season2: !!S2, season1Address: S2 ? CFG.season1Address.toLowerCase() : null }, 'config straight from wheel/config.json');
   // v2 deployed on Sepolia 2026-11-06 (block 12077948; v1 0xa0b3…dfe0 at 12072952 is retired): the real build carries it, lower case
-  assert.equal(D.config.catchAddress, '0x151ec033c914252358bdcdba0548ac6a7b4f7f49', 'the deployed QuantumCatch v2 address');
+  // (Season 1 once Season 2 is live)
+  assert.equal(CFG.season1Address, '0x151ec033c914252358bdcdba0548ac6a7b4f7f49', 'season1Address = the deployed QuantumCatch v2');
+  assert.equal(S2 ? D.config.season1Address : D.config.catchAddress, '0x151ec033c914252358bdcdba0548ac6a7b4f7f49', 'the deployed QuantumCatch v2 address');
   assert.equal(D.config.faucetAddress, '0xf0a8e3ffc21377794d5e68bf5587ef96089135f3', 'the deployed SqkFaucet address');
   assert.deepEqual(D.core, { address: '0xfd6c166d4b8e2962e65746a13e5a0797cd4de0c4', genesis: 1793735400 });
 });
@@ -338,7 +342,8 @@ test('build.py applies the twin-test health gate (a rejected run is skipped, the
 
 test('a test build with the QuantumCatch address: the address is in the config (and allowed by the gate); the real build has none', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qc-addr-')), out = path.join(dir, 'nft.html'), A = '0x5FbDB2315678afecb367f032d93F642f64180aa3';
-  const log = execFileSync('python3', [path.join(ROOT, 'wheel/build.py'), '--catch-address', A, '--out', out], { encoding: 'utf8' });
+  // a Season 1 test build (--season2-address null): since the 7 Nov switch wheel/config.json names the Season 2 contract
+  const log = execFileSync('python3', [path.join(ROOT, 'wheel/build.py'), '--catch-address', A, '--season2-address', 'null', '--out', out], { encoding: 'utf8' });
   assert.match(log, /NFT button: on, 0x5FbDB/);
   const t = fs.readFileSync(out, 'utf8'), D = JSON.parse(t.match(/const DATA = (\{.*?\});\n/s)[1]);
   assert.equal(D.config.catchAddress, A.toLowerCase());
@@ -372,7 +377,7 @@ test('export-public.sh: index.html + results.json (the site) + README.md + LICEN
     const files = walk(dir);
     for (const f of ['wheel/engine.js', 'wheel/catch.js', 'wheel/page.template.html', 'wheel/build.py', 'wheel/config.json', 'wheel/art/art.json', 'wheel/test/static.test.mjs',
       'quantum/wheel.py', 'quantum/wheel_spec.md', 'quantum/wheel-2026-10-31-ibm_marrakesh-dbmbiau74qds73ds0hug.json', 'data/chain-nights.json', 'contracts/src/QuantumCatch.sol',
-      'wheel/out/quantum-catch.html', 'wheel/out/results.json']) assert.ok(files.includes(f), `exported: ${f}`);
+      'wheel/out/quantum-catch.html', 'wheel/out/results.json', 'wheel/art/s2/skins.json', 'wheel/art/s2/make_skins.py']) assert.ok(files.includes(f), `exported: ${f}`);
     for (const f of files) assert.ok(!/(^|\/)local\.json$|\.log$|^tools\/|^prototype\/|^site\/|__pycache__/.test(f) || /^quantum\/rejected\/wheel-.*\.log$/.test(f), `never exported: ${f}`);
     assert.match(r.stdout, new RegExp(`FILES \\(${files.length}\\)`), 'the gate ran on every exported file');
     for (const f of ['wheel/engine.js', 'wheel/catch.js', 'wheel/art/art.json', 'quantum/wheel.py', 'wheel/out/results.json']) assert.equal(fs.readFileSync(path.join(dir, f), 'utf8'), fs.readFileSync(path.join(ROOT, f), 'utf8'), `${f}: a straight copy of the source`);
@@ -387,7 +392,7 @@ test('export-public.sh: index.html + results.json (the site) + README.md + LICEN
     assert.equal(fs.readFileSync(path.join(dir, 'results.json'), 'utf8'), fs.readFileSync(path.join(path.dirname(OUT), 'results.json'), 'utf8'), 'results.json next to the page');
     const readme = fs.readFileSync(path.join(dir, 'README.md'), 'utf8');
     const ln = (v) => (v ? `[\`${v}\`](https://sepolia.etherscan.io/address/${v})` : 'not deployed yet');
-    assert.equal(readme, fs.readFileSync(path.join(ROOT, 'tools/public-README.md'), 'utf8').replace('{{REPO_URL}}', CFG.repoUrl).replace('{{QUANTUM_CATCH}}', ln(CFG.catchAddress)).replace('{{PAINTED_ART}}', ln(CFG.paintedArtAddress)), 'README.md = tools/public-README.md, filled');
+    assert.equal(readme, fs.readFileSync(path.join(ROOT, 'tools/public-README.md'), 'utf8').replace('{{REPO_URL}}', CFG.repoUrl).replace('{{SEASON_2}}', ln(CFG.season2Address)).replace('{{QUANTUM_CATCH}}', ln(CFG.season1Address || CFG.catchAddress)).replace('{{PAINTED_ART}}', ln(CFG.paintedArtAddress)), 'README.md = tools/public-README.md, filled');
     assert.match(readme, /^# Quantum Catch/); assert.ok(!/hatch(?!er\b)|\beggs?\b/i.test(readme), 'README: no hatch (only the contract\'s hatcher role), no eggs');
     assert.match(readme, /ranked by landings,\s+most\s+first/); assert.ok(!/10%\+ Common|1-1\.5 Legendary|>= 10 % Common/.test(readme), 'README: the rank rule, not the share tiers');
     assert.ok(!/squeekchain-project/.test(readme + idx), 'no project id configured: no tag, no line');
@@ -416,4 +421,58 @@ test('export-public.sh --self-test: every planted leak shape is caught, every lo
   assert.equal(r.status, 0, r.stdout + r.stderr);
   const m = r.stdout.match(/self-test: (\d+)\/(\d+) cases as expected/);
   assert.ok(m && m[1] === m[2] && Number(m[2]) >= 59, r.stdout.slice(-400));
+});
+
+// ---------- Season 2 (QuantumCatchV3): ONE switch in wheel/config.json (season2Address); the page before it is Season 1
+// only (the gallery says what is coming); a Season 2 build casts on v3, reads Season 1 (v2) nets too, shows the small
+// "Season 2" tag (the only new first-screen text), the prizes as each tier's skins, How it works's three sentences + the
+// one-line odds table, and Check it yourself's seal + trait-slot recipe ----------
+const s2Build = (args, filterCfg) => {
+  const dir = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'qc-s2-')), out = path.join(dir, 's2.html');
+  // build.py with wheel/config.json read through a filter (a config edit without touching the file)
+  const pre = filterCfg ? ['-c', ['import builtins, io, json, runpy, sys', 'real = builtins.open', `F = json.loads(${JSON.stringify(JSON.stringify(filterCfg))})`,
+    'def fake(p, *a, **k):', "    if str(p).endswith('config.json') and not (a and 'w' in a[0]):", "        c = json.load(real(p)); c.update(F); return io.StringIO(json.dumps(c))", '    return real(p, *a, **k)',
+    'builtins.open = fake', 'sys.argv = sys.argv[1:]', 'runpy.run_path(sys.argv[0], run_name="__main__")'].join('\n')] : [];
+  const r = spawnSync('python3', [...pre, path.join(ROOT, 'wheel/build.py'), ...args, '--out', out], { encoding: 'utf8' });
+  return { r, dir, out, page: () => fs.readFileSync(out, 'utf8'), done: () => fs.rmSync(dir, { recursive: true, force: true }) };
+};
+const V2A = '0x151ec033c914252358bdcdba0548ac6a7b4f7f49', V3A = '0xe7f1725e7734ce288f8367e1bb143e90bb3f0512';
+test('Season 2 before the switch: config has season1Address (v2) and season2Address null; the page is Season 1 only, the gallery says what is coming', () => {
+  assert.equal(CFG.season1Address, V2A);
+  assert.ok('season2Address' in CFG, 'the one switch is in wheel/config.json');
+  if (CFG.season2Address) return;                                          // (after the switch: the next test covers the page)
+  assert.equal(DATA_.config.season2, false); assert.equal(DATA_.config.season1Address, null);
+  assert.ok(text.includes('<p class="gk" id="gk">Coming next: crazy new hamsters</p>'), 'the gallery heading before Season 2');
+  assert.ok(text.includes('<span class="s2tag" id="s2tag" hidden>Season 2</span>'), 'the tag waits, hidden');
+  assert.ok(!scripts.includes('"s2skins"'), 'no Season 2 skins in a Season 1 page');
+});
+test('Season 2 build (one switch): casts on v3, Season 1 from v2, the tag, the skins, How it works + the recipe; the gate allows both addresses', () => {
+  const b = s2Build([], { season2Address: V3A });
+  try {
+    assert.equal(b.r.status, 0, b.r.stdout + b.r.stderr);
+    assert.match(b.r.stdout, new RegExp(`NFT button: on, ${V3A}; Season 2: on \\(casts to ${V3A}, Season 1 nets from ${V2A}\\)`));
+    const t = b.page(), D = JSON.parse(t.match(/const DATA = (\{.*?\});\n/s)[1]), A = JSON.parse(t.match(/const ART = (\{.*?\});\n/s)[1]);
+    assert.deepEqual([D.config.catchAddress, D.config.season1Address, D.config.season2], [V3A, V2A, true]);
+    assert.deepEqual(A.s2skins.map((x) => x.map(([k]) => k)), [['plain'], ['tiger', 'calico', 'starry'], ['circuit', 'chrome'], ['crystal', 'galaxy', 'ghost'], ['gold', 'rainbow']]);
+    const own = new Set([...CORES, ...[CFG.sqkAddress, CFG.faucetAddress, V2A, V3A].map((a) => a.toLowerCase())]);
+    assert.deepEqual(leakHits(t, own), []);
+    assert.ok(leakHits(t, new Set([...CORES, CFG.sqkAddress, CFG.faucetAddress, V2A])).some((h) => h.includes(V3A)), 'the gate would stop an address it does not know');
+    const vis = t.replace(/<style>[\s\S]*?<\/style>/, '').replace(/<script>[\s\S]*?<\/script>/g, '');
+    const first = vis.slice(vis.indexOf('<section class="card play"'), vis.indexOf('<section class="soon"'));
+    // the only new first-screen markup: the hidden tag (JS shows it); How it works's three sentences + the one-line odds table
+    assert.equal((first.match(/Season 2/g) || []).length, 1, 'one "Season 2" on the first screen: the tag');
+    const how = vis.slice(vis.indexOf('<div class="s2how" id="s2how" hidden>'), vis.indexOf('<details class="card more" id="check">'));
+    assert.equal((how.match(/<li>/g) || []).length, 3, 'three sentences');
+    assert.match(how, /<tr><td>Chance<\/td><td>64 in 100<\/td><td>23 in 100<\/td><td>7 in 100<\/td><td>6 in 100<\/td><td>~1 in 260<\/td><\/tr>/, 'the one-line odds table');
+    assert.ok(!/hatch/i.test(how) && !/qubit/i.test(how));
+    assert.match(vis, /<li id="recipe7" hidden>Season 2: each trait slot k = 1 to 10 .*keccak256 of \(the night, the seed, the token id, k\)/, 'the 7th recipe line');
+  } finally { b.done(); }
+  // the switch also works with catchAddress moved to the v3 address; anything else is refused before a byte is written
+  const c = s2Build([], { season2Address: V3A, catchAddress: V3A }); try { assert.equal(c.r.status, 0, c.r.stderr); } finally { c.done(); }
+  for (const [cfg, why] of [[{ season2Address: V3A, season1Address: null }, /needs season1Address/], [{ season2Address: V2A }, /is a Season 1 contract/],
+    [{ season2Address: V3A, catchAddress: '0x' + '12'.repeat(20) }, /neither season1Address nor season2Address/], [{ season1Address: '0x' + '12'.repeat(20) }, /season1Address must be the Season 1 contract/],
+    [{ season2Address: '0x1234' }, /season2Address must be an address or null/]]) {
+    const x = s2Build([], cfg);
+    try { assert.notEqual(x.r.status, 0, JSON.stringify(cfg)); assert.match(x.r.stderr, why); assert.ok(!fs.existsSync(x.out), 'nothing written'); } finally { x.done(); }
+  }
 });
