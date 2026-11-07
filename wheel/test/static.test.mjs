@@ -2,6 +2,7 @@
 // public export (tools/export-public.sh, when present).   python3 wheel/build.py && node --test wheel/test/static.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -87,7 +88,7 @@ const leakHits = (page, allowed0x) => {
   const t = page.replace(/[A-Za-z0-9+/=]{200,}/g, '').split(CFG.repoUrl).join('');
   const hits = [];
   for (const [k, re] of Object.entries(PATS)) for (const m of new Set(t.match(re) || [])) hits.push(`${k}: ${m}`);
-  for (const a of new Set(t.match(/0x[a-fA-F0-9]{40}/g) || [])) if (!allowed0x.has(a.toLowerCase())) hits.push(`address: ${a}`);
+  for (const a of new Set(t.match(/0x[a-fA-F0-9]{40}(?![a-fA-F0-9])/g) || [])) if (!allowed0x.has(a.toLowerCase())) hits.push(`address: ${a}`);     // (a 32-byte tx hash is not an address)
   return hits;
 };
 const CORES = ['0x980b4424c007caf7a1f3670b48c8eaef7ebc3d44', '0xfd6c166d4b8e2962e65746a13e5a0797cd4de0c4'];
@@ -535,6 +536,62 @@ test('the fuel: the deck line, the build\'s burned total (complete or none), QC_
   const g = text.indexOf('<section class="myham" id="myham" hidden aria-labelledby="myhamh"><h2 class="mhh" id="myhamh">My hamsters</h2>');
   assert.ok(g > text.indexOf('id="prizes"') && g < text.indexOf('<section class="soon"'), 'under the prizes, above the battles band');
   assert.match(text, /<button class="navl" id="mycount" type="button"><span class="navt">My hamsters<\/span><svg class="myshort"/, 'the header button: My hamsters (an icon on phones)');
+});
+
+// the proof of a night (owner 11-07): the build links a night's on-chain post only when its NightPosted log names the night's
+// IBM job AND the sha256 of its raw result file; the newest game first; a test build never reads the chain; data/posts.json
+// (the incremental scan) keeps each game from its deploy block
+test('the proof: posts linked only when job + result sha256 match (newest game first); the raw result file per chip; never a wrong link', () => {
+  for (const [d, c] of Object.entries(DATA_.chips)) assert.ok(c.file === `wheel-${d}-${c.backend}-${c.job_id}.json` && fs.existsSync(path.join(ROOT, 'quantum', c.file)), `${d}: its raw result file`);
+  const dir = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'qc-posts-')), out = path.join(dir, 'p.html'), fx = path.join(dir, 'posts.json');
+  const D = (env) => { execFileSync('python3', [path.join(ROOT, 'wheel/build.py'), '--out', out], { encoding: 'utf8', env: { ...process.env, ...env } });
+    return JSON.parse(fs.readFileSync(out, 'utf8').match(/const DATA = (\{.*?\});\n/s)[1]).posts; };
+  const days = Object.keys(DATA_.chips).sort(), [d1, d2, d3] = days.slice(-3), C = DATA_.chips;
+  const sha = (c) => '0x' + crypto.createHash('sha256').update(fs.readFileSync(path.join(ROOT, 'quantum', c.file))).digest('hex');
+  const nn = (day) => String(Math.round(Date.parse(day + 'T00:00:00Z') / 864e5)), tx = (b) => '0x' + b.repeat(32);
+  const V1 = '0xa0b3352b3a436c845e3bf2d251abeda3d474dfe0', V2 = CFG.season1Address, V3 = CFG.season2Address;
+  try {
+    fs.writeFileSync(fx, JSON.stringify({ games: {
+      [V1]: { posts: { [nn(d1)]: { txHash: tx('a1'), jobId: C[d1].job_id, resultSha256: sha(C[d1]) }, [nn(d3)]: { txHash: tx('a3'), jobId: C[d3].job_id, resultSha256: sha(C[d3]) } } },
+      [V2]: { posts: { [nn(d2)]: { txHash: tx('b2'), jobId: 'another-job', resultSha256: sha(C[d2]) }, [nn(d3)]: { txHash: tx('b3'), jobId: C[d3].job_id, resultSha256: sha(C[d3]) } } },
+      [V3]: { posts: { [nn(d1)]: { txHash: tx('c1'), jobId: C[d1].job_id, resultSha256: sha(C[d2]) } } } } }));
+    assert.deepEqual(D({ QC_POSTS: fx }), { [d1]: { txHash: tx('a1'), contract: V1 }, [d3]: { txHash: tx('b3'), contract: V2 } },
+      `${d1}: v3's post has another file's sha256, v1's matches; ${d2}: another job, no link; ${d3}: v2 before v1`);
+    assert.deepEqual(D({ QC_POSTS: 'none' }), {});
+    const env = { ...process.env }; delete env.QC_POSTS;
+    execFileSync('python3', [path.join(ROOT, 'wheel/build.py'), '--out', out], { encoding: 'utf8', env });
+    assert.deepEqual(JSON.parse(fs.readFileSync(out, 'utf8').match(/const DATA = (\{.*?\});\n/s)[1]).posts, {}, 'a test build (--out) never reads the chain');
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+  for (const [d, q] of Object.entries(DATA_.posts || {})) assert.ok(/^0x[0-9a-f]{64}$/.test(q.txHash) && C[d] && [V1, V2, V3].includes(q.contract), `${d}: a post of a game contract`);
+  if (fs.existsSync(path.join(ROOT, 'data/posts.json'))) {
+    const P = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/posts.json'), 'utf8'));
+    assert.deepEqual(Object.keys(P.games).sort(), [V1, V2, V3].sort());
+    for (const [a, g] of Object.entries(P.games)) assert.ok(g.toBlock >= g.deployBlock - 1 && Array.isArray(g.gaps) && g.gaps.every(([x, y]) => x >= g.deployBlock && y >= x && y - x < 9500), `${a}: scanned from its deploy block, gaps in chunks`);
+  }
+  assert.ok(text.includes('<p class="proof" id="proof" hidden></p>') && text.includes('<p class="proof" id="checkproof" hidden></p>'), 'the deck line and Check it yourself');
+});
+
+// the latest catches (owner 11-07): a slim line between the prizes and the story band, from the build (DATA.latest); the
+// names are the big card's (the build's port of nameOf = the page's, checked on 300 ids); a household wallet's net has no id,
+// and no token id in the page holds a private wallet
+test('the latest catches: the line under the prizes, the build names = the page nameOf, no household wallet in any id', () => {
+  const at = text.indexOf('<section class="ticker" id="ticker" hidden aria-labelledby="tkh"><h2 class="tkh" id="tkh">Latest catches</h2>');
+  assert.ok(at > text.indexOf('id="prizes"') && at < text.indexOf('<section class="lore"'), 'between the prizes and the story band');
+  // the page's nameOf (its lists and function, as written in the template) against the build's name_of (wheel/build.py)
+  const T = fs.readFileSync(path.join(ROOT, 'wheel/page.template.html'), 'utf8');
+  const src = T.slice(T.indexOf('  const UNIVERSE = ['), T.indexOf('  const hexId = '));
+  const nameOf = new Function(src + '; return nameOf;')();
+  const keys = Array.from({ length: 300 }, (_, i) => [`${i % 2 ? 'v2' : 'v3'}:${(BigInt(20700 + i) << 160n | BigInt('0x' + crypto.createHash('sha256').update(String(i)).digest('hex').slice(0, 40))).toString(16)}`, i % 5]);
+  const py = `import ast, json, re, sys\nB = open(sys.argv[1]).read(); T = open(sys.argv[2]).read()\n` +
+    `L = {k: ast.literal_eval(re.search(r'\\n  const ' + k + r' = (\\[[^\\]]*\\]);\\n', T).group(1)) for k in ('UNIVERSE', 'NAME_FIRST', 'NAME_TITLE', 'NAME_EPITHET')}\n` +
+    `f = [n for n in ast.parse(B).body if isinstance(n, ast.FunctionDef) and n.name == 'name_of'][0]\nns = dict(L); exec(ast.get_source_segment(B, f), ns)\n` +
+    `print(json.dumps([ns['name_of'](k, t) for k, t in json.load(sys.stdin)]))`;
+  const got = JSON.parse(execFileSync('python3', ['-c', py, path.join(ROOT, 'wheel/build.py'), path.join(ROOT, 'wheel/page.template.html')], { input: JSON.stringify(keys), encoding: 'utf8' }));
+  assert.deepEqual(got, keys.map(([k, t]) => nameOf(k, t)), 'the build names every net as the page does');
+  const L = DATA_.latest;
+  assert.ok(L === null || (/^\d{4}-\d{2}-\d{2}$/.test(L.day) && Number.isInteger(L.away) && L.caught.every((x) => typeof x.name === 'string' && x.tier >= 0 && x.tier <= 4 && (!('id' in x) || /^v[23]-[0-9a-f]+$/.test(x.id)))), JSON.stringify(L));
+  let priv = []; try { priv = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/private-wallets.json'), 'utf8')).wallets.map((a) => a.toLowerCase().slice(2)); } catch (e) { /* none */ }
+  for (const m of html.matchAll(/(?<![0-9a-fA-F])(?:0x)?([0-9a-fA-F]{41,64})(?![0-9a-fA-F])/g)) assert.ok(!priv.includes(m[1].slice(-40).toLowerCase()), `a token id with a household wallet: ${m[0].slice(0, 16)}…`);
 });
 
 // the story band (owner 11-07: "some kind of lore on the first site"): under the prizes, before My hamsters and the battles

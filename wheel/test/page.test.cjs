@@ -31,9 +31,20 @@ const refOf = (job) => { const x = REF.real.find((r) => r.job_id === job); asser
 // the page under test: QW_PAGE, else the real build's template and config with the nights FROZEN through 4 Nov (the
 // scenarios' fixed clock and synthetic 5-7 Nov nights must not depend on how many real nights have been posted since)
 const FROZEN = '2026-11-04';
+// The proof line's on-chain link (QC_POSTS: the build's post scan from a file): the newest frozen night posted on Season 1
+// with its own IBM job and the sha256 of its raw result file (linked), 3 Nov posted on Season 2 with another file's sha256
+// (never linked: a wrong fingerprint)
+const POST_TX = '0x' + 'ab'.repeat(32), CFGJ = JSON.parse(fs.readFileSync(path.join(ROOT, 'wheel/config.json'), 'utf8'));
 const PAGE = process.env.QW_PAGE || (() => {
-  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'qc-frozen-')), f = path.join(d, 'quantum-catch.html');
-  execFileSync('python3', [path.join(__dirname, '..', 'build.py'), '--nights-through', FROZEN, '--out', f], { encoding: 'utf8' });
+  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'qc-frozen-')), f = path.join(d, 'quantum-catch.html'), fx = path.join(d, 'posts.json');
+  const build = (env) => execFileSync('python3', [path.join(__dirname, '..', 'build.py'), '--nights-through', FROZEN, '--out', f], { encoding: 'utf8', env: { ...process.env, ...env } });
+  build({ QC_POSTS: 'none' });
+  const ch = JSON.parse(fs.readFileSync(f, 'utf8').match(/const DATA = (\{.*?\});\n/s)[1]).chips, sha = (c) => '0x' + require('crypto').createHash('sha256').update(fs.readFileSync(path.join(ROOT, 'quantum', c.file))).digest('hex');
+  const nn = (day) => String(Math.round(Date.parse(day + 'T00:00:00Z') / 864e5)), C4 = ch[FROZEN], C3 = ch['2026-11-03'];
+  fs.writeFileSync(fx, JSON.stringify({ games: {
+    [CFGJ.season1Address]: { posts: { [nn(FROZEN)]: { txHash: POST_TX, jobId: C4.job_id, resultSha256: sha(C4) } } },
+    [CFGJ.season2Address]: { posts: { [nn('2026-11-03')]: { txHash: '0x' + 'cd'.repeat(32), jobId: C3.job_id, resultSha256: sha(C4) } } } } }));
+  build({ QC_POSTS: fx });
   return f;
 })();
 const SHOTS = process.argv[2] || path.join(__dirname, '..', 'out', 'shots');
@@ -476,6 +487,12 @@ async function startS2Anvil() {
       return logs.reduce((a, l) => a + QC.dec.netPaid(l).burned, ch.burnedWei); };
     ch.v2Draw = async (n, x, tokenId) => Number(QC.dec.uint(await call(v2, '0x' + ids2[DRAW_SIG] + pad(n) + x.sha + x.job + pad(tokenId) + x.perSpot.map(pad).join(''))));
     ch.html = fs.readFileSync(page);
+    // the same build again with more env (QC_POSTS / QC_CHAIN_RPC / QC_PRIVATE: what the build reads from this chain)
+    ch.build = (env) => { const f = path.join(tmp, `s2-${++ch.builds}.html`);
+      execFileSync('python3', [path.join(ROOT, 'wheel/build.py'), '--season1-address', v2, '--season2-address', v3, '--sqk-address', sqk, '--faucet-address', faucet, '--nights-through', FROZEN, '--out', f],
+        { encoding: 'utf8', env: { ...process.env, QC_BURNED: `0.5@${ch.burnedAt}`, ...env } });
+      return fs.readFileSync(f); };
+    ch.builds = 0;
     return ch;
   } catch (e) { proc.kill('SIGTERM'); s2Skip = 'the Season 2 setup failed on anvil: ' + e.message; return null; }
 }
@@ -841,6 +858,30 @@ async function nftErrorScenario(chain, name, viewport, account) {
   // 3b. the Details view (owner, 6 Nov: "too much text ... could be somewhere separated"): a hash in the same page, a Back
   //     link, the browser's back button; My catches and Past nights open it; a night from it goes back to the game. The
   //     main view ends with the art band ("Hamster battles", coming soon) and the 12-card Season 2 gallery
+  // THE PROOF of a night (owner 11-07): one compact line under a revealed night's result, and in Check it yourself: the IBM
+  // job, the chip, its shots, the night's own entanglement test, its raw result file and its on-chain fingerprint (the post)
+  await scenario('proof', { width: 390, height: 844 }, async (p, { shot, noHScroll }) => {
+    const clk = async (p, sel, what) => { try { await p.click(sel); } catch (e) { throw new Error(`${what}: ${e.message} (${await p.evaluate((q) => { const x = document.querySelector(q); return x ? [x.hidden, x.textContent, QCP.route, QCP.stage].join('|') : 'none'; }, sel)})`); } };
+    const c = DATA.chips[NEWEST], tw = Math.round(100 * c.twin.reduce((a, q) => a + q.wins, 0) / c.twin.reduce((a, q) => a + q.shots, 0));
+    const line = `Proof: IBM job ${c.job_id} · ${c.backend} · ${c.wheel_shots.toLocaleString('en-US')} shots · entanglement test ${tw}% · raw result · on-chain fingerprint`;
+    const raw = `${CFGJ.repoUrl}/blob/main/quantum/${c.file}`, chain = `https://sepolia.etherscan.io/tx/${POST_TX}`;
+    assert.ok(c.file && c.file.includes(c.job_id), 'the chip says its raw result file');
+    await openDetails(p, 'past'); await clk(p, `#nights button[data-day="${NEWEST}"]`, 'the night'); await sleep(300);
+    assert.ok(await hidden(p, '#proof'), 'not before the night is shown');
+    await clk(p, '#act', 'the practice net'); await p.waitForFunction(() => !QCP.playing && !document.getElementById('proof').hidden, { timeout: 30000 });
+    assert.equal(await txt(p, '#proof'), line);
+    assert.deepEqual(await p.$$eval('#proof a', (e) => e.map((a) => [a.textContent, a.href, a.target])), [['raw result', raw, '_blank'], ['on-chain fingerprint', chain, '_blank']]);
+    await noHScroll('proof'); await p.evaluate(() => document.getElementById('proof').scrollIntoView({ block: 'center' })); await sleep(150); await shot('1-proof-390x844');
+    await openDetails(p, 'check');
+    assert.equal(await txt(p, '#checkproof'), line, 'Check it yourself: the same line');
+    await p.evaluate(() => document.getElementById('checkproof').scrollIntoView({ block: 'center' })); await sleep(150); await shot('2-check-390x844');
+    // 3 Nov: its post names another file's fingerprint: no on-chain link (never a wrong one); the raw result stays
+    await p.evaluate(() => QCP.select('2026-11-03')); await openDetails(p, 'past'); await openDetails(p, 'check'); await sleep(200);
+    assert.deepEqual(await p.$$eval('#checkproof a', (e) => e.map((a) => a.textContent)), ['raw result'], '3 Nov: no fingerprint link');
+    await vp(p, 1280, 860); await openDetails(p, 'past'); await clk(p, `#nights button[data-day="${NEWEST}"]`, 'the night'); await sleep(400);
+    assert.ok(!(await hidden(p, '#proof')), 'its practice seen: the proof line again');
+    await p.evaluate(() => document.getElementById('proof').scrollIntoView({ block: 'center' })); await sleep(150); await shot('3-proof-1280x860');
+  });
   await scenario('details', { width: 360, height: 740, hash: 'how' }, async (p, { shot, noHScroll }) => {
     assert.deepEqual(await p.evaluate(() => [QCP.route, document.getElementById('game').hidden, document.getElementById('details').hidden, document.getElementById('how').open]), ['details', true, false, true], '#how on load: Details, How it works open');
     assert.ok((await box(p, '#how')).top < 120, 'How it works at the top');
@@ -1587,6 +1628,25 @@ async function nftErrorScenario(chain, name, viewport, account) {
         assert.match(await txt(p, '#nfttext'), /^✓ Your net is in/, 'back to A: its net again');
         assert.ok(await hidden(p, '#prevnet'), 'and not B\'s earlier net');
       });
+      // EMPTY WALLET (owner 11-07): a wallet with no Sepolia test ETH cannot send anything, not even the free SQK claim: the
+      // button opens a free ETH faucet with one line; ETH arrives (read again every ~15 s; here 0.3 s): the normal flow
+      const POOR = '0x' + 'e7401'.padStart(40, '0');           // (built: a fresh address with no test ETH)
+      await scenario('s2-noeth', { width: 390, height: 844, at: Date.parse('2026-11-06T11:47:00Z'), page: s2.html, storage: PRESET(), wallet: { account: POOR, rpc: s2.url } }, async (p, { shot, noHScroll }) => {
+        await p.waitForFunction(() => document.getElementById('act').textContent === 'Get free test ETH first →', { timeout: 15000 });
+        assert.equal(await p.evaluate(() => QCP.eth), '0');
+        assert.equal(await txt(p, '#sqkoutt'), "You need a little test ETH for the network fee. It's free.");
+        assert.ok(!(await hidden(p, '#sqkout')) && (await hidden(p, '#burn')), 'the one line; no fuel line under the ETH button');
+        await noHScroll('no eth'); await shot('1-no-eth-390x844');
+        await vp(p, 1280, 860); await sleep(300); await p.evaluate(() => window.scrollTo(0, 0)); await shot('2-no-eth-1280x860');
+        await p.evaluate(() => { window.__QW_ETH_POLL = 300; HTMLAnchorElement.prototype.click = function () { window.__opened = [this.href, this.target, this.rel]; }; });
+        await p.click('#act');
+        assert.deepEqual(await p.evaluate(() => window.__opened), ['https://cloud.google.com/application/web3/faucet/ethereum/sepolia', '_blank', 'noopener'], 'a free Sepolia ETH faucet, in a new tab');
+        assert.deepEqual(await p.evaluate(() => window.__sent), [], 'nothing sent');
+        await s2.rpc('anvil_setBalance', [POOR, '0xde0b6b3a7640000']);
+        await p.waitForFunction(() => document.getElementById('act').textContent === 'Get free test SQK', { timeout: 10000 });
+        assert.equal(await p.evaluate(() => QCP.eth), '1000000000000000000');
+        assert.ok(await hidden(p, '#sqkout'), 'the ETH line is gone');
+      });
       // the seal (anyone, a later block): every v3 net of the night is drawn now
       await s2.rpc('evm_mine'); await s2.seal(N5);
       const R = []; for (const a of C) R.push([a, await s2.result(V3, QC.netId(N5, a))]);
@@ -1596,6 +1656,42 @@ async function nftErrorScenario(chain, name, viewport, account) {
       assert.deepEqual([RC.dna.status, RC.dna.tier, RC.dna.spot], [1, RC.tier, RC.spot], 'dnaOf agrees with result()');
       const want = await s2.meta(V3, QC.netId(N5, CC));
       assert.match(want.image, /^data:image\/svg\+xml;base64,/);
+      // LATEST CATCHES (owner 11-07): the build reads the newest posted night's nets from the chain (the NetPaid casters, each
+      // net's result()); one slim line under the prizes: name · tier · night, a tap opens its big card. A household wallet's
+      // net (data/private-wallets.json) is named but has no id: no link, no wallet in the page
+      {
+        const fxd = fs.mkdtempSync(path.join(os.tmpdir(), 'qc-tk-')), PRIV = caught.length > 1 ? caught[caught.length - 1][0] : null;
+        fs.writeFileSync(path.join(fxd, 'posts.json'), JSON.stringify({ games: { [V3]: { posts: { [N5]: {} }, nets: { [N5]: C } } } }));
+        fs.writeFileSync(path.join(fxd, 'private.json'), JSON.stringify({ wallets: PRIV ? [PRIV] : [] }));
+        const tkHtml = s2.build({ QC_POSTS: path.join(fxd, 'posts.json'), QC_CHAIN_RPC: s2.url, QC_PRIVATE: path.join(fxd, 'private.json') });
+        const LT = JSON.parse(tkHtml.toString().match(/const DATA = (\{.*?\});\n/s)[1]).latest;
+        assert.deepEqual([LT.day, LT.caught.length, LT.away], ['2026-11-05', caught.length, away.length], 'the night, every caught net, how many got away');
+        if (PRIV) assert.ok(!tkHtml.toString().toLowerCase().includes(PRIV.slice(2)), 'the household wallet is nowhere in the page');
+        await scenario('s2-ticker', { width: 390, height: 844, at: Date.parse('2026-11-06T13:00:00Z'), page: tkHtml, results: NX.body, rpcUrl: s2.url }, async (p, { shot, noHScroll }) => {
+          const W = caught.map(([a, r]) => ({ hex: BigInt(QC.netId(N5, a)).toString(16), tier: r.tier - 1, priv: a === PRIV }));
+          const names = await p.evaluate((W) => W.map((w) => QCP.nameOf('v3:' + w.hex, w.tier)), W);
+          const key = (x) => JSON.stringify(x);
+          assert.deepEqual(LT.caught.map((x) => key([x.name, x.tier, x.id || null])).sort(), W.map((w, i) => key([names[i], w.tier, w.priv ? null : 'v3-' + w.hex])).sort(),
+            "every caught net: the name its big card gives it (the page's own nameOf), its tier; the household's without an id");
+          assert.ok(!(await hidden(p, '#ticker')) && (await box(p, '#ticker')).top > (await box(p, '#prizes')).bottom && (await box(p, '#ticker')).bottom < (await box(p, '#lore')).top, 'between the prizes and the story band');
+          const shown = await p.$$eval('#tkl li:not(.dup)', (e) => e.map((x) => [x.textContent, !!x.querySelector('button')]));
+          assert.deepEqual(shown, [...LT.caught.map((x) => [`${x.name} · ${['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'][x.tier]} · 5 Nov`, !!x.id]), ...(LT.away ? [[`${LT.away} got away · 5 Nov`, false]] : [])]);
+          assert.equal(await p.$$eval('#tkl li.dup', (e) => e.length), shown.length, 'the list twice (a seamless loop)');
+          assert.equal(await p.$eval('#tkl', (e) => getComputedStyle(e).animationName), 'tkmove', 'it scrolls by itself');
+          await p.hover('#ticker'); assert.equal(await p.$eval('#tkl', (e) => getComputedStyle(e).animationPlayState), 'paused', 'still under the mouse');
+          await noHScroll('ticker'); await p.evaluate(() => document.getElementById('ticker').scrollIntoView({ block: 'center' })); await sleep(200); await shot('1-ticker-390x844');
+          const first = LT.caught.find((x) => x.id);
+          await p.click(`#tkl li:not(.dup) button[data-id="${first.id}"]`);
+          await p.waitForFunction((id) => QCP.big === id, { timeout: 20000 }, first.id);
+          assert.equal(await txt(p, '#bigname'), first.name, 'a tap: its big card, the same name');
+          await p.keyboard.press('Escape'); await p.waitForFunction(() => !QCP.big, { timeout: 5000 });
+          await vp(p, 1280, 860); await sleep(300); await p.evaluate(() => document.getElementById('ticker').scrollIntoView({ block: 'center' })); await sleep(200); await shot('2-ticker-1280x860');
+          await p.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }]); await sleep(100);
+          assert.equal(await p.$eval('#tkl', (e) => getComputedStyle(e).animationName), 'none', 'reduced motion: a still list');
+          assert.ok(await hidden(p, '#tkl li.dup'), 'once');
+        });
+        fs.rmSync(fxd, { recursive: true, force: true });
+      }
       // S2-4. caught: the result card and the podium show the chain's own picture (tokenURI, read once over the public RPC);
       //       My catches too; still "Pictures still changing"
       for (const [w, h] of [[390, 844], [1280, 860]]) {

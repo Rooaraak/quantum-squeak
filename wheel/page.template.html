@@ -492,6 +492,20 @@ button.mycard:hover::after { opacity: 1 }
 @media (min-width: 1100px) { .mhrow { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 12px } .myham { margin-top: 10px } }
 /* the story band (owner 11-07: "some kind of lore on the first site"): 4 painted panels, one sentence each; phones swipe */
 .lore { margin: 30px 0 0 }
+/* the latest catches (owner 11-07): one slim line that scrolls by itself (the list twice, one loop = -50%), still under a
+   finger or the mouse; reduced motion: a plain list that wraps */
+.ticker { display: flex; align-items: center; gap: 10px; margin: 18px 0 0; padding: 7px 10px; border-radius: 12px; background: var(--card2); border: 2px solid var(--line); min-width: 0 }
+.ticker[hidden] { display: none }
+.tkh { flex: none; margin: 0; font: 400 13px/1 var(--display); letter-spacing: .05em; text-transform: uppercase; color: var(--cyan) }
+.tkv { flex: 1 1 auto; min-width: 0; overflow: hidden; -webkit-mask-image: linear-gradient(90deg, transparent, #000 16px, #000 calc(100% - 16px), transparent); mask-image: linear-gradient(90deg, transparent, #000 16px, #000 calc(100% - 16px), transparent) }
+.tkl { display: flex; width: max-content; gap: 22px; margin: 0; padding: 0 16px; list-style: none; animation: tkmove var(--tkd, 30s) linear infinite }
+.ticker:hover .tkl, .ticker.hold .tkl { animation-play-state: paused }
+.tkl li { flex: none; font: 400 12px/1.4 var(--mono); color: var(--muted); white-space: nowrap }
+.tkl .tki { margin: 0; padding: 6px 2px; border: 0; background: none; color: inherit; font: inherit; cursor: pointer }
+.tkl .tki b { font-weight: 700; color: var(--g, var(--ink)) }
+.tkl .tki[data-t="0"] { --g: var(--r0) } .tkl .tki[data-t="1"] { --g: var(--r1) } .tkl .tki[data-t="2"] { --g: var(--r2) } .tkl .tki[data-t="3"] { --g: var(--r3) } .tkl .tki[data-t="4"] { --g: var(--r4) }
+button.tki:hover b, button.tki:focus-visible b { text-decoration: underline; text-underline-offset: 3px }
+@keyframes tkmove { from { transform: translateX(0) } to { transform: translateX(-50%) } }
 .lrow { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; margin: 10px -16px 0; padding: 4px 16px 6px; scrollbar-width: none }
 .lrow::-webkit-scrollbar { display: none }
 .lp { flex: 0 0 86%; scroll-snap-align: center; margin: 0; min-width: 0 }
@@ -525,6 +539,10 @@ button.mycard:hover::after { opacity: 1 }
 .bignft[hidden] { display: none }
 .reveal.can { cursor: pointer }
 /* the deck's fuel line (owner 11-07: the door runs on SQK) */
+.proof { margin: 8px 2px 0; font: 400 11px/1.5 var(--mono); color: var(--stage-muted); text-align: center; overflow-wrap: anywhere }
+.proof[hidden] { display: none }
+.proof a { color: var(--cyan); font-weight: 700; text-underline-offset: 3px; white-space: nowrap }
+#checkproof { text-align: left; color: var(--muted) }
 .burn { margin: 8px 2px 0; font: 400 11px/1.4 var(--mono); color: var(--stage-muted); text-align: center }
 .burn[hidden] { display: none }
 @media (max-width: 399px) { .burn .pn { display: none } }
@@ -800,6 +818,9 @@ footer a { color: var(--ink) }
   .live.run::before, #play.playing .ham, .qc-beam, .qc-idle, .coreglow, .stage .beam.b2, .stage.cast .beam, .stage.cast .beam.b2, .stage.cast .coreglow, .podium.burst .gl, .podium.burst .rg, .nftbox.new, .reveal.go { animation: none }
   .castbar, .gcard, .gcard::after, .mycard, .mycard::after, .stage .wimg { transition: none }
   .navl.ready b { animation: none }
+  .tkv { overflow: visible; -webkit-mask-image: none; mask-image: none }
+  .tkl { animation: none; width: auto; flex-wrap: wrap; row-gap: 2px; padding: 0 }
+  .tkl .dup { display: none }
 }
 /* "Quantum Squeak" is longer than the old name: on a narrow PC (1100-1239 px) the wordmark is smaller, so the nav keeps its room */
 @media (min-width: 1100px) and (max-width: 1239px) { .hero .wm { font-size: 24px } }
@@ -855,7 +876,7 @@ footer a { color: var(--ink) }
           <div><p class="rt" id="revt"></p><p class="rs" id="revs"></p><p class="qline" id="revq" hidden></p></div>
         </div>
         <div class="actions" id="actions">
-          <button class="btn" id="act" type="button" hidden></button>
+          <button class="btn" id="act" type="button" hidden></button><a id="ethlink" href="#" target="_blank" rel="noopener" hidden tabindex="-1" aria-hidden="true"></a>
           <p class="nftmsg" id="nftmsg" hidden aria-live="polite"></p>
           <div class="watch" id="watch" hidden><p>Open this page in a crypto wallet to cast a net.</p> <a class="btn ghost" id="needlink" href="#how">What you need</a></div>
           <div class="watch" id="sqkout" hidden><p id="sqkoutt"></p></div>
@@ -866,11 +887,14 @@ footer a { color: var(--ink) }
           <button class="btn ghost" id="skip" type="button" hidden>Skip to the landing &raquo;</button>
         </div>
         <div class="status" id="status"><svg class="clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:var(--cyan)"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><p class="prompt" id="prompt" aria-live="polite"></p></div>
+        <p class="proof" id="proof" hidden></p>
       </div>
       <div class="prizes" id="prizes"><h2 class="prh" id="prizesh">The prizes</h2><div class="prow" id="prow" role="list" aria-labelledby="prizesh"></div><p class="podds" id="podds"></p></div>
       <canvas class="fx" id="fx" aria-hidden="true"></canvas>
     </section>
   </div>
+
+  <section class="ticker" id="ticker" hidden aria-labelledby="tkh"><h2 class="tkh" id="tkh">Latest catches</h2><div class="tkv"><ul class="tkl" id="tkl"></ul></div></section>
 
   <section class="lore" id="lore" aria-labelledby="loreh">
     <h2 class="mhh" id="loreh">How Squeektoshi opened the door</h2>
@@ -992,6 +1016,7 @@ footer a { color: var(--ink) }
         <div class="in">
           <p><a class="gh" id="ghlink" href="#" target="_blank" rel="noopener"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 3.5 1.5 8l4 4.5M10.5 3.5l4 4.5-4 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Code on GitHub</a></p>
           <p class="small">Every number here is public. This night:</p>
+          <p class="proof" id="checkproof" hidden></p>
           <dl class="kv" id="checkkv"></dl>
           <p class="small"><b id="recipeh">The recipe in 6 lines</b></p>
           <ol class="recipe">
@@ -1345,7 +1370,7 @@ footer a { color: var(--ink) }
   }
 
   // ---------- state: the stage shows TONIGHT (the open net) or one built-in night ----------
-  const S = { view: 'tonight', sel: null, playing: false, watched: {}, focus: null, nftBusy: false, sqk: {}, chain: {}, me: null };
+  const S = { view: 'tonight', sel: null, playing: false, watched: {}, focus: null, nftBusy: false, sqk: {}, chain: {}, me: null, eth: null };
   const win = () => QC.netWindow(now());
   // the deck's ONE line tonight (owner, 6 Nov): when nets close, when the result comes (his night ends; then the chip).
   // "Nets close 22:00 · result tomorrow 13:00"; after the 21:00 UTC lock: "Nets close 22:00 tomorrow · result Sat 13:00"
@@ -1559,6 +1584,9 @@ footer a { color: var(--ink) }
     // the build says a net costs test SQK but the contract in it takes none (the old pick-a-spot contract, before the switch):
     // a cast would only fail, so a plain line instead of the button
     if ((PAID && cost === 0n) || S.notWired) return { line: NOT_WIRED() };
+    // no Sepolia test ETH (owner 11-07): nothing can be sent, not even the free SQK claim; the button opens a free ETH faucet
+    // and the page looks again every ~15 s, switching to the normal flow by itself once some arrives
+    if (S.eth === 0n) return { act: { text: 'Get free test ETH first →', go: getEth }, line: "You need a little test ETH for the network fee. It's free." };
     if (paid && cost != null && typeof q.balance === 'bigint' && q.balance < cost) {
       const f = faucetAddr();
       if (!f) return { line: `This wallet has ${q.balance > 0n ? 'too little' : 'no'} test SQK.` };
@@ -1647,6 +1675,7 @@ footer a { color: var(--ink) }
     $('deck').classList.toggle('tonight', t && !store.nets[w.day]);
     if (!S.playing) $('caption').innerHTML = captionText();
     renderReveal(); renderNftBox(); castbarCheck();
+    { const pd = !t && d && !S.playing && revealedNow(d) ? proofHtml(d) : '', pf = $('proof'); pf.hidden = !pd; pf.innerHTML = pd; }
     // the fuel line (owner 11-07: the door runs on SQK): under the cast / faucet button or tonight's net card, nets that cost SQK
     const A2 = $('act'), castable = !A2.hidden && (A2.onclick === castNft || A2.onclick === getSqk);
     $('burn').hidden = S.playing || !t || !paidNow() || !(castable || !$('nftbox').hidden);
@@ -1671,6 +1700,21 @@ footer a { color: var(--ink) }
     const h = spotResult(d, s);
     if (!h.reach) return `No. <b>${s}</b>: out of reach that night (chip noise).`;
     return `No. <b>${s}</b>: <b>${h.tier >= 0 ? h.name : 'got away'}</b> · ${pct(h.share)} of the drops.` + (h.first ? " The chip's very first drop landed here." : '');
+  }
+  // the proof of a night (owner 11-07), one compact line: its IBM job, the chip, its shots, the night's own entanglement
+  // (twin) test, the raw result file in the public repo and the post that put its fingerprint (sha256) on chain. What is not
+  // known is left out: a night that came with results.json has no post link until the next build
+  const FILE_RE = /^wheel-\d{4}-\d{2}-\d{2}-[a-z0-9_]+-[A-Za-z0-9._-]+\.json$/;
+  function proofHtml(d) {
+    const c = d ? chipOf(d) : null;
+    if (!c) return '';
+    const T = Array.isArray(c.twin) && c.twin.length ? c.twin.reduce((a, q) => [a[0] + q.wins, a[1] + q.shots], [0, 0]) : null;
+    const p = isObj(DATA.posts) && isObj(DATA.posts[d]) ? DATA.posts[d] : null, L = (h, t) => `<a href="${h}" target="_blank" rel="noopener">${t}</a>`;
+    const parts = [`IBM job <span class="mono">${esc(c.job_id)}</span>`, esc(c.backend), `${fmtInt(c.wheel_shots)} shots`];
+    if (T && T[1] > 0) parts.push(`entanglement test ${Math.round(100 * T[0] / T[1])}%`);
+    if (typeof c.file === 'string' && FILE_RE.test(c.file) && c.file.includes(c.job_id) && /^https:\/\/github\.com\//.test(CFG.repoUrl || '')) parts.push(L(`${esc(CFG.repoUrl)}/blob/main/quantum/${esc(c.file)}`, 'raw result'));
+    if (p && /^0x[0-9a-f]{64}$/.test(p.txHash || '')) parts.push(L(`https://sepolia.etherscan.io/tx/${p.txHash}`, 'on-chain fingerprint'));
+    return 'Proof: ' + parts.join(' · ');
   }
   function renderReveal() {
     const d = stageNight(), el = $('reveal'), m = d ? mine(d) : null;
@@ -2186,6 +2230,7 @@ footer a { color: var(--ink) }
       `<dt>Twin job</dt><dd><span class="mono">${esc(c && c.twin && c.twin.length ? c.job_id : DATA.twin.job_id)}</span> on ${esc(c ? c.backend : DATA.twin.backend)}${c ? '' : ' (an earlier job)'}</dd>` +
       (rr.length ? `<dt>Re-run</dt><dd>${rr.map((x) => `recipe ${x.recipe}, job <span class="mono">${esc(x.job_id)}</span> on ${esc(x.backend)} (for comparison, not this night's result)`).join('<br>')}</dd>` : '') +
       (ns.length ? `<dt>Not shown</dt><dd>${ns.map(notShownText).join('<br>')}</dd>` : '');
+    { const pd = proofHtml(d), cp = $('checkproof'); cp.hidden = !pd; cp.innerHTML = pd; }
     $('roundsum').textContent = `All ${R.length} rounds of this night`;
     $('roundrows').innerHTML = R.map(([id, t], i) => `<tr><td>${id}</td><td>${tLocal(roundStart(n, id))}</td><td>${fmtInt(t)}</td><td>${stepOf[i]}</td></tr>`).join('');
     const f = (a) => a.map((x) => (x * 100).toFixed(2)).join(' '), v = view(d);
@@ -2271,6 +2316,8 @@ footer a { color: var(--ink) }
       walletNets(false); readSqk(); readNets();
     } catch (e) {
       S.nftBusy = false;
+      // no test ETH (the wallet was not connected at load, so the page could not know): the ETH button takes its place
+      if (e && e.code === 'nofunds') { S.eth = 0n; renderAll(); readEth(); return; }
       // too little test SQK: the faucet button takes the cast button's place (the wallet is connected now, so read it again)
       if (e && e.code === 'NO_SQK') {
         S.sqk = Object.assign({}, S.sqk, typeof e.cost === 'bigint' ? { cost: e.cost } : {}, { balance: typeof e.balance === 'bigint' ? e.balance : 0n });
@@ -2301,6 +2348,7 @@ footer a { color: var(--ink) }
       S.nftBusy = false;
       // already claimed this night: the page's own words (the next claim opens at tonight's close), once
       if (e && e.code === 'claimed') { S.sqk = Object.assign({}, S.sqk, { claimed: true }); renderStage(); nftMsg($('sqkout').hidden ? nextClaim(win()) : ''); }
+      else if (e && e.code === 'nofunds') { S.eth = 0n; renderStage(); readEth(); }
       else { renderStage(); nftMsg(QC.plainError(e), true); }
       readSqk();
     }
@@ -2308,9 +2356,38 @@ footer a { color: var(--ink) }
   // what a net costs and what this wallet holds (read-only; never asks the wallet for anything): the wallet's own chain if
   // it is on Sepolia, else the public Sepolia RPC. The contract is the truth: its NET_COST() (0 = free nets; the old v1
   // contract has none, so 0 too), its SQK, this wallet's balance and this night's faucet claim
+  // the connected wallet's Sepolia test ETH (read-only, never a prompt): the wallet itself while it is on Sepolia, else the
+  // public Sepolia RPC. 0 = the "Get free test ETH" button, read again every ~15 s until some arrives; unknown = null (the
+  // normal flow: casting checks it again before anything is sent)
+  const ETH_FAUCET = 'https://cloud.google.com/application/web3/faucet/ethereum/sepolia';
+  const ETH_POLL = () => window.__QW_ETH_POLL || 15000;
+  let ethRead = 0, ethTimer = 0;
+  async function ethOf(who) {
+    const eth = window.ethereum;
+    try { if (String(await eth.request({ method: 'eth_chainId' })).toLowerCase() === QC.SEPOLIA.chainId) return BigInt(await eth.request({ method: 'eth_getBalance', params: [who, 'latest'] })); }
+    catch (e) { /* the public RPC */ }
+    const b = balanceCheck();
+    if (!b) return null;
+    try { return await b(who); } catch (e) { return null; }
+  }
+  async function readEth() {
+    clearTimeout(ethTimer);
+    if (!nftOn()) return;
+    const my = ++ethRead;
+    let who = null;
+    try { const a = await window.ethereum.request({ method: 'eth_accounts' }); who = a && a[0] ? a[0] : null; } catch (e) { /* not connected */ }
+    const bal = who ? await ethOf(who) : null;
+    if (my !== ethRead) return;
+    const was = S.eth; S.eth = bal;
+    if (was !== bal && !S.playing && !S.nftBusy && (was === 0n || bal === 0n)) { renderStage(); if (was === 0n) nftMsg(''); }
+    if (S.eth === 0n) ethTimer = setTimeout(readEth, ETH_POLL());
+  }
+  // a plain link in a new tab (the page opens no window by itself)
+  function getEth() { const a = $('ethlink'); a.href = ETH_FAUCET; a.click(); readEth(); }
   let sqkRead = 0;
   async function readSqk() {
     if (!nftOn()) return;
+    readEth();
     const my = ++sqkRead, eth = window.ethereum;
     let who = null, info = null;
     try { const a = await eth.request({ method: 'eth_accounts' }); who = a && a[0] ? a[0] : null; } catch (e) { /* not connected */ }
@@ -2399,7 +2476,7 @@ footer a { color: var(--ink) }
   }
   try {
     if (window.ethereum && typeof window.ethereum.on === 'function') window.ethereum.on('accountsChanged', (a) => {
-      S.sqk = {}; S.notWired = false; nftMsg('');
+      S.sqk = {}; S.eth = null; S.notWired = false; nftMsg('');
       setMe(a && a.length ? a[0] : null);
       walletNets(false); readSqk(); readDrops();
     });
@@ -2419,6 +2496,7 @@ footer a { color: var(--ink) }
       const n = N(d);
       if (!isObj(c) || c.night !== d || c.recipe !== n.recipe || JSON.stringify(c.steps) !== JSON.stringify(n.steps)) return false;
       if (!/^[a-z0-9]{6,40}$/.test(c.job_id) || !/^[a-z0-9_]{2,40}$/.test(c.backend) || !Array.isArray(c.twin)) return false;
+      if ('file' in c && !(typeof c.file === 'string' && FILE_RE.test(c.file) && c.file === `wheel-${c.night}-${c.backend}-${c.job_id}.json`)) delete c.file;
       if (!Array.isArray(c.counts) || c.counts.length !== 16 || !c.counts.every(okNum) || c.counts.reduce((a, b) => a + b, 0) !== c.wheel_shots || !(c.wheel_shots > 0)) return false;
       if (!Array.isArray(c.shots_in_order) || c.shots_in_order.length !== c.wheel_shots) return false;
       const k = new Array(16).fill(0); for (const s of c.shots_in_order) { if (!isSpot(s)) return false; k[s]++; }
@@ -2914,9 +2992,29 @@ footer a { color: var(--ink) }
     if (store.practice && !store.practice.seen && N(store.practice.day)) return store.practice.day;
     return 'tonight';
   }
+  // ---------- the latest catches (owner 11-07): the newest posted night's caught nets, read at build time (DATA.latest):
+  // name · tier · night; a tap opens its big card. A net without an id (the household's own) is shown, not linked ----------
+  function renderTicker() {
+    const L = isObj(DATA.latest) ? DATA.latest : null, box = $('ticker');
+    const caught = L && Array.isArray(L.caught) ? L.caught.filter((x) => isObj(x) && typeof x.name === 'string' && x.name && Number.isInteger(x.tier) && x.tier >= 0 && x.tier <= 4) : [];
+    const away = L && okNum(L.away) ? L.away : 0;
+    box.hidden = !L || !/^\d{4}-\d{2}-\d{2}$/.test(L.day || '') || (!caught.length && !away);
+    if (box.hidden) return;
+    const day = dayLabel(L.day, { weekday: undefined });
+    const one = (dup) => caught.map((x) => {
+      const inner = `<b>${esc(x.name)}</b> · ${esc(TIER[x.tier])} · ${esc(day)}`, ok = typeof x.id === 'string' && /^v[23]-[0-9a-f]{1,64}$/.test(x.id);
+      return `<li${dup ? ' class="dup" aria-hidden="true"' : ''}>${ok ? `<button class="tki" type="button" data-t="${x.tier}" data-id="${x.id}"${dup ? ' tabindex="-1"' : ''}>${inner}</button>` : `<span class="tki" data-t="${x.tier}">${inner}</span>`}</li>`;
+    }).join('') + (away ? `<li${dup ? ' class="dup" aria-hidden="true"' : ''}>${away} got away · ${esc(day)}</li>` : '');
+    const ul = $('tkl'); ul.innerHTML = one(false) + one(true);
+    ul.style.setProperty('--tkd', `${Math.max(16, 7 * (caught.length + (away ? 1 : 0)))}s`);
+    ul.querySelectorAll('button.tki').forEach((b) => { b.onclick = () => { try { location.hash = 'hamster-' + b.dataset.id; } catch (e) { route('hamster-' + b.dataset.id); } }; });
+  }
+  { let t = 0; const tk = $('ticker'), hold = () => { clearTimeout(t); tk.classList.add('hold'); }, go = () => { clearTimeout(t); t = setTimeout(() => tk.classList.remove('hold'), 1500); };
+    tk.addEventListener('touchstart', hold, { passive: true }); tk.addEventListener('touchend', go); tk.addEventListener('touchcancel', go); tk.addEventListener('focusin', hold); tk.addEventListener('focusout', go); }
   function renderAll() { renderNights(); renderStage(); paintRing(); renderTonight(); renderMine(); renderHow(); renderCheck(); renderMyHam(); }
   document.querySelectorAll('.hmin').forEach((e) => { e.textContent = HMIN; });
   for (const a of [$('ghlink'), $('ghfoot')]) a.href = CFG.repoUrl;
+  renderTicker();
   const scan = (a, t) => `<a class="addr" href="https://sepolia.etherscan.io/address/${a}" target="_blank" rel="noopener">${t || a}</a>`;
   if (CFG.catchAddress && S2ON) { const k = $('contract'), a = CFG.catchAddress, b = CFG.season1Address; k.hidden = false;
     k.innerHTML = `Each net is a test NFT: contract ${scan(a)} on Sepolia (no money value; one net per wallet per night; its catch and its traits are drawn on-chain from the night's drops). Early nets: ${scan(b)}.`;
@@ -2935,6 +3033,7 @@ footer a { color: var(--ink) }
   window.QCP = { get stage() { return S.view; }, get playing() { return S.playing; }, get sel() { return S.sel; }, store: () => JSON.parse(JSON.stringify(store)),
     data: DATA, spotResult, netResult, viewOf: view, select: selectView, practiceDay, win, get sofar() { return sofar; },
     get sqk() { return Object.fromEntries(Object.entries(S.sqk).map(([k, v]) => [k, typeof v === 'bigint' ? v.toString() : v])); }, paid: PAID,
+    get eth() { return S.eth == null ? null : S.eth.toString(); },
     get route() { return $('details').hidden ? 'main' : 'details'; }, nameOf, get big() { return $('big').hidden ? null : bigNow && bigNow.id; } };
 })();
 </script>

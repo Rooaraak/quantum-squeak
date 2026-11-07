@@ -18,7 +18,7 @@ makes from his rounds; runs of the other recipe (the v1.2 re-runs of archive nig
 the night's result. Every chip run carries `first_shot`: the SPOT of the chip's very first shot (shots_in_order[0], a
 position, turned onto the ring by wheel.py spot_of), which makes the night's Epic spot Legendary when it lands there (the
 owner's rarity rule, contracts/src/QuantumCatch.sol tiersOf; the page ranks with wheel/engine.js tiers)."""
-import base64, glob, importlib.util, json, os, re, sys
+import ast, base64, datetime, glob, hashlib, importlib.util, json, os, re, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -121,6 +121,7 @@ HEALTH_MIN = wheel.HEALTH_MIN
 REJECTED = arg('--rejected', os.path.join(ROOT, 'quantum', 'rejected', 'wheel-*.json'))
 REJECT_NOTES = {'dbma7apkbkrc73cp4vo0': 'after a chip recalibration'}   # one line per thrown-out job (quantum/rejected/README.md)
 chips, skipped, not_shown, reruns, seen = {}, [], [], [], set()
+FILE_SHA = {}                         # job id -> sha256 of its result file (the on-chain fingerprint, checked against the post)
 CHIP_KEYS = ('night', 'core', 'rounds', 'steps', 'backend', 'job_id', 'wheel_shots', 'wheel_2q_gates', 'counts',
              'shots_in_order', 'twin', 'quantum_seconds', 'dd_twirl')
 def note(R, why, tw):
@@ -150,6 +151,10 @@ for f, rejected_dir in runs:
     first = wheel.spot_of(R['shots_in_order'][0], wheel.ring_turn([t for _, t in n['rounds']]))   # before a re-run drops the shots
     assert wheel.turned(R['counts'], wheel.ring_turn([t for _, t in n['rounds']]))[first] > 0, name
     rec.update(created=created, recipe=rr, first_shot=first)
+    # its raw result in the public repo (quantum/<file>): only a file of this repo's quantum/ folder (never a test fixture's name)
+    if os.path.dirname(os.path.abspath(f)) == os.path.join(ROOT, 'quantum') and re.fullmatch(r'wheel-\d{4}-\d{2}-\d{2}-[a-z0-9_]+-[A-Za-z0-9._-]+\.json', name):
+        rec['file'] = name
+    FILE_SHA[R['job_id']] = '0x' + hashlib.sha256(open(f, 'rb').read()).hexdigest()
     if rr != n['recipe']:
         rec.pop('shots_in_order'); rec['twin_pct'] = round(100 * tw, 1); reruns.append(rec); continue
     if day not in chips: chips[day] = rec
@@ -245,6 +250,154 @@ def burned_total():
         return None
 data['burned'] = burned_total()
 
+# ---- the proof of each night (owner 11-07): the NightPosted log of every game contract (QuantumCatch v1, v2, v3) since its
+# deploy block, in chunks of at most 9,500 blocks, kept in data/posts.json (incremental, like burned.json; a chunk the node
+# cannot give, e.g. pruned history, is kept as a gap and tried again next build), with the NetPaid logs of the same
+# contracts (who cast a net each night: the latest-catches line). A night's on-chain link is published only when its log
+# names this night's IBM job AND the sha256 of its raw result file (what the contract stores): never a wrong link; the
+# newest game's post first (v3, v2, v1). Anything unknown is left out; a failed read never stops the build.
+#   QC_POSTS=<file.json> | none    the scan's result from a file (tests; the same checks apply); test builds never read the chain
+V3_CATCH = '0x5331631708adff57965aab4bba5453be35e30b30'
+POST_DEPLOY = {V1_CATCH: 12072952, V2_CATCH: 12077948, V3_CATCH: 12082925}   # (ops/deploy-*-sepolia-record.json)
+TOPIC_NIGHTPOSTED = '0x61a1e82a681c3d87747229e7c4035' + '7d9cc8652f695d88100b57e5f11a6f4c995'   # NightPosted(uint32,uint32,uint32,bytes32,bytes32,uint8), in halves
+POSTS_CACHE = os.path.join(ROOT, 'data', 'posts.json')
+night_number = lambda day: (datetime.date.fromisoformat(day) - datetime.date(1970, 1, 1)).days
+def sepolia_rpc(method, params, url='https://ethereum-sepolia-rpc.publicnode.com'):
+    import urllib.request
+    q = urllib.request.Request(url, data=json.dumps({'jsonrpc': '2.0', 'id': 1, 'method': method, 'params': params}).encode(),
+                               headers={'content-type': 'application/json', 'user-agent': 'quantum-squeak-build'})
+    j = json.load(urllib.request.urlopen(q, timeout=20))
+    if 'error' in j: raise RuntimeError(str(j['error'])[:120])
+    return j['result']
+def chain_games():
+    env = os.environ.get('QC_POSTS')
+    if env is not None:
+        return {} if env in ('', 'none') else json.load(open(env))['games']
+    if os.path.abspath(OUT) != os.path.join(HERE, 'out', 'quantum-catch.html') or any(f in sys.argv for f in ('--catch-address', '--season1-address', '--season2-address')):
+        return {}
+    try:
+        cache = json.load(open(POSTS_CACHE)) if os.path.exists(POSTS_CACHE) else {}
+        known = cache.get('games', {})
+        latest = int(sepolia_rpc('eth_blockNumber', []), 16)
+        as_of = latest - 3                                     # cached up to here; the newest blocks are read again next time
+    except Exception as e:
+        print(f'note: no on-chain proof links this build (cannot read Sepolia: {str(e)[:100]})', file=sys.stderr)
+        return (json.load(open(POSTS_CACHE)) if os.path.exists(POSTS_CACHE) else {}).get('games', {})
+    out = {}
+    for g, dep in POST_DEPLOY.items():
+        c = known.get(g)
+        rec = c if isinstance(c, dict) and c.get('deployBlock') == dep else {'deployBlock': dep, 'toBlock': dep - 1, 'gaps': [], 'posts': {}, 'nets': {}}
+        def read(frm, to):
+            for l in sepolia_rpc('eth_getLogs', [{'address': g, 'topics': [[TOPIC_NIGHTPOSTED, TOPIC_NETPAID]], 'fromBlock': hex(frm), 'toBlock': hex(to)}]):
+                t0, n = l['topics'][0].lower(), str(int(l['topics'][1], 16))
+                if t0 == TOPIC_NIGHTPOSTED:
+                    d = l['data'][2:]
+                    assert len(d) == 5 * 64, 'not a NightPosted log'
+                    rec['posts'][n] = {'txHash': l['transactionHash'].lower(), 'block': int(l['blockNumber'], 16),
+                                       'jobId': bytes.fromhex(d[128:192]).rstrip(b'\0').decode('ascii', 'replace'), 'resultSha256': '0x' + d[192:256].lower()}
+                elif t0 == TOPIC_NETPAID:
+                    who = '0x' + l['topics'][2][-40:].lower(); L = rec['nets'].setdefault(n, [])
+                    if who not in L: L.append(who)
+        gaps = []
+        for a, b in rec.get('gaps', []):
+            try: read(a, b)
+            except Exception: gaps.append([a, b])
+        frm = rec['toBlock'] + 1
+        while frm <= latest:
+            to = min(frm + 9499, latest)
+            try: read(frm, to)
+            except Exception as e:
+                if frm <= as_of: gaps.append([frm, min(to, as_of)])
+                print(f'note: {g[:10]}… blocks {frm}-{to} unread ({str(e)[:60]}): kept as a gap', file=sys.stderr)
+            frm = to + 1
+        rec['toBlock'], rec['gaps'] = max(rec['toBlock'], as_of), gaps
+        out[g] = rec
+    json.dump({'note': 'NightPosted + NetPaid logs of the Quantum Squeak game contracts since each deploy, read by wheel/build.py (gaps: unread block ranges)',
+               'asOfBlock': as_of, 'games': out}, open(POSTS_CACHE, 'w'), indent=1); open(POSTS_CACHE, 'a').write('\n')
+    return out
+GAMES = chain_games()
+def proof_posts():
+    out = {}
+    for day, c in chips.items():
+        n, sha = str(night_number(day)), FILE_SHA.get(c['job_id'])
+        for g in (V3_CATCH, V2_CATCH, V1_CATCH):              # the newest game's post first
+            q = ((GAMES.get(g) or {}).get('posts') or {}).get(n)
+            if q and sha and q.get('jobId') == c['job_id'] and str(q.get('resultSha256', '')).lower() == sha and re.fullmatch(r'0x[0-9a-f]{64}', str(q.get('txHash', ''))):
+                out[day] = {'txHash': q['txHash'], 'contract': g}
+                break
+    return out
+data['posts'] = proof_posts()
+
+# ---- the latest catches (owner 11-07): one slim line on the main page with the newest posted night's caught nets (+ how
+# many got away), read at build time: the casters of that night (the NetPaid logs above) on the paid games (v3, then v2),
+# each net's result() (eth_call). Each caught net shows the name the big card gives it (the same generated name: the page's
+# own lists and rule, ported here) and its tier; a tap opens its big card (#hamster-<v>-<id hex>). A token id holds its
+# wallet's address, so a net of the household's own wallets (data/private-wallets.json, never exported; + wheel/test/
+# local.json privateWallets) gets NO id: its name and tier only, no link. A failed read: the last good list
+# (data/latest.json), else none (the line is hidden). Test builds read nothing unless QC_CHAIN_RPC names a test chain.
+#   QC_PRIVATE=<file.json>   another private-wallets file (tests)
+SEL_RESULT = '0x3c594059'                                     # result(uint256), as wheel/catch.js SEL.result
+def private_wallets():
+    W = set()
+    for src, key in ((os.environ.get('QC_PRIVATE') or os.path.join(ROOT, 'data', 'private-wallets.json'), 'wallets'), (os.path.join(HERE, 'test', 'local.json'), 'privateWallets')):
+        try:
+            W |= {a.lower() for a in json.load(open(src)).get(key, []) if re.fullmatch(r'0x[0-9a-fA-F]{40}', str(a))}
+        except (OSError, ValueError):
+            pass
+    return W
+PRIVATE = private_wallets()
+_T0 = rd(os.path.join(HERE, 'page.template.html'))
+UNIVERSE, NAME_FIRST, NAME_TITLE, NAME_EPITHET = (ast.literal_eval(re.search(r'\n  const ' + k + r' = (\[[^\]]*\]);\n', _T0).group(1)) for k in ('UNIVERSE', 'NAME_FIRST', 'NAME_TITLE', 'NAME_EPITHET'))
+def name_of(key, tier):
+    """The page's nameOf(key, tier): FNV-1a over the key, then xorshift32 picks (the same name everywhere)."""
+    M, h = 0xFFFFFFFF, 2166136261
+    for ch in key:
+        h = ((h ^ ord(ch)) * 16777619) & M
+    h = h or 1
+    def r(k):
+        nonlocal h
+        h = (h ^ (h << 13)) & M; h ^= h >> 17; h = (h ^ (h << 5)) & M
+        return h % k
+    first, title, ep, uni = NAME_FIRST[r(len(NAME_FIRST))], NAME_TITLE[r(len(NAME_TITLE))], NAME_EPITHET[r(len(NAME_EPITHET))], UNIVERSE[max(0, min(4, tier))]
+    return [f'{title} {first} of {uni}', f'{first} {ep}', f'{title} {first} {ep}', f'{first} {ep} of {uni}'][r(4)]
+LATEST_CACHE = os.path.join(ROOT, 'data', 'latest.json')
+def latest_catches():
+    real = os.path.abspath(OUT) == os.path.join(HERE, 'out', 'quantum-catch.html') and not any(f in sys.argv for f in ('--catch-address', '--season1-address', '--season2-address'))
+    url = os.environ.get('QC_CHAIN_RPC') or (real and 'https://ethereum-sepolia-rpc.publicnode.com')
+    if not url:
+        return None
+    games = [(a, tag) for a, tag in ((S2, 'v3'), (S1 or (CATCH or '').lower() or None, 'v2')) if a and (GAMES.get(a) or {}).get('posts')]
+    try:
+        n = max((int(k) for a, _ in games for k in GAMES[a]['posts']), default=None)
+        if n is None:
+            return None
+        caught, away = [], 0
+        for a, tag in games:
+            for who in ((GAMES[a].get('nets') or {}).get(str(n)) or []) if str(n) in GAMES[a]['posts'] else []:
+                tid = (n << 160) | int(who, 16)
+                try:
+                    w = sepolia_rpc('eth_call', [{'to': a, 'data': SEL_RESULT + '%064x' % tid}, 'latest'], url)[2:]
+                except RuntimeError as e:
+                    if 'revert' in str(e).lower(): continue    # burned (or never cast): no net
+                    raise
+                status, tier = int(w[0:64], 16), int(w[320:384], 16)
+                if status == 1 and 1 <= tier <= 5:
+                    caught.append({'name': name_of(f'{tag}:{tid:x}', tier - 1), 'tier': tier - 1, **({} if who.lower() in PRIVATE else {'id': f'{tag}-{tid:x}'})})
+                elif status == 2:
+                    away += 1
+        day = (datetime.date(1970, 1, 1) + datetime.timedelta(days=n)).isoformat()
+        out = {'day': day, 'caught': sorted(caught, key=lambda x: (-x['tier'], x['name'])), 'away': away} if caught or away else None
+        if real:
+            json.dump({'note': 'the latest catches line, as the last build read it (wheel/build.py)', 'latest': out}, open(LATEST_CACHE, 'w'), indent=1); open(LATEST_CACHE, 'a').write('\n')
+        return out
+    except Exception as e:
+        print(f'note: the latest catches are not read this build ({str(e)[:100]}): the last good list, if any', file=sys.stderr)
+        try:
+            return json.load(open(LATEST_CACHE)).get('latest') if real else None
+        except (OSError, ValueError):
+            return None
+data['latest'] = latest_catches()
+
 T = rd(os.path.join(HERE, 'page.template.html'))
 rep = {'/*__ENGINE__*/': rd(os.path.join(HERE, 'engine.js')), '/*__CATCH__*/': rd(os.path.join(HERE, 'catch.js')),
        '/*__DATA__*/': jdump(data), '/*__ART__*/': jdump(art)}
@@ -277,4 +430,6 @@ print(f'{rel(OUT)}: {len(T.encode())} bytes, {rel(RES)}: {os.path.getsize(RES)} 
       f'runs not shown (listed on the page): {[(x["night"], x["job_id"], x["why"]) for x in not_shown] or "none"}; '
       f'NFT button: {"on, " + CATCH if CATCH else "off (no contract address)"}; '
       f'Season 2: {"on (casts to " + S2 + ", Season 1 nets from " + S1 + ")" if SEASON2 else "off (season2Address null)"}; '
-      f'burned so far: {"%s test SQK as of block %d" % (int(data["burned"]["wei"]) / 1e18, data["burned"]["asOfBlock"]) if data["burned"] else "not shown"}')
+      f'burned so far: {"%s test SQK as of block %d" % (int(data["burned"]["wei"]) / 1e18, data["burned"]["asOfBlock"]) if data["burned"] else "not shown"}; '
+      f'on-chain proof links: {sorted(data["posts"]) or "none"}; '
+      f'latest catches: {"%s, %d caught (%d linked), %d got away" % (data["latest"]["day"], len(data["latest"]["caught"]), sum("id" in x for x in data["latest"]["caught"]), data["latest"]["away"]) if data["latest"] else "none"}')
