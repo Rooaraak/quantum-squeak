@@ -116,8 +116,8 @@ test('walk: a coasting hamster (no turns) splits into two copies that move away 
 // the owner's rarity rule (5 Nov). QW.tiers(counts per SPOT, his total turns, steps, the first shot's spot) gives one
 // night's tier index per spot: -1 got away, 0 Common, 1 Uncommon, 2 Rare, 3 Epic, 4 Legendary (= contract code - 1)
 const asIndex = (codes) => codes.map((c) => c - 1);
-test('tiers: the Python reference on every spot of all 9 real chip runs (7 archive nights + 2 v1.2 re-runs)', () => {
-  assert.equal(REF.real.length, 9);
+test('tiers: the Python reference on every spot of every real chip run (7 archive nights + 2 v1.2 re-runs, + each posted night)', () => {
+  assert.ok(REF.real.length >= 9, `${REF.real.length} real runs`); // grows by one each posted night
   const root = here + '../../quantum/';
   for (const x of REF.real) {
     const R = JSON.parse(fs.readFileSync(root + x.file, 'utf8')), T = QW.ringTurn(R.rounds.map((r) => r[1]));

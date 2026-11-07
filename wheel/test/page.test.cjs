@@ -28,7 +28,14 @@ const QW = require('../engine.js'), QC = require('../catch.js');
 const ROOT = path.join(__dirname, '..', '..');
 const REF = JSON.parse(execFileSync('python3', [path.join(__dirname, 'tier_ref.py')], { encoding: 'utf8', maxBuffer: 64 << 20 }));
 const refOf = (job) => { const x = REF.real.find((r) => r.job_id === job); assert.ok(x, `${job} in the Python reference`); return x; };
-const PAGE = process.env.QW_PAGE || path.join(__dirname, '..', 'out', 'quantum-catch.html');
+// the page under test: QW_PAGE, else the real build's template and config with the nights FROZEN through 4 Nov (the
+// scenarios' fixed clock and synthetic 5-7 Nov nights must not depend on how many real nights have been posted since)
+const FROZEN = '2026-11-04';
+const PAGE = process.env.QW_PAGE || (() => {
+  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'qc-frozen-')), f = path.join(d, 'quantum-catch.html');
+  execFileSync('python3', [path.join(__dirname, '..', 'build.py'), '--nights-through', FROZEN, '--out', f], { encoding: 'utf8' });
+  return f;
+})();
 const SHOTS = process.argv[2] || path.join(__dirname, '..', 'out', 'shots');
 const CHROME = process.env.CHROME || LOCAL.chrome || undefined;
 const ANVIL = process.env.ANVIL || LOCAL.anvil || 'anvil';
@@ -176,6 +183,9 @@ const short = (d) => dl(d).replace(/^\w+ /, '');
 // what a hamster was that night (the strip word): its tier, or got away (chip noise)
 const wordOf = (x, s) => (x.tiers[s] ? QW.TIER_NAMES[x.tiers[s] - 1] : 'got away');
 const NUMS = [...Array(16).keys()].map(String);
+// what a spot's Season 1 hamster wears (the page's WEARS): bit 0 party hat, 1 round glasses, 2 striped scarf, 3 grin
+const QC_WEARS = (s) => { const w = []; if (s & 1) w.push('party hat'); if (s & 2) w.push('round glasses'); if (s & 4) w.push('striped scarf'); if (s & 8) w.push('grin'); return w.length ? w : ['plain look']; };
+let bigName5 = '';
 // the practice net's draw (Math.random fixed): the value that makes the page draw the first of the chip's drops on `spot`
 function drawFor(test, d = NEWEST) {
   const c = DATA.chips[d], T = QW.ringTurn(DATA.nights[d].rounds.map((r) => r[1])), i = c.shots_in_order.findIndex((p, k) => test(QW.spotOf(p, T), k));
@@ -323,7 +333,7 @@ function v2Problem() {
 // a page built for the local chain: its QuantumCatch, the mock SQK and the faucet in DATA.config (build.py's test flags)
 function buildFor(catchAddr, sqk, faucet, name) {
   const page = path.join(tmp, name);
-  execFileSync('python3', [path.join(ROOT, 'wheel/build.py'), '--catch-address', catchAddr, '--season2-address', 'null', '--sqk-address', sqk, '--faucet-address', faucet, '--out', page], { encoding: 'utf8' });
+  execFileSync('python3', [path.join(ROOT, 'wheel/build.py'), '--catch-address', catchAddr, '--season2-address', 'null', '--sqk-address', sqk, '--faucet-address', faucet, '--nights-through', FROZEN, '--out', page], { encoding: 'utf8' });
   return fs.readFileSync(page);
 }
 async function startAnvil() {
@@ -459,7 +469,7 @@ async function startS2Anvil() {
     const page = path.join(tmp, 's2.html');
     // the burned total as a build would count it at this block (here: a made-up 0.50 before the first net of this chain)
     ch.burnedAt = parseInt(await rpc('eth_blockNumber'), 16); ch.burnedWei = 5n * 10n ** 17n;
-    execFileSync('python3', [path.join(ROOT, 'wheel/build.py'), '--season1-address', v2, '--season2-address', v3, '--sqk-address', sqk, '--faucet-address', faucet, '--out', page],
+    execFileSync('python3', [path.join(ROOT, 'wheel/build.py'), '--season1-address', v2, '--season2-address', v3, '--sqk-address', sqk, '--faucet-address', faucet, '--nights-through', FROZEN, '--out', page],
       { encoding: 'utf8', env: { ...process.env, QC_BURNED: `0.5@${ch.burnedAt}` } });
     // what the page must show: the build's total + every NetPaid of both games since that block (the chain's own logs)
     ch.burnedNow = async () => { const logs = await rpc('eth_getLogs', [{ address: [v3, v2], topics: [QC.TOPIC_NETPAID], fromBlock: '0x' + (ch.burnedAt + 1).toString(16), toBlock: 'latest' }]);
@@ -1306,6 +1316,9 @@ async function nftErrorScenario(chain, name, viewport, account) {
         assert.deepEqual([await txt(p, '#platen'), await p.evaluate(() => document.getElementById('ham').dataset.spot)], ['?', ''], 'still a mystery: no spoiler');
         assert.equal(await p.$$eval('.spot.out, .spot.net', (e) => e.length), 0, 'no out-of-reach marks, no tile of yours before the replay');
         assert.match(await txt(p, '#mygrid'), /Ready!.*tap to see/);
+        // My hamsters n counts the catch before its reveal (owner 11-07: "it says 0 but I have one Common now"), with a pulse
+        assert.equal(await p.$eval('#mycountn', (e) => e.textContent), '2', 'practice + the catch, not revealed yet');
+        assert.ok(await p.$eval('#mycount', (e) => e.classList.contains('ready')), 'a pulse while a result is ready');
         await shot('0-ready');
         await p.click('#act'); await revealed(p);
         assert.deepEqual(await p.$$eval('.spot.net', (e) => e.map((b) => [b.dataset.spot, b.classList.contains('drop')])), [['7', true]], 'YOUR drop\'s tile');
@@ -1315,9 +1328,37 @@ async function nftErrorScenario(chain, name, viewport, account) {
         assert.deepEqual([await txt(p, '#platen'), await p.evaluate(() => [document.getElementById('ham').dataset.spot, document.getElementById('ham').dataset.tier])], ['7', ['7', '3']], 'the catch on the podium in its Epic skin');
         await rosterIs(p, REFX, 'drop 5 Nov');
         assert.equal(await p.$eval('#mycountn', (e) => e.textContent), '2', 'practice + the catch');
+        assert.ok(!(await p.$eval('#mycount', (e) => e.classList.contains('ready'))), 'revealed: no pulse');
         assert.match(await txt(p, '#mygrid'), /^Epic5 Nov · #7IBM chip/);
         assert.equal((await stored(p)).nets['2026-11-05'].seen, true);
         await noHScroll('drop caught'); await shot('1-caught-epic');
+        // the big card (owner 11-07): a tap on the result card; a generated name (the same for everyone), tier + universe, the
+        // night's numbers, Share on X, View NFT; Back closes it
+        await p.click('#reveal'); await p.waitForFunction(() => QCP.big, { timeout: 5000 }); await sleep(400);
+        const id = 'v2-' + BigInt(QC.netId(N5, E5)).toString(16);
+        assert.equal(await p.evaluate(() => location.hash), '#hamster-' + id);
+        const name = await txt(p, '#bigname');
+        assert.equal(name, await p.evaluate((k) => QCP.nameOf(k, 3), 'v2:' + BigInt(QC.netId(N5, E5)).toString(16)), 'the name: from the token id');
+        assert.match(name, /^[A-Z][A-Za-z ]+$/);
+        assert.equal(await txt(p, '#bigtier'), 'Epic · from the Dream Worlds');
+        assert.deepEqual(await items(p, '#bigtraits li'), ['Crystal skin', ...QC_WEARS(7)]);
+        const kv = await p.$$eval('#bigkv dt', (e) => e.map((d) => [d.textContent, d.nextElementSibling.textContent]));
+        assert.deepEqual(kv.slice(0, 3), [['Night', 'Thursday 5 November'], ['Landed on', `No. 7: ${NX.perSpot[7]} of 4,000 drops`], ['IBM job', NX.chip.job_id]]);
+        const share = await p.$eval('#bigshare', (e) => e.href);
+        assert.ok(share.startsWith('https://x.com/intent/post?text=') && decodeURIComponent(share).includes(`I caught ${name}, an Epic hamster from the Dream Worlds on Quantum Squeak`) && decodeURIComponent(share).includes('#hamster-' + id), 'Share on X');
+        assert.equal(await p.$eval('#bignft', (e) => e.href), `https://sepolia.etherscan.io/nft/${chain.address}/${BigInt(QC.netId(N5, E5)).toString()}`);
+        await noHScroll('big card'); await shot('2-big-card');
+        await p.click('#bigx'); await p.waitForFunction(() => !QCP.big, { timeout: 5000 });
+        assert.equal(await p.evaluate(() => location.hash), '', 'closed: back to the game');
+        bigName5 = name;
+      });
+      // a shared link (#hamster-<id>): a visitor who knows nothing sees the same hamster with the same name (read from the chain)
+      await scenario('big-link', { width: 390, height: 844, at: Date.parse('2026-11-06T13:00:00Z'), page: chain.html, results: NX.body, rpcUrl: chain.url, hash: 'hamster-v2-' + BigInt(QC.netId(N5, E5)).toString(16) }, async (p, { shot }) => {
+        await p.waitForFunction(() => QCP.big, { timeout: 15000 }); await sleep(400);
+        assert.equal(await txt(p, '#bigname'), bigName5, 'the same name for everyone');
+        assert.equal(await txt(p, '#bigtier'), 'Epic · from the Dream Worlds');
+        assert.ok(await p.$eval('#bigcv', (c) => !c.hidden && c.getContext('2d').getImageData(c.width / 2, c.height / 2, 1, 1).data[3] > 0), 'its painted look, large');
+        await shot('1-shared-link');
       });
       await scenario('drop-away', { width: 360, height: 740, at: Date.parse('2026-11-06T13:00:00Z'), page: chain.html, results: NX.body, storage: PRESET({ '2026-11-05': DROP('2026-11-05', A5) }), wallet: { account: A5, rpc: chain.url } }, async (p, { shot }) => {
         await p.waitForFunction(() => QCP.store().nets['2026-11-05'].spot === 2, { timeout: 15000 }); await sleep(300);
@@ -1639,6 +1680,22 @@ async function nftErrorScenario(chain, name, viewport, account) {
         assert.match(await txt(p, '#revt'), /^(An? \w+ \w+ hamster!|Your hamster got away\.)$/, 'its result card');
         assert.equal((await stored(p)).nets['2026-11-05'].seen, true);
       });
+      // the big card of a v3 catch from a shared link: the chain's own picture, the traits from its metadata, "Your drop" from dnaOf
+      await scenario('s2-big', { width: 390, height: 844, at: Date.parse('2026-11-06T13:00:00Z'), page: s2.html, results: NX.body, rpcUrl: s2.url, hash: 'hamster-v3-' + BigInt(QC.netId(N5, CC)).toString(16) }, async (p, { shot, noHScroll }) => {
+        await p.waitForFunction(() => QCP.big && document.getElementById('bigimg').getAttribute('src'), { timeout: 20000 }); await sleep(600);
+        assert.equal(await p.$eval('#bigimg', (e) => e.getAttribute('src')), (await s2.meta(V3, QC.netId(N5, CC))).image, 'the chain\'s own picture');
+        const tier = QW.TIER_NAMES[RC.tier - 1];
+        assert.equal(await txt(p, '#bigtier'), `${tier} · from ${['the Home Burrow', 'the Wild Worlds', 'the Machine Worlds', 'the Dream Worlds', 'the Golden World'][RC.tier - 1]}`);
+        const kv = Object.fromEntries(await p.$$eval('#bigkv dt', (e) => e.map((d) => [d.textContent, d.nextElementSibling.textContent])));
+        assert.equal(kv['Your drop'], `${(Number(BigInt(RC.dna.word) % BigInt(RC.shots)) + 1).toLocaleString('en-US')} of 4,000`, 'the drop: dnaOf\'s word mod the shots');
+        assert.ok((await items(p, '#bigtraits li')).length >= 1, 'traits from the metadata');
+        await noHScroll('s2 big'); await shot('1-big-390x844');
+        await vp(p, 1280, 860); await sleep(400); await shot('2-big-1280x860');
+        // the overlay's own class (the twin test's big number is .big: it once turned that into a full-screen layer) and
+        // a share button its own height on the PC (the PC .btn is 84 px tall)
+        const [twinPos, shareH] = await p.evaluate(() => [getComputedStyle(document.getElementById('twinpct')).position, document.getElementById('bigshare').getBoundingClientRect().height]);
+        assert.equal(twinPos, 'static', 'the twin test\'s number stays in its place'); assert.ok(shareH <= 64, `Share on X: ${shareH} px tall`);
+      });
       // S2-5. Season 1 still shows: a v2 net of this wallet (this browser knew nothing): read from the Season 1 contract,
       //       its result and its old look, labelled "Season 1"
       await scenario('s2-season1', { width: 360, height: 740, at: Date.parse('2026-11-06T13:00:00Z'), page: s2.html, results: NX.body, storage: PRESET(), wallet: { account: acc[4], rpc: s2.url } }, async (p, { shot }) => {
@@ -1671,6 +1728,8 @@ async function nftErrorScenario(chain, name, viewport, account) {
         assert.deepEqual(c0[1].slice(2), ['Ready!', '5 Nov']);
         assert.deepEqual(c0[2].slice(2), [QW.TIER_NAMES[WE.tier - 1], '5 Nov'], 'the early catch: its tier and date');
         assert.equal(await txt(p, '#myhamh'), 'My hamsters'); assert.ok(await hidden(p, '#mhall'));
+        assert.equal(await p.$eval('#mycountn', (e) => e.textContent), '2', 'My hamsters 2: the early catch + the v3 catch not revealed yet');
+        assert.ok(await p.$eval('#mycount', (e) => e.classList.contains('ready')), 'the pulse: a result is ready');
         assert.equal(await p.$$eval('#myham p, #myham .small', (e) => e.length), 0, 'nothing but the heading and the cards');
         assert.ok((await box(p, '#myham')).top >= (await box(p, '#prizes')).bottom && (await box(p, '#myham')).bottom <= (await box(p, '#soon')).top + 1, 'under the prizes, above the battles band');
         // the header: "My hamsters n" (a hamster icon + the count on a phone): it scrolls to the window

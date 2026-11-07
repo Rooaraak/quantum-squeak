@@ -2,7 +2,7 @@
 #   python3 read_usage.py
 import json, glob
 from qiskit_ibm_runtime import QiskitRuntimeService
-svc = QiskitRuntimeService(instance='Test')
+svc = QiskitRuntimeService(name='ibm-new-2026-11-06', instance='open-instance')
 for fn in sorted(glob.glob('eggs-*.json') + glob.glob('grover-*.json')):
     d = json.load(open(fn)); job = svc.job(d['job_id'])
     m = job.metrics() or {}

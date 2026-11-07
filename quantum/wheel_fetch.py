@@ -6,7 +6,7 @@ warnings.filterwarnings('ignore')
 here = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, here)
 import wheel
 from qiskit_ibm_runtime import QiskitRuntimeService
-svc = QiskitRuntimeService(instance='Test')
+svc = QiskitRuntimeService(name='ibm-new-2026-11-06', instance='open-instance')
 CARD = {0: 'FUR', 1: 'HAT'}; PAIRS = [(0, 0), (0, 1), (1, 0), (1, 1)]
 for f in sorted(glob.glob(os.path.join(here, 'pending', '*.json'))):
     rec = json.load(open(f)); job = svc.job(rec['job_id']); st = str(job.status())

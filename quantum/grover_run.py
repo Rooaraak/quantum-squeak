@@ -16,7 +16,7 @@ def grover(t, k):
         flips(qc, t); qc.append(MCZ, [0, 1, 2, 3]); flips(qc, t)          # oracle: phase-flip |t>
         qc.h(range(4)); qc.x(range(4)); qc.append(MCZ, [0, 1, 2, 3]); qc.x(range(4)); qc.h(range(4))  # diffusion
     qc.measure(range(4), range(4)); return qc
-svc = QiskitRuntimeService(instance='Test'); be = svc.backend(BACKEND)
+svc = QiskitRuntimeService(name='ibm-new-2026-11-06', instance='open-instance'); be = svc.backend(BACKEND)
 circs = [grover(t, k) for t in range(16) for k in KS]
 tq = transpile(circs, backend=be, optimization_level=3, seed_transpiler=11)
 cz = [sum(1 for i in c.data if i.operation.num_qubits == 2) for c in tq]

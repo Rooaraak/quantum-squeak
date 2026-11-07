@@ -12,7 +12,7 @@ for q in list(range(6)) + list(range(8, 24)): qc.h(q)
 qc.cx(0, 6); qc.cx(2, 6); qc.cx(1, 7); qc.cx(3, 7)
 qc.measure(range(24), range(24))
 
-svc = QiskitRuntimeService(instance='Test')
+svc = QiskitRuntimeService(name='ibm-new-2026-11-06', instance='open-instance')
 be = svc.backend(BACKEND)
 tq = transpile(qc, backend=be, optimization_level=3, seed_transpiler=7)
 lay = tq.layout.final_index_layout() if tq.layout else list(range(24))

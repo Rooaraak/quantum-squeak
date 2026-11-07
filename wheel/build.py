@@ -96,8 +96,12 @@ V = json.load(open(os.path.join(ROOT, 'data', 'wheel-vectors.json')))
 assert recipe_of(V['recipe']) == 'v1.1', V['recipe']
 C = json.load(open(os.path.join(ROOT, 'data', 'chain-nights.json')))['nights']
 nights = {}
+# --nights-through YYYY-MM-DD (tests only): the page as it was with the nights up to that day, so the browser tests' fixed
+# clock and synthetic nights do not depend on how many real nights have been posted since
+THROUGH = arg('--nights-through')
+assert THROUGH is None or re.fullmatch(r'\d{4}-\d{2}-\d{2}', THROUGH), '--nights-through YYYY-MM-DD'
 for day, c in sorted(C.items()):
-    if not c.get('complete'): continue
+    if not c.get('complete') or (THROUGH and day > THROUGH): continue
     rounds = [[r['id'], r['turns']] for r in c['rounds']]
     rec = night_recipe(day)
     steps = wheel.steps_from_w([t for _, t in rounds], RECIPES[rec])
@@ -127,7 +131,7 @@ def note(R, why, tw):
 runs = [(f, False) for f in sorted(glob.glob(CHIPS))] + [(f, True) for f in sorted(glob.glob(REJECTED))]
 for f, rejected_dir in runs:
     R = json.load(open(f))
-    if R.get('kind') != 'quantum_wheel' or R['job_id'] in seen: continue
+    if R.get('kind') != 'quantum_wheel' or R['job_id'] in seen or (THROUGH and R['night'] > THROUGH): continue
     seen.add(R['job_id'])
     day, name = R['night'], os.path.basename(f)
     assert day in nights, f'{name}: night {day} is not a complete night in data/chain-nights.json'

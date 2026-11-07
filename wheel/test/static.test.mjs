@@ -385,12 +385,12 @@ function runExport(env = {}, prepare = null) {
   return { dir, r, done: () => fs.rmSync(path.dirname(dir), { recursive: true, force: true }) };
 }
 const walk = (d, b = d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name), b) : [path.relative(b, path.join(d, e.name))]));
-test('export-public.sh: index.html + results.json (the site) + README.md + LICENSE + .gitignore + the source, by allowlist; meta description = the tagline; the leak gate passes on every file', { skip: NO_EXPORTER }, () => {
+test('export-public.sh: index.html + results.json + og.jpg (the site) + README.md + LICENSE + .gitignore + the source, by allowlist; meta description = the tagline; the leak gate passes on every file', { skip: NO_EXPORTER }, () => {
   const { dir, r, done } = runExport();
   try {
     assert.equal(r.status, 0, r.stdout + r.stderr);
     assert.match(r.stdout, /LEAK GATE CLEAN: no known leak pattern found/);
-    assert.deepEqual(fs.readdirSync(dir).sort(), ['.gitignore', 'LICENSE', 'README.md', 'contracts', 'data', 'index.html', 'quantum', 'results.json', 'wheel']);
+    assert.deepEqual(fs.readdirSync(dir).sort(), ['.gitignore', 'LICENSE', 'README.md', 'contracts', 'data', 'index.html', 'og.jpg', 'quantum', 'results.json', 'wheel']);
     const files = walk(dir);
     for (const f of ['wheel/engine.js', 'wheel/catch.js', 'wheel/page.template.html', 'wheel/build.py', 'wheel/config.json', 'wheel/art/art.json', 'wheel/test/static.test.mjs',
       'quantum/wheel.py', 'quantum/wheel_spec.md', 'quantum/wheel-2026-10-31-ibm_marrakesh-dbmbiau74qds73ds0hug.json', 'data/chain-nights.json', 'contracts/src/QuantumCatch.sol',
@@ -403,6 +403,21 @@ test('export-public.sh: index.html + results.json (the site) + README.md + LICEN
     assert.ok(idx.includes(`<meta name="description" content="${TAGLINE}">`), 'meta description = the tagline');
     assert.ok(idx.includes(`<meta property="og:description" content="${TAGLINE}">`));
     assert.ok(idx.includes('<meta property="og:title" content="Quantum Squeak">'));
+    // the link preview (owner 11-07): canonical + og:url, the site name, a large-image card with the same title and
+    // description, and og.jpg next to index.html by its absolute URL (a bare 1200x630 JPEG: the gate checks no metadata)
+    const head = idx.slice(0, idx.indexOf('<title>'));
+    for (const t of ['<link rel="canonical" href="https://quantumsqueak.xyz/">', '<meta property="og:url" content="https://quantumsqueak.xyz/">',
+      '<meta property="og:site_name" content="Quantum Squeak">', '<meta name="twitter:card" content="summary_large_image">',
+      '<meta name="twitter:title" content="Quantum Squeak">', `<meta name="twitter:description" content="${TAGLINE}">`,
+      '<meta property="og:image" content="https://quantumsqueak.xyz/og.jpg">', '<meta name="twitter:image" content="https://quantumsqueak.xyz/og.jpg">',
+      '<meta property="og:image:width" content="1200">', '<meta property="og:image:height" content="630">']) assert.ok(head.includes(t + '\n'), `in the head: ${t}`);
+    assert.ok(head.indexOf('<link rel="canonical"') > head.indexOf('<meta property="og:type" content="website">'), 'the preview tags follow og:type');
+    const og = fs.readFileSync(path.join(dir, 'og.jpg'));
+    assert.ok(og.equals(fs.readFileSync(path.join(ROOT, 'site/og.jpg'))), 'og.jpg = site/og.jpg');
+    assert.ok(og.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff])) && og.length > 30000 && og.length <= 300000, `og.jpg: a JPEG, ${og.length} bytes`);
+    assert.match(r.stdout, /\n  og\.jpg\n/, 'the gate listed og.jpg');
+    const ns = '<noscript><p style="text-align:center;padding:24px">Quantum Squeak needs JavaScript: it reads Squeektoshi\'s rounds from Sepolia and casts nets from your wallet.</p></noscript>\n<div class="page">';
+    assert.ok(idx.indexOf(ns) > 0 && idx.indexOf(ns) + ns.length - 18 === idx.indexOf('<div class="page">'), 'the noscript line, right before the first <div class="page">');
     assert.match(idx, /^<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n/);
     assert.ok(idx.includes('<title>Quantum Squeak</title>'));
     assert.equal(idx.slice(idx.indexOf('<title>')), html.slice(html.indexOf('<title>')), 'index.html = the built page under a standard head');

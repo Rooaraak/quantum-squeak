@@ -77,6 +77,8 @@ a:hover { color: var(--ink) }
 .navl:hover { color: var(--cyan) }
 .navl svg { width: 20px; height: 20px; flex: none }
 .navl .navt { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 5px }
+.navl.ready b { box-shadow: 0 0 0 3px var(--cream), 0 0 14px 4px var(--cyan); animation: readypulse 1.4s ease-in-out infinite }
+@keyframes readypulse { 50% { box-shadow: 0 0 0 3px var(--cream), 0 0 4px 1px var(--cyan) } }
 .navl b { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 11px; background: var(--cyan); color: var(--navy); font: 700 12px/1 var(--mono); letter-spacing: 0 }
 .navl.help, .navl.snd { width: 44px; border: 2px solid var(--muted); border-radius: 50% }
 .navl.snd[aria-pressed="true"] { border-color: var(--cyan); color: var(--cyan) }
@@ -503,6 +505,25 @@ button.mycard:hover::after { opacity: 1 }
 @media (min-width: 640px) { .lrow { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; overflow: visible; margin: 12px 0 0; padding: 0 } .ldots { display: none } }
 @media (min-width: 1100px) { .lrow { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px } .lore { margin-top: 10px } .lp figcaption { font-size: var(--fs-xs) } }
 @media (min-width: 640px) and (max-width: 1099px) { .lp:last-child { grid-column: 1 / -1; justify-self: center; width: calc(50% - 9px) } }
+/* the big card (owner 11-07: "open it and see it on the big picture"): one caught hamster, full screen, its rarity's glow */
+.bigov { position: fixed; inset: 0; z-index: 60; overflow-y: auto; padding: max(14px, env(safe-area-inset-top, 0px)) 14px 28px; background: rgba(5, 10, 34, .9); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px) }
+.bigov[hidden] { display: none }
+.bigin { position: relative; max-width: 440px; margin: 0 auto; padding: 16px 16px 18px; border-radius: 22px; background: linear-gradient(180deg, #16215a, #0b1238); color: #fff4dc; border: 3px solid var(--g, #7debff); box-shadow: 0 0 40px -6px var(--g, #7debff), 0 20px 60px rgba(0, 0, 0, .6) }
+.bigin[data-tier="0"] { --g: var(--r0) } .bigin[data-tier="1"] { --g: var(--r1) } .bigin[data-tier="2"] { --g: var(--r2) } .bigin[data-tier="3"] { --g: var(--r3) } .bigin[data-tier="4"] { --g: var(--r4) }
+.bigx { position: absolute; top: 8px; right: 8px; z-index: 2; width: 44px; height: 44px; border: 0; border-radius: 50%; background: rgba(5, 10, 34, .7); color: #fff4dc; font: 400 28px/1 var(--display); cursor: pointer }
+.bigpic { border-radius: 16px; overflow: hidden; background: radial-gradient(circle at 50% 35%, #3b5be0, #0b1238) }
+.bigpic img, .bigpic canvas { display: block; width: 100%; height: auto }
+.bign { margin: 14px 0 0; font: 400 26px/1.05 var(--display); letter-spacing: .02em; text-transform: uppercase; color: #fff4dc }
+.bigt { margin: 4px 0 0; font: 700 13px/1.3 var(--mono); color: var(--g) }
+.bigtr { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 0; padding: 0; list-style: none }
+.bigtr li { padding: 4px 8px; border-radius: 999px; background: rgba(255, 244, 220, .1); font: 400 11px/1.2 var(--mono) }
+.bigkv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 12px; margin: 12px 0 0; font: 400 12px/1.35 var(--mono) }
+.bigkv dt { color: #aeb8ea } .bigkv dd { margin: 0; overflow-wrap: anywhere }
+.bigact { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin: 16px 0 0 }
+.bigact .btn { flex: 1 1 auto; display: inline-flex; align-items: center; justify-content: center; min-height: 52px; padding: 13px 16px; border-radius: 14px; background: var(--accent); color: var(--cream); box-shadow: 0 4px 0 var(--accent-dd); font: 400 19px/1 var(--display); letter-spacing: .03em; text-transform: uppercase; text-align: center; text-decoration: none }
+.bignft { color: #7debff; font: 700 12px/1 var(--mono); padding: 12px 0 }
+.bignft[hidden] { display: none }
+.reveal.can { cursor: pointer }
 /* the deck's fuel line (owner 11-07: the door runs on SQK) */
 .burn { margin: 8px 2px 0; font: 400 11px/1.4 var(--mono); color: var(--stage-muted); text-align: center }
 .burn[hidden] { display: none }
@@ -778,11 +799,13 @@ footer a { color: var(--ink) }
 @media (prefers-reduced-motion: reduce) {
   .live.run::before, #play.playing .ham, .qc-beam, .qc-idle, .coreglow, .stage .beam.b2, .stage.cast .beam, .stage.cast .beam.b2, .stage.cast .coreglow, .podium.burst .gl, .podium.burst .rg, .nftbox.new, .reveal.go { animation: none }
   .castbar, .gcard, .gcard::after, .mycard, .mycard::after, .stage .wimg { transition: none }
+  .navl.ready b { animation: none }
 }
 /* "Quantum Squeak" is longer than the old name: on a narrow PC (1100-1239 px) the wordmark is smaller, so the nav keeps its room */
 @media (min-width: 1100px) and (max-width: 1239px) { .hero .wm { font-size: 24px } }
 </style>
 
+<noscript><p style="text-align:center;padding:24px">Quantum Squeak needs JavaScript: it reads Squeektoshi's rounds from Sepolia and casts nets from your wallet.</p></noscript>
 <div class="page">
   <div class="view" id="game">
   <div class="first">
@@ -1012,6 +1035,18 @@ footer a { color: var(--ink) }
           <p class="fine">A demonstration on one chip, not a lab-grade test.</p>
         </div>
       </details>
+    </div>
+  </div>
+
+  <div class="bigov" id="big" hidden role="dialog" aria-modal="true" aria-labelledby="bigname">
+    <div class="bigin" id="bigin">
+      <button class="bigx" id="bigx" type="button" aria-label="Close">&times;</button>
+      <div class="bigpic"><img id="bigimg" alt="" hidden><canvas id="bigcv" width="448" height="612" hidden aria-hidden="true"></canvas></div>
+      <h2 class="bign" id="bigname"></h2>
+      <p class="bigt" id="bigtier"></p>
+      <ul class="bigtr" id="bigtraits"></ul>
+      <dl class="bigkv" id="bigkv"></dl>
+      <div class="bigact"><a class="btn" id="bigshare" target="_blank" rel="noopener">Share on X</a><a class="bignft" id="bignft" target="_blank" rel="noopener">View NFT</a></div>
     </div>
   </div>
 
@@ -1643,10 +1678,10 @@ footer a { color: var(--ink) }
     if (!show) { el.hidden = true; return; }
     const v = view(d), c = chipOf(d), q = v.q, qe = $('revq');
     qe.hidden = true; if (q) { qe.textContent = qWords(q, d); qe.classList.toggle('noise', !q.kept); }      // (the night's quantumness: How it works)
-    const ri = $('revimg'); el.classList.remove('s2'); ri.hidden = true;
+    const ri = $('revimg'); el.classList.remove('s2'); ri.hidden = true; el.classList.remove('can');
     if (m && m.seen && drawn(m)) {
       const r = netResult(d, m.spot), h = r.h, L = look(h), drop = isDrop(m), s2 = !m.practice && isS2(m) && h.tier >= 0, ex = m.practice && drop && h.tier >= 0 ? practiceEx(h.tier, m.spot) : null;
-      el.classList.remove('plain'); paintInto($('revcv'), m.spot, L.tier, L.dark, !h.reach);
+      el.classList.remove('plain'); paintInto($('revcv'), m.spot, L.tier, L.dark, !h.reach); el.classList.toggle('can', h.tier >= 0);
       $('revt').textContent = h.tier >= 0 ? `${Cap(an(h.name))} ${h.name} ${s2 ? '' : (ex ? ex.skin : SKIN[h.tier]) + ' '}hamster!` : drop ? 'Your hamster got away.' : 'He got away.';
       if (ex) { el.classList.add('s2'); ri.hidden = false; ri.alt = `${ex.name}: an example`; ri.src = ex.src; delete ri.dataset.for; delete ri.dataset.src; }
       $('revt').style.color = h.tier >= 0 ? `var(--r${h.tier})` : 'var(--stage-muted)';
@@ -1963,12 +1998,25 @@ footer a { color: var(--ink) }
     for (const [d, x] of Object.entries(store.nets)) if (N(d) && (chipOf(d) || N(d).slept)) L.push([d, Object.assign({ practice: false }, x)]);       // (a drop not read yet: a "posted soon" card)
     return L.sort(([a], [b]) => (a < b ? 1 : -1));
   }
+  // "My hamsters n" (owner 11-07: "it says 0 but I have one Common now"): every caught hamster known here, its reveal seen or
+  // not (this browser's nets, the practice, and the connected wallet's caught nets the chain lists), and a pulse while a
+  // result is ready to reveal
+  function renderCount() {
+    let n = 0, ready = false; const keys = new Set();
+    for (const [d, m] of myList()) {
+      if (netResult(d, m.spot).status === 'caught') { n++; keys.add(d + ':' + (m.practice ? 'practice' : netAddr(m))); }
+      if (!m.practice && !m.seen && drawn(m) && chipOf(d)) ready = true;
+    }
+    for (const x of walletList || []) if (x.status === 1 && !keys.has(x.day + ':' + x.contract)) n++;
+    $('mycountn').textContent = String(n); $('mycount').classList.toggle('ready', ready);
+    $('mycount').setAttribute('aria-label', `My hamsters: ${n}${ready ? ', a result is ready' : ''}`);
+  }
   function renderMine() {
     const L = myList(), box = $('mygrid'); box.innerHTML = '';
     const looksGot = new Set(); let best = -1, caught = 0;
     for (const [d, m] of L) {
       const r = netResult(d, m.spot), el = document.createElement('button'); el.type = 'button'; el.className = 'mycard'; el.dataset.night = d;
-      el.onclick = () => showNight(d); tilt(el);
+      el.onclick = () => { const c = m.seen && drawn(m) ? catchOfNet(d, m) : null; if (c) openBig(c); else showNight(d); }; tilt(el);
       const dd = dayLabel(d, { weekday: undefined }), no = drawn(m) ? `#${m.spot}` : '#?', kind = m.practice ? 'practice' : isS1(m) ? (isDrop(m) ? 'early net' : 'early net · picked') : isDrop(m) ? '' : OLD;
       if (r.status === 'slept') { el.dataset.tier = -1; el.innerHTML = `<span class="tn">He slept</span><span class="tp">${dd}${isDrop(m) ? '' : ' · ' + no}</span><span class="tp">no catch</span>`; box.appendChild(el); continue; }
       if (r.status === 'drawing') { const dr = S.chain[d] === QC.DRAWING; el.classList.add('todo'); el.dataset.tier = 'x'; el.innerHTML = `<span class="tn">${dr ? 'Drawing…' : 'Soon'}</span><span class="tp">${dd} · #?</span><span class="tp">${dr ? 'sealed with the next block' : 'your drop is posted soon'}</span>`; box.appendChild(el); continue; }
@@ -1986,7 +2034,7 @@ footer a { color: var(--ink) }
       box.appendChild(el);
     }
     $('myempty').hidden = L.length > 0;
-    $('mycountn').textContent = String(caught);
+    renderCount();
     $('myh').textContent = caught ? `My catches: ${caught}` : 'My catches';
     $('mystats').innerHTML = caught ? `Looks collected: <b>${looksGot.size} of 16</b>${best >= 0 ? ` · rarest: <b>${TIER[best]}</b>` : ''}` : '';
   }
@@ -2332,7 +2380,7 @@ footer a { color: var(--ink) }
         box.appendChild(el);
       }
       $('nftnote').textContent = nets.length ? `Read from the contract${S2ON ? 's' : ''} on Sepolia (result and on-chain picture of each net).` : '';
-      walletList = nets; renderMyHam();
+      walletList = nets; renderMyHam(); renderCount();
     } catch (e) { /* no wallet answer: nothing to show */ }
   }
 
@@ -2491,12 +2539,15 @@ footer a { color: var(--ink) }
   const DETAIL = new Set(['details', 'past', 'tonight', 'mine', 'how', 'check']);
   let lastHash = null;
   function route(name) {
-    name = String(name || '').replace(/^#/, ''); const det = DETAIL.has(name);
+    name = String(name || '').replace(/^#/, '');
+    if (/^hamster-[\w-]+$/.test(name)) { openBigHash(name.slice(8)); return; }
+    closeBig();
+    const det = DETAIL.has(name);
     if (det && S.playing) skipping = true;                       // leaving a replay ends it; its "seen" is saved as usual
     $('game').hidden = det; $('details').hidden = !det;
     if (name === 'how' || name === 'details') $('how').open = true;
     if (name === 'check') $('check').open = true;
-    try { const h = location.hash.slice(1); if (det ? h !== name : DETAIL.has(h)) location.hash = det ? name : ''; } catch (e) { /* sandboxed: fine */ }
+    try { const h = location.hash.slice(1); if (det ? h !== name : DETAIL.has(h) || /^hamster-/.test(h)) location.hash = det ? name : ''; } catch (e) { /* sandboxed: fine */ }
     try { lastHash = location.hash.slice(1); } catch (e) { lastHash = det ? name : ''; }
     try { const t = det && name !== 'details' ? $(name) : null; if (t) t.scrollIntoView({ block: 'start' }); else window.scrollTo(0, 0); } catch (e) { /* fine */ }
     castbarCheck();
@@ -2710,6 +2761,7 @@ footer a { color: var(--ink) }
         el.insertAdjacentHTML('beforeend', `<b class="mt">${esc(t)}</b><span class="md">${s.k === 'waiting' && now() < end ? sub : esc(sub)}</span>`);
         el.setAttribute('aria-label', `${t}, night of ${dayLabel(d)}`);
         el.onclick = () => {
+          if (s.k === 'caught') { const c = x.picked ? catchOfNet(d, store.nets[d]) : catchOfChain(x); if (c) return openBig(c); }
           if (s.k === 'waiting' || s.k === 'drawing') return showNight(d === w.day ? 'tonight' : d);
           if (!canView(d)) return route('mine');
           showNight(d); if (s.k === 'ready' && readyNow(d)) play();
@@ -2725,6 +2777,128 @@ footer a { color: var(--ink) }
   $('mhall').onclick = (e) => { e.preventDefault(); route('mine'); };
   let mhT = 0;
   window.addEventListener('resize', () => { clearTimeout(mhT); mhT = setTimeout(() => { if (!$('myham').hidden) renderMyHam(); }, 200); });
+
+  // ---------- the big card (owner 11-07: "caught a hamster but you cant open it and see it on the big picture; they
+  // could have generated names"): one caught hamster full screen, at #hamster-<id> (a link anyone can open: the page reads
+  // the net from the chain when it does not know it). The NAME is generated here from the net's token id (the same for
+  // everyone, JS only; the contracts are untouched): a first name, maybe a title, an epithet or its universe ----------
+  const UNIVERSE = ['the Home Burrow', 'the Wild Worlds', 'the Machine Worlds', 'the Dream Worlds', 'the Golden World'];
+  const NAME_FIRST = ['Biscuit', 'Nibbles', 'Pip', 'Peanut', 'Mochi', 'Waffles', 'Pudding', 'Bean', 'Cinnamon', 'Clover', 'Hazel', 'Maple', 'Pepper', 'Pickles', 'Muffin', 'Noodle', 'Pebble', 'Sprout', 'Toffee', 'Truffle', 'Bramble', 'Button', 'Cashew', 'Cocoa', 'Crumble', 'Custard', 'Dumpling', 'Fig', 'Fudge', 'Ginger', 'Gizmo', 'Hopper', 'Jellybean', 'Juniper', 'Kiwi', 'Marzipan', 'Meringue', 'Midge', 'Miso', 'Nacho', 'Nutmeg', 'Oatcake', 'Olive', 'Paprika', 'Parsnip', 'Pecan', 'Pistachio', 'Plum', 'Popcorn', 'Poppy', 'Pretzel', 'Quince', 'Radish', 'Raisin', 'Rolo', 'Saffron', 'Scone', 'Sesame', 'Shortcake', 'Skittle', 'Snickers', 'Sorrel', 'Sprinkles', 'Squash', 'Strudel', 'Sunny', 'Taffy', 'Tapioca', 'Teacake', 'Thimble', 'Tofu', 'Trifle', 'Turnip', 'Twix', 'Wafer', 'Walnut', 'Whisker', 'Wiggles', 'Ziggy', 'Zucchini', 'Acorn', 'Almond', 'Apricot', 'Barley', 'Basil', 'Berry', 'Blossom', 'Bonbon', 'Bubbles', 'Buttercup', 'Caramel', 'Chestnut', 'Chickpea', 'Chip', 'Chomp', 'Churro', 'Cobble', 'Cookie', 'Cricket', 'Crouton', 'Daisy', 'Dimple', 'Doodle', 'Fennel', 'Fluff', 'Gumdrop', 'Honeybun', 'Jasper', 'Jelly', 'Kipper', 'Lentil', 'Lollipop', 'Lupin', 'Macaron', 'Mango', 'Marble', 'Mittens', 'Nugget', 'Oreo', 'Paddy', 'Pancake', 'Patch', 'Penny', 'Pinecone', 'Pom', 'Pompom', 'Puddle', 'Quinoa', 'Ripple', 'Rusk', 'Sago', 'Snuffle', 'Socks', 'Sparkle', 'Speckle', 'Spud', 'Squeaky', 'Tater', 'Tinker', 'Toast', 'Tumble', 'Velvet', 'Waffle', 'Wobble', 'Yam', 'Zest', 'Zippy', 'Bagel', 'Brioche', 'Crumpet', 'Dewdrop', 'Ember', 'Fizz', 'Kernel', 'Licorice', 'Pudge', 'Tango', 'Cupcake', 'Marshmallow'];
+  const NAME_TITLE = ['Sir', 'Lady', 'Captain', 'Professor', 'Doctor', 'Baron', 'Duchess', 'Admiral', 'Count', 'Countess', 'Duke', 'Marquis', 'Commander', 'Chancellor', 'Archduke', 'Major', 'General', 'Little', 'Great', 'Old'];
+  const NAME_EPITHET = ['the Second', 'the Third', 'the Brave', 'the Bold', 'the Swift', 'the Fluffy', 'the Curious', 'the Clever', 'the Gentle', 'the Mighty', 'the Magnificent', 'the Sleepy', 'the Lucky', 'the Wise', 'the Small', 'the Tiny', 'the Quick', 'the Cheerful', 'the Daring', 'the Dreamer', 'the Wanderer', 'the Explorer', 'the Navigator', 'the Stargazer', 'the Seedkeeper', 'the Snack Collector', 'the Wheel Runner', 'the Door Opener', 'the Cheek Stuffer', 'the Nap Champion', 'the Moonwalker', 'the Sunbeam', 'the Whisker Twister', 'the Tumbler', 'the Squeaker', 'the Sparkly', 'the Golden', 'the Velvet', 'the Merry', 'the Glorious', 'the Unshakable', 'the Patient', 'the Polite', 'the Proud', 'the Shy', 'the Spotted', 'the Striped', 'the Round', 'the Speedy', 'the Hopeful', 'Seedhoarder', 'Whiskerfoot', 'Quickpaw', 'Softpaw', 'Starnose', 'Moonwhisker', 'Nutcracker', 'Burrowmaster', 'Cheekful', 'Wheelspinner'];
+  function nameOf(key, tier) {
+    let h = 2166136261;
+    for (let i = 0; i < key.length; i++) { h ^= key.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+    if (!h) h = 1;
+    const r = (k) => { h ^= h << 13; h >>>= 0; h ^= h >>> 17; h ^= h << 5; h >>>= 0; return h % k; };
+    const first = NAME_FIRST[r(NAME_FIRST.length)], title = NAME_TITLE[r(NAME_TITLE.length)], ep = NAME_EPITHET[r(NAME_EPITHET.length)], uni = UNIVERSE[Math.max(0, Math.min(4, tier))];
+    switch (r(4)) {
+      case 0: return `${title} ${first} of ${uni}`;
+      case 1: return `${first} ${ep}`;
+      case 2: return `${title} ${first} ${ep}`;
+      default: return `${first} ${ep} of ${uni}`;
+    }
+  }
+  const hexId = (t) => BigInt(t).toString(16);
+  const dayOfNight = (n) => new Date(n * 864e5).toISOString().slice(0, 10);
+  // a catch, from this browser's net (or the practice) or from the chain's list: what the big card needs
+  function catchOfNet(d, m) {
+    if (!m || !isSpot(m.spot)) return null;
+    const r = netResult(d, m.spot); if (r.status !== 'caught') return null;
+    const c = chipOf(d), base = { day: d, spot: m.spot, tier: r.h.tier, hits: r.h.hits, shots: c ? c.wheel_shots : 0, job: c ? c.job_id : '' };
+    if (m.practice) return Object.assign(base, { tag: 'p', id: `p-${d}-${m.spot}`, key: `p:${d}:${m.spot}` });
+    if (!isDrop(m) || !m.nft || !m.nft.tokenId) return Object.assign(base, { tag: 'v1', id: `v1-${d}-${m.spot}`, key: `v1:${d}:${m.spot}` });
+    const tag = isS2(m) ? 'v3' : 'v2', w = (walletList || []).find((x) => x.tokenId === m.nft.tokenId && x.contract === netAddr(m));
+    return Object.assign(base, { tag, contract: netAddr(m), tokenId: m.nft.tokenId, id: `${tag}-${hexId(m.nft.tokenId)}`, key: `${tag}:${hexId(m.nft.tokenId)}`,
+      landing: w && w.dna && w.shots ? Number(BigInt(w.dna.word) % BigInt(w.shots)) : null });
+  }
+  function catchOfChain(x) {
+    if (!x || x.status !== 1 || !x.tier) return null;
+    const tag = S2ON && x.contract === CFG.catchAddress ? 'v3' : 'v2', c = chipOf(x.day);
+    return { tag, contract: x.contract, tokenId: x.tokenId, id: `${tag}-${hexId(x.tokenId)}`, key: `${tag}:${hexId(x.tokenId)}`, day: x.day, spot: x.spot, tier: x.tier - 1, hits: x.hits,
+      shots: x.shots, job: c ? c.job_id : '', landing: x.dna && x.shots ? Number(BigInt(x.dna.word) % BigInt(x.shots)) : null };
+  }
+  // a #hamster-<id> nobody here knows (a shared link): read it from the chain (the public RPC, else the wallet on Sepolia)
+  async function catchById(id) {
+    const m = /^(v3|v2)-([0-9a-f]{1,64})$/.exec(id); if (!m) return null;
+    const contract = m[1] === 'v3' ? (S2ON ? CFG.catchAddress : null) : (S2ON ? CFG.season1Address : CFG.catchAddress);
+    if (!contract) return null;
+    const tokenId = '0x' + m[2].padStart(64, '0');
+    for (const call of [/^https?:$/.test(location.protocol) ? QC.rpcCall(pubFetch, RPC) : null, sepoliaWallet()]) {
+      if (!call) continue;
+      try { const r = await QC.readNet(call, contract, tokenId, m[1] === 'v3' ? { dna: true } : undefined); return r ? catchOfChain(Object.assign({ tokenId, day: dayOfNight(r.night), contract }, r)) : null; }
+      catch (e) { /* the next one */ }
+    }
+    return null;
+  }
+  let bigNow = null, bigFrom = '';
+  function knownCatch(id) {
+    for (const [d, m] of myList()) { const c = catchOfNet(d, m); if (c && c.id === id) return c; }
+    for (const x of walletList || []) { const c = catchOfChain(x); if (c && c.id === id) return c; }
+    return bigNow && bigNow.id === id ? bigNow : null;
+  }
+  function openBig(c) {
+    if (!c) return;
+    bigNow = c; bigFrom = DETAIL.has(lastHash || '') ? lastHash : '';
+    lastHash = 'hamster-' + c.id;
+    try { location.hash = 'hamster-' + c.id; } catch (e) { /* sandboxed */ }
+    showBig(c);
+  }
+  async function openBigHash(id) {
+    lastHash = 'hamster-' + id;
+    const c = knownCatch(id) || await catchById(id);
+    if (!c) { route(''); return; }
+    bigNow = c; showBig(c);
+  }
+  function closeBig() { if ($('big').hidden) return; $('big').hidden = true; document.body.style.overflow = ''; }
+  function showBig(c) {
+    const box = $('big'), inner = $('bigin'), name = nameOf(c.key, c.tier), uni = UNIVERSE[c.tier], tier = TIER[c.tier];
+    inner.dataset.tier = c.tier; box.hidden = false; document.body.style.overflow = 'hidden';
+    $('bigname').textContent = name; $('bigtier').textContent = `${tier} · from ${uni}`;
+    const img = $('bigimg'), cv = $('bigcv'); img.hidden = true; cv.hidden = true; img.removeAttribute('src');
+    const traits = (L) => { $('bigtraits').innerHTML = L.map((x) => `<li>${esc(x)}</li>`).join(''); };
+    if (c.tag === 'v3') {
+      traits([]); img.alt = `${name}, its picture from the contract`;
+      metaOf(c.contract, c.tokenId, 'c').then((m) => {
+        if (bigNow !== c || !m) return;
+        if (m.image) { img.src = m.image; img.hidden = false; }
+        const w = QC.SLOT_NAMES.map((k) => m.attr[k]).filter((v) => typeof v === 'string' && v && !/^(none|honey)$/i.test(v));
+        traits([...(typeof m.attr.Skin === 'string' ? [m.attr.Skin + ' skin'] : []), ...w]);
+        if (!c.job && typeof m.attr['IBM job'] === 'string') { c.job = m.attr['IBM job']; bigKv(c); }
+      });
+    } else {
+      const ex = c.tag === 'p' ? practiceEx(c.tier, c.spot) : null;
+      if (ex) { img.src = ex.src; img.alt = `${name}: an example`; img.hidden = false; traits([]); }
+      else {
+        cv.hidden = false; const want = `big:${c.id}`; cv.dataset.want = want;
+        composite(c.spot, c.tier).then((src) => { if (cv.dataset.want !== want) return; const g = cv.getContext('2d'); g.clearRect(0, 0, cv.width, cv.height); g.drawImage(src, 0, 0); });
+        traits([`${SKIN[c.tier]} skin`, ...WEARS(c.spot)]);
+      }
+    }
+    bigKv(c);
+    const link = (/^https?:$/.test(location.protocol) ? location.origin + location.pathname : 'https://quantumsqueak.xyz/') + '#hamster-' + c.id;
+    const text = `I caught ${name}, ${an(tier)} ${tier} hamster from ${uni} on Quantum Squeak`;
+    $('bigshare').href = `https://x.com/intent/post?text=${encodeURIComponent(text)}&url=${encodeURIComponent(link)}`;
+    const nft = $('bignft'); nft.hidden = !c.tokenId;
+    if (c.tokenId) nft.href = `https://sepolia.etherscan.io/nft/${c.contract}/${BigInt(c.tokenId).toString()}`;
+    box.scrollTop = 0; try { $('bigx').focus({ preventScroll: true }); } catch (e) { /* fine */ }
+  }
+  function bigKv(c) {
+    const rows = [['Night', dayLabel(c.day, { weekday: 'long', month: 'long' })]];
+    if (c.landing != null && c.shots) rows.push(['Your drop', `${fmtInt(c.landing + 1)} of ${fmtInt(c.shots)}`]);
+    if (c.shots) rows.push(['Landed on', `No. ${c.spot}: ${fmtInt(c.hits)} of ${fmtInt(c.shots)} drops`]);
+    if (c.job) rows.push(['IBM job', c.job]);
+    if (c.tag === 'p') rows.push(['Net', 'practice']); else if (c.tag !== 'v3' && S2ON) rows.push(['Net', 'early net']);
+    $('bigkv').innerHTML = rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('');
+  }
+  $('bigx').onclick = () => route(bigFrom);
+  $('big').addEventListener('click', (e) => { if (e.target === $('big')) route(bigFrom); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('big').hidden) route(bigFrom); });
+  // the result card: a tap opens its big card
+  $('reveal').addEventListener('click', () => {
+    const d = stageNight(), m = d ? mine(d) : null;
+    if (!S.playing && m && m.seen && drawn(m)) { const c = catchOfNet(d, m); if (c) openBig(c); }
+  });
 
   // ---------- go ----------
   // first screen: a result waiting to be seen, else the viewer's net whose night is on or waiting for the chip (or for its
@@ -2761,6 +2935,6 @@ footer a { color: var(--ink) }
   window.QCP = { get stage() { return S.view; }, get playing() { return S.playing; }, get sel() { return S.sel; }, store: () => JSON.parse(JSON.stringify(store)),
     data: DATA, spotResult, netResult, viewOf: view, select: selectView, practiceDay, win, get sofar() { return sofar; },
     get sqk() { return Object.fromEntries(Object.entries(S.sqk).map(([k, v]) => [k, typeof v === 'bigint' ? v.toString() : v])); }, paid: PAID,
-    get route() { return $('details').hidden ? 'main' : 'details'; } };
+    get route() { return $('details').hidden ? 'main' : 'details'; }, nameOf, get big() { return $('big').hidden ? null : bigNow && bigNow.id; } };
 })();
 </script>

@@ -36,7 +36,7 @@ best = max(sum(win(pa[x], pb[y], x, y) for x, y in PAIRS) / 4 for pa in [(i >> 1
 print(f'best fixed plan wins {100 * best:.0f} %'); assert best == 0.75
 
 from qiskit_ibm_runtime import QiskitRuntimeService, SamplerV2
-svc = QiskitRuntimeService(instance='Test')
+svc = QiskitRuntimeService(name='ibm-new-2026-11-06', instance='open-instance')
 be = svc.backend(BACKEND)
 circs = [circuit(x, y) for x, y in PAIRS]
 tqs = transpile(circs, backend=be, optimization_level=3, seed_transpiler=7)

@@ -177,7 +177,7 @@ test('outcome of a net (contract result() rules): waiting, caught with the night
 });
 
 test('reach and tiers (QC.inReach, QC.tiersOf = the contract\'s _inReach / tiersOf): the Python reference on every spot, real and synthetic', () => {
-  assert.equal(REF.real.length, 9);
+  assert.ok(REF.real.length >= 10, 'every healthy chip run (grows by one each posted night)');
   for (const x of [...REF.real, ...REF.synth]) {
     for (let s = 0; s < 16; s++) assert.equal(QC.inReach(s, x.turns, x.steps), x.reach[s], `${x.file || x.why}: reach of spot ${s}`);
     assert.deepEqual(QC.tiersOf(x.counts, x.turns, x.steps, x.first), x.tiers, `${x.file || x.why}: tier codes ${JSON.stringify(x)}`);
@@ -226,7 +226,7 @@ test('reach rule on the real 31 Oct night: spot 0 (46/4000) and spot 2 (51/4000)
 
 test('page engine and contract rule agree on every spot of every real chip run (incl. the v1.2 re-runs) = the Python reference', () => {
   let out1 = 0;
-  assert.equal(CHIPS.length, 9);
+  assert.ok(CHIPS.length >= 10, 'every healthy chip run (grows by one each posted night)');
   for (const R of CHIPS) {
     const rec = nightRec(R), T = QW.ringTurn(R.rounds.map((r) => r[1])), k = R.steps.length, ref = REF.real.find((x) => x.job_id === R.job_id);
     assert.ok(ref, `${R.job_id} in the Python reference`);

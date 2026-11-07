@@ -23,7 +23,7 @@ def twin(x, y):   # same as dawn_run.py / twin_run.py, so the proof numbers stay
     qc = QuantumCircuit(2, 2, name=f'twin_{CARD[x]}_{CARD[y]}'); qc.h(0); qc.cx(0, 1); qc.ry(A_ANG[x], 0); qc.ry(B_ANG[y], 1); qc.measure([0, 1], [0, 1]); return qc
 
 from qiskit_ibm_runtime import QiskitRuntimeService, SamplerV2
-svc = QiskitRuntimeService(instance='Test'); be = svc.backend(BACKEND)
+svc = QiskitRuntimeService(name='ibm-new-2026-11-06', instance='open-instance'); be = svc.backend(BACKEND)
 left = svc.usage().get('usage_remaining_seconds'); print('chip seconds left this period:', left)
 if left is not None and left < 20: sys.exit('under 20 s left: not sending')
 items = [('wheel', None, wheel.build_circuit(steps), WHEEL_SHOTS)] + [('twin', (x, y), twin(x, y), TWIN_SHOTS) for x, y in PAIRS]
