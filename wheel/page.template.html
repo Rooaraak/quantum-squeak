@@ -528,16 +528,21 @@ button.tki:hover b, button.tki:focus-visible b { text-decoration: underline; tex
 .passin .bigx { background: rgba(42, 36, 24, .12); color: #2a2418 }
 .passh { margin: 2px 48px 0 0; font: 400 28px/1 var(--display); letter-spacing: .04em; text-transform: uppercase; color: #1e3cc8 }
 .passw { margin: 6px 0 0; font: 400 11.5px/1.3 var(--mono); color: #6b5f45 }
-.ppb { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 0; padding: 0; list-style: none }
-.ppb li { padding: 5px 9px; border: 2px solid #6b5f45; border-radius: 999px; font: 700 10.5px/1.1 var(--mono); letter-spacing: .03em; text-transform: uppercase; color: #6b5f45; opacity: .38 }
-.ppb li.got { opacity: 1; background: #1e3cc8; border-color: #1e3cc8; color: #f2e8cf }
+/* badges (owner 8 Nov): only the earned ones, as gold seals; one line for the nearest next goal */
+.ppb { display: flex; flex-wrap: wrap; gap: 12px; margin: 14px 0 0; padding: 0; list-style: none }
+.ppb:empty { display: none }
+.ppb li { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 74px; text-align: center; font: 700 10px/1.15 var(--mono); letter-spacing: .02em; text-transform: uppercase; color: #7a5a00 }
+.ppb .si { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ffe9a3, #e2b13c 55%, #a87400); box-shadow: 0 0 0 3px #f2e8cf, 0 0 0 5px #c99a2e, 0 3px 8px rgba(80, 55, 0, .35); color: #5a3d00; font: 400 20px/1 var(--display) }
+.ppn { margin: 10px 0 0; font: 700 12px/1.35 var(--mono); color: #6b5f45 }
+.ppn[hidden] { display: none }
 .pps { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 16px 14px; margin: 18px 0 0 }
 .ppst { --ink: #5c6470; position: relative; margin: 0; padding: 9px 8px 8px; border: 3px double var(--ink); border-radius: 12px; color: var(--ink); text-align: center; background: none; font: 700 10.5px/1.35 var(--mono); text-transform: uppercase; letter-spacing: .03em;
   transform: rotate(var(--rot, 0deg)); opacity: .9; mix-blend-mode: multiply; cursor: default }
 button.ppst { cursor: pointer }
-.ppst .pr { display: block; margin: 3px 0 2px; font: 400 22px/1 var(--display); letter-spacing: .04em }
-.ppst .pd { display: block; font-size: 11.5px }
-.ppst .pj { display: block; font-weight: 400; text-transform: none; opacity: .85 }
+.ppst .pr { display: block; margin: 3px 0 0; font: 400 22px/1 var(--display); letter-spacing: .04em }
+.ppst .pd { display: block; margin-top: 6px; font-size: 11.5px }
+.ppst .ppi { display: block; width: 84px; height: 84px; margin: 2px auto 0; border-radius: 12px; overflow: hidden; background: rgba(42, 36, 24, .06) }
+.ppst .ppi img, .ppst .ppi svg { display: block; width: 100%; height: 100% }
 .ppst[data-t="0"] { --ink: #5c6470 } .ppst[data-t="1"] { --ink: #1f8a4c } .ppst[data-t="2"] { --ink: #2f5fd0 } .ppst[data-t="3"] { --ink: #7b3fd0 } .ppst[data-t="4"] { --ink: #a87400 }
 .ppst[data-k="away"], .ppst[data-k="noresult"] { --ink: #8a8f98 } .ppst[data-k="slept"] { --ink: #3a4a8a } .ppst[data-k="waiting"], .ppst[data-k="drawing"], .ppst[data-k="ready"] { --ink: #9a7a3a; border-style: dashed }
 .ppe { margin: 16px 0 0; font: 400 12px/1.4 var(--mono); color: #6b5f45 }
@@ -563,19 +568,44 @@ button.ppst { cursor: pointer }
 .bigin[data-tier="0"] { --g: var(--r0) } .bigin[data-tier="1"] { --g: var(--r1) } .bigin[data-tier="2"] { --g: var(--r2) } .bigin[data-tier="3"] { --g: var(--r3) } .bigin[data-tier="4"] { --g: var(--r4) }
 .bigx { position: absolute; top: 8px; right: 8px; z-index: 2; width: 44px; height: 44px; border: 0; border-radius: 50%; background: rgba(5, 10, 34, .7); color: #fff4dc; font: 400 28px/1 var(--display); cursor: pointer }
 .bigpic { border-radius: 16px; overflow: hidden; background: radial-gradient(circle at 50% 35%, #3b5be0, #0b1238) }
-.bigpic img, .bigpic canvas { display: block; width: 100%; height: auto }
+.bigpic img, .bigpic canvas { display: block; width: 100%; height: auto; max-height: 62vh; object-fit: contain }
+.bigin.away .bigpic img { width: 62%; margin: 22px auto }
 .bign { margin: 14px 0 0; font: 400 26px/1.05 var(--display); letter-spacing: .02em; text-transform: uppercase; color: #fff4dc }
 .bigt { margin: 4px 0 0; font: 700 13px/1.3 var(--mono); color: var(--g) }
 .bigtr { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 0; padding: 0; list-style: none }
 .bigtr li { padding: 4px 8px; border-radius: 999px; background: rgba(255, 244, 220, .1); font: 400 11px/1.2 var(--mono) }
-.bigkv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 12px; margin: 12px 0 0; font: 400 12px/1.35 var(--mono) }
-.bigkv dt { color: #aeb8ea } .bigkv dd { margin: 0; overflow-wrap: anywhere }
-.bigact { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin: 16px 0 0 }
-.bigact .btn { flex: 1 1 auto; display: inline-flex; align-items: center; justify-content: center; min-height: 52px; padding: 13px 16px; border-radius: 14px; background: var(--accent); color: var(--cream); box-shadow: 0 4px 0 var(--accent-dd); font: 400 19px/1 var(--display); letter-spacing: .03em; text-transform: uppercase; text-align: center; text-decoration: none }
-.bigact .btn.ghost { flex: 0 1 auto; min-height: 52px; padding: 10px 14px; border: 2px solid var(--muted); border-radius: 14px; background: transparent; box-shadow: none; color: var(--cream); font: 400 17px/1 var(--display); letter-spacing: .03em; text-transform: uppercase; cursor: pointer }
+.bigl { margin: 12px 0 0; font: 700 13px/1.35 var(--mono); color: #fff4dc }
+/* the big card's two buttons (owner 8 Nov): Share on X and Save as PFP, the same height side by side (stacked under 360 px);
+   one row of small links under them; everything technical folded into "Quantum proof" */
+.bigact { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 16px 0 0 }
+.bigact.one { grid-template-columns: 1fr }
+.bigact[hidden] { display: none }
+@media (max-width: 359px) { .bigact { grid-template-columns: 1fr } }
+.bigact .btn, .bigact .btn.ghost { min-width: 0; margin: 0 }
+.bigdl { position: relative; display: grid }
+.bigdl .btn.ghost { width: 100% }
+.bigdlm { position: absolute; left: 0; right: 0; bottom: calc(100% + 6px); z-index: 3; display: grid; gap: 4px; padding: 6px; border-radius: 14px; background: #0b1238; border: 2px solid var(--muted); box-shadow: 0 10px 30px rgba(0, 0, 0, .5) }
+.bigdlm[hidden] { display: none }
+.bigdlm button { min-height: 44px; border: 0; border-radius: 10px; background: rgba(255, 244, 220, .08); color: var(--cream); font: 400 16px/1 var(--display); letter-spacing: .03em; cursor: pointer }
+.bigdlm button:disabled { opacity: .55; cursor: progress }
+/* the picture: the clean art (the whole hamster on its universe) by default; "NFT card · data": the chain's own card + the proof */
+.bigtog { display: block; margin: 8px auto 0; padding: 6px 10px; border: 0; background: none; color: #aeb8ea; font: 700 11.5px/1.2 var(--mono); text-decoration: underline; text-underline-offset: 3px; cursor: pointer }
+.bigtog[hidden] { display: none }
+.biglk { margin: 10px 0 0; text-align: center; font: 700 12px/1.4 var(--mono); color: #aeb8ea }
+.biglk[hidden], .bigsep[hidden] { display: none }
+.biglk .bignft { padding: 6px 2px; text-decoration: underline; text-underline-offset: 3px }
+.bigq { margin: 14px 0 0; padding-top: 10px; border-top: 1px solid rgba(255, 244, 220, .14) }
+.bigq[hidden] { display: none }
+.bigq summary { cursor: pointer; list-style: none; font: 700 12px/1.3 var(--mono); color: #aeb8ea }
+.bigq summary::-webkit-details-marker { display: none }
+.bigq summary::after { content: ' \25B8' } .bigq[open] summary::after { content: ' \25BE' }
+.bigq .proof { margin: 8px 0 0; text-align: left; color: #aeb8ea }
+.bigin.away { --g: #8a8f98 } .bigin.away .bign { color: #c9cdd3 }
+.bigact .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 52px; padding: 13px 16px; border-radius: 14px; background: var(--accent); color: var(--cream); box-shadow: 0 4px 0 var(--accent-dd); font: 400 19px/1 var(--display); letter-spacing: .03em; text-transform: uppercase; text-align: center; text-decoration: none }
+.bigact .btn.ghost { min-height: 52px; padding: 10px 14px; border: 2px solid var(--muted); border-radius: 14px; background: transparent; box-shadow: none; color: var(--cream); font: 400 17px/1 var(--display); letter-spacing: .03em; text-transform: uppercase; cursor: pointer }
 .bigact .btn.ghost:disabled { opacity: .55; cursor: progress }
 .bigact .btn.ghost[hidden] { display: none }
-.bignft { color: #7debff; font: 700 12px/1 var(--mono); padding: 12px 0 }
+.bignft { color: #7debff; font: 700 12px/1 var(--mono) }
 .bignft[hidden] { display: none }
 .reveal.can { cursor: pointer }
 /* the deck's fuel line (owner 11-07: the door runs on SQK) */
@@ -1111,6 +1141,7 @@ footer a { color: var(--ink) }
       <h2 class="passh" id="passh">Quantum Passport</h2>
       <p class="passw" id="passw"></p>
       <ul class="ppb" id="passb" aria-label="Badges"></ul>
+      <p class="ppn" id="passn" hidden></p>
       <div class="pps" id="passs" role="list" aria-label="Stamps"></div>
     </div>
   </div>
@@ -1119,11 +1150,14 @@ footer a { color: var(--ink) }
     <div class="bigin" id="bigin">
       <button class="bigx" id="bigx" type="button" aria-label="Close">&times;</button>
       <div class="bigpic"><img id="bigimg" alt="" hidden><canvas id="bigcv" width="448" height="612" hidden aria-hidden="true"></canvas></div>
+      <button class="bigtog" id="bigtog" type="button" aria-pressed="false">NFT card · data</button>
       <h2 class="bign" id="bigname"></h2>
       <p class="bigt" id="bigtier"></p>
       <ul class="bigtr" id="bigtraits"></ul>
-      <dl class="bigkv" id="bigkv"></dl>
-      <div class="bigact"><a class="btn" id="bigshare" target="_blank" rel="noopener">Share on X</a><button class="btn ghost" id="bigpfp" type="button">Save as PFP</button><a class="bignft" id="bignft" target="_blank" rel="noopener">View NFT</a><a class="bignft" id="bigpass" href="#passport" hidden>My passport</a></div>
+      <p class="bigl" id="bigline"></p>
+      <div class="bigact" id="bigact"><a class="btn" id="bigshare" target="_blank" rel="noopener">Share on X</a><div class="bigdl"><button class="btn ghost" id="bigdl" type="button" aria-expanded="false" aria-controls="bigdlm">Download &#9662;</button><div class="bigdlm" id="bigdlm" hidden><button type="button" id="bigfull">Full picture</button><button type="button" id="bigpfp">PFP</button></div></div></div>
+      <p class="biglk" id="biglk"><a class="bignft" id="bignft" target="_blank" rel="noopener">View NFT</a><span class="bigsep" id="bigsep" aria-hidden="true"> · </span><a class="bignft" id="bigpass" href="#passport" hidden>My passport</a></p>
+      <details class="bigq" id="bigq" hidden><summary>Quantum proof</summary><p class="proof" id="bigproof"></p></details>
     </div>
   </div>
 
@@ -3008,6 +3042,34 @@ footer a { color: var(--ink) }
     return Object.assign(base, { tag, contract: netAddr(m), tokenId: m.nft.tokenId, id: `${tag}-${hexId(m.nft.tokenId)}`, key: `${tag}:${hexId(m.nft.tokenId)}`,
       landing: w && w.dna && w.shots ? Number(BigInt(w.dna.word) % BigInt(w.shots)) : null });
   }
+  // a net that got away, as a big card (owner 8 Nov): no name, no buttons; the line says it slipped back through the door
+  function awayOfNet(d, m) {
+    if (!m || !isSpot(m.spot)) return null;
+    const r = netResult(d, m.spot); if (r.status !== 'away') return null;
+    const c = chipOf(d), base = { away: true, day: d, spot: m.spot, tier: -1, hits: r.h ? r.h.hits : 0, shots: c ? c.wheel_shots : 0, job: c ? c.job_id : '' };
+    if (m.practice || !isDrop(m) || !m.nft || !m.nft.tokenId) return Object.assign(base, { tag: m.practice ? 'p' : 'v1', id: `x-${d}-${m.spot}`, key: '' });
+    const tag = isS2(m) ? 'v3' : 'v2', w = (walletList || []).find((x) => x.tokenId === m.nft.tokenId && x.contract === netAddr(m));
+    return Object.assign(base, { tag, contract: netAddr(m), tokenId: m.nft.tokenId, id: `${tag}-${hexId(m.nft.tokenId)}`, key: '', landing: w && w.dna && w.shots ? Number(BigInt(w.dna.word) % BigInt(w.shots)) : null });
+  }
+  function awayOfChain(x) {
+    if (!x || x.status !== 2) return null;
+    const tag = S2ON && x.contract === CFG.catchAddress ? 'v3' : 'v2', c = chipOf(x.day);
+    return { away: true, tag, contract: x.contract, tokenId: x.tokenId, id: `${tag}-${hexId(x.tokenId)}`, key: '', day: x.day, spot: x.spot, tier: -1, hits: x.hits,
+      shots: x.shots, job: c ? c.job_id : '', landing: x.dna && x.shots ? Number(BigInt(x.dna.word) % BigInt(x.shots)) : null };
+  }
+  // a small drawn hamster (stamps, a got-away big card): 'away' grey and sad, 'wait' a hologram with a "?", 'slept' asleep
+  // with a Z
+  function hamSvg(kind) {
+    const [fur, muz, ink] = { away: ['#b4b8bf', '#dcdfe3', '#6f757e'], wait: ['rgba(63, 214, 255, .16)', 'rgba(63, 214, 255, .08)', '#1aa3cc'], slept: ['#d8c8a6', '#f1e6cc', '#3a4a8a'] }[kind];
+    const ln = `fill="none" stroke="${ink}" stroke-width="4" stroke-linecap="round"`, out = kind === 'wait' ? ` stroke="${ink}" stroke-width="3" stroke-dasharray="7 5"` : '';
+    const face = kind === 'away' ? `<circle cx="136" cy="146" r="5.5" fill="${ink}"/><circle cx="184" cy="146" r="5.5" fill="${ink}"/><path d="M123 137l16-7M197 137l-16-7M149 184q11-9 22 0" ${ln}/>`
+      : kind === 'slept' ? `<path d="M127 145q9 7 18 0M175 145q9 7 18 0M153 180q7 4 14 0" ${ln}/><text x="212" y="98" font-size="30" font-weight="700" font-family="sans-serif" fill="${ink}">Z</text><text x="226" y="74" font-size="22" font-weight="700" font-family="sans-serif" fill="${ink}">z</text>`
+      : `<text x="160" y="182" text-anchor="middle" font-size="64" font-weight="700" font-family="sans-serif" fill="${ink}">?</text>`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="76 56 168 168" role="img" aria-hidden="true"><g${kind === 'away' ? ' opacity=".75"' : ''}>` +
+      `<circle cx="113" cy="104" r="20" fill="${fur}"${out}/><circle cx="207" cy="104" r="20" fill="${fur}"${out}/><ellipse cx="160" cy="150" rx="64" ry="56" fill="${fur}"${out}/>` +
+      (kind === 'wait' ? '' : `<circle cx="113" cy="104" r="11" fill="${muz}"/><circle cx="207" cy="104" r="11" fill="${muz}"/><ellipse cx="160" cy="171" rx="36" ry="27" fill="${muz}"/><ellipse cx="160" cy="161" rx="6" ry="4.5" fill="${ink}"/>`) +
+      face + '</g></svg>';
+  }
   function catchOfChain(x) {
     if (!x || x.status !== 1 || !x.tier) return null;
     const tag = S2ON && x.contract === CFG.catchAddress ? 'v3' : 'v2', c = chipOf(x.day);
@@ -3071,32 +3133,57 @@ footer a { color: var(--ink) }
     }
     return null;
   }
+  // the big card's picture (owner 8 Nov: "a clean picture with an option to view data"): the clean art by default (v3: the HD
+  // whole body when the site has it, else drawn here from the card's layers; an early net: its painted look; got away: a
+  // faded hamster); "NFT card · data": the chain's own card and the Quantum proof
+  let bigView = 'art';
+  function bigPic(c) {
+    const img = $('bigimg'), cv = $('bigcv'), want = `${c.id}:${bigView}`, nm = c.away ? 'He got away' : nameOf(c.key, c.tier);
+    img.dataset.want = want; cv.dataset.want = ''; img.hidden = true; cv.hidden = true; img.removeAttribute('src');
+    $('bigq').hidden = bigView !== 'card' || !$('bigproof').innerHTML; $('bigq').open = false;
+    const show = (src, alt) => { if (img.dataset.want !== want || bigNow !== c || !src) return; img.src = src; img.alt = alt; img.hidden = false; cv.hidden = true; };
+    const art = () => {
+      if (c.away) return show('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(hamSvg('away')), nm);
+      if (c.tag === 'v3') {
+        hdUrl(c, 'full').then((u) => u || metaOf(c.contract, c.tokenId, 'c').then((m) => (m && m.image ? fullS2(m.image).then((x) => x.toDataURL('image/png')) : null)))
+          .then((u) => show(u, nm), () => { /* no picture yet */ });
+        return;
+      }
+      const ex = c.tag === 'p' ? practiceEx(c.tier, c.spot) : null;
+      if (ex) return show(ex.src, `${nm}: an example`);
+      cv.hidden = false; const w = `big:${c.id}`; cv.dataset.want = w;
+      composite(c.spot, c.tier).then((src) => { if (cv.dataset.want !== w) return; const g = cv.getContext('2d'); g.clearRect(0, 0, cv.width, cv.height); g.drawImage(src, 0, 0); });
+    };
+    if (bigView === 'card' && c.tokenId) {
+      metaOf(c.contract, c.tokenId, 'c').then((m) => { if (m && m.image) show(m.image, `${nm}: its NFT card`); else art(); }, art);
+      return;
+    }
+    art();
+  }
+  $('bigtog').onclick = () => {
+    const c = bigNow; if (!c) return;
+    bigView = bigView === 'art' ? 'card' : 'art';
+    $('bigtog').textContent = bigView === 'card' ? 'Picture' : c.tokenId ? 'NFT card · data' : 'Data'; $('bigtog').setAttribute('aria-pressed', String(bigView === 'card'));
+    bigPic(c);
+  };
   function closeBig() { if ($('big').hidden) return; $('big').hidden = true; document.body.style.overflow = ''; }
   function showBig(c) {
-    const box = $('big'), inner = $('bigin'), name = nameOf(c.key, c.tier), uni = UNIVERSE[c.tier], tier = TIER[c.tier];
-    inner.dataset.tier = c.tier; box.hidden = false; document.body.style.overflow = 'hidden';
-    $('bigname').textContent = name; $('bigtier').textContent = `${tier} · from ${uni}`;
-    const img = $('bigimg'), cv = $('bigcv'); img.hidden = true; cv.hidden = true; img.removeAttribute('src');
-    const traits = (L) => { $('bigtraits').innerHTML = L.map((x) => `<li>${esc(x)}</li>`).join(''); };
-    if (c.tag === 'v3') {
-      traits([]); img.alt = `${name}, its picture from the contract`;
+    const box = $('big'), inner = $('bigin'), away = !!c.away, name = away ? 'He got away' : nameOf(c.key, c.tier), uni = away ? '' : UNIVERSE[c.tier], tier = away ? '' : TIER[c.tier];
+    inner.dataset.tier = away ? 'x' : c.tier; inner.classList.toggle('away', away); box.hidden = false; document.body.style.overflow = 'hidden';
+    $('bigname').textContent = name; $('bigtier').textContent = away ? '' : `${tier} · ${uni}`; $('bigtier').hidden = away;
+    const traits = (L) => { $('bigtraits').innerHTML = L.map((x) => `<li>${esc(x)}</li>`).join(''); $('bigtraits').hidden = !L.length; };
+    bigView = 'art'; $('bigtog').textContent = c.tokenId ? 'NFT card · data' : 'Data'; $('bigtog').setAttribute('aria-pressed', 'false');
+    bigInfo(c); bigPic(c);
+    if (away) traits([]);
+    else if (c.tag === 'v3') {
+      traits([]);
       metaOf(c.contract, c.tokenId, 'c').then((m) => {
         if (bigNow !== c || !m) return;
-        if (m.image) { img.src = m.image; img.hidden = false; }
         const w = QC.SLOT_NAMES.map((k) => m.attr[k]).filter((v) => typeof v === 'string' && v && !/^(none|honey)$/i.test(v));
         traits([...(typeof m.attr.Skin === 'string' ? [m.attr.Skin + ' skin'] : []), ...w]);
-        if (!c.job && typeof m.attr['IBM job'] === 'string') { c.job = m.attr['IBM job']; bigKv(c); }
+        if (!c.job && typeof m.attr['IBM job'] === 'string') { c.job = m.attr['IBM job']; bigInfo(c); }
       });
-    } else {
-      const ex = c.tag === 'p' ? practiceEx(c.tier, c.spot) : null;
-      if (ex) { img.src = ex.src; img.alt = `${name}: an example`; img.hidden = false; traits([]); }
-      else {
-        cv.hidden = false; const want = `big:${c.id}`; cv.dataset.want = want;
-        composite(c.spot, c.tier).then((src) => { if (cv.dataset.want !== want) return; const g = cv.getContext('2d'); g.clearRect(0, 0, cv.width, cv.height); g.drawImage(src, 0, 0); });
-        traits([`${SKIN[c.tier]} skin`, ...WEARS(c.spot)]);
-      }
-    }
-    bigKv(c);
+    } else traits(c.tag === 'p' && practiceEx(c.tier, c.spot) ? [] : [`${SKIN[c.tier]} skin`, ...WEARS(c.spot)]);
     // Share on X (8 Nov): its own share page h/<slug>/ (site/make_shares.cjs, once its night is posted: its card as the link
     // preview) when the site has it; else the home page with ?s=<slug> (X caches a link's card: a fresh link per hamster)
     // and #hamster-s-<slug>. Never a wallet address in the link. A name that already says its universe ("… of the Home
@@ -3112,19 +3199,24 @@ footer a { color: var(--ink) }
       const page = location.origin + location.pathname.replace(/[^/]*$/, '') + `h/${sl}/`;
       fetch(page, { method: 'HEAD', cache: 'no-store' }).then((r) => { if (r.ok && bigNow === c) shareTo(page); }, () => { /* the home link */ });
     });
-    $('bigpfp').hidden = c.tag === 'p';
+    $('bigpfp').hidden = c.tag === 'p' || away; $('bigshare').hidden = away; $('bigact').hidden = away; $('bigact').classList.toggle('one', c.tag === 'p');
     $('bigpass').hidden = !S.me;
     const nft = $('bignft'); nft.hidden = !c.tokenId;
     if (c.tokenId) nft.href = `https://sepolia.etherscan.io/nft/${c.contract}/${BigInt(c.tokenId).toString()}`;
+    $('bigsep').hidden = nft.hidden || $('bigpass').hidden; $('biglk').hidden = nft.hidden && $('bigpass').hidden;
     box.scrollTop = 0; try { $('bigx').focus({ preventScroll: true }); } catch (e) { /* fine */ }
   }
-  function bigKv(c) {
-    const rows = [['Night', dayLabel(c.day, { weekday: 'long', month: 'long' })]];
-    if (c.landing != null && c.shots) rows.push(['Your drop', `${fmtInt(c.landing + 1)} of ${fmtInt(c.shots)}`]);
-    if (c.shots) rows.push(['Landed on', `No. ${c.spot}: ${fmtInt(c.hits)} of ${fmtInt(c.shots)} drops`]);
-    if (c.job) rows.push(['IBM job', c.job]);
-    if (c.tag === 'p') rows.push(['Net', 'practice']); else if (c.tag !== 'v3' && S2ON) rows.push(['Net', 'early net']);
-    $('bigkv').innerHTML = rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('');
+  // ONE line ("Caught Fri 6 Nov"); the numbers and the night's proof (the spot and its landings, your drop, the chip, the
+  // IBM job, the raw result, the on-chain fingerprint) folded into "Quantum proof"
+  function bigInfo(c) {
+    const day = dayLabel(c.day);
+    $('bigline').textContent = c.away ? `Slipped back through the door on ${day}` : c.tag === 'p' ? `Caught ${day} · practice` : `Caught ${day}`;
+    const bits = [];
+    if (c.shots && isSpot(c.spot)) bits.push(esc(`Landed on No. ${c.spot}: ${fmtInt(c.hits)} of ${fmtInt(c.shots)} drops`));
+    if (c.landing != null && c.shots) bits.push(esc(`your drop ${fmtInt(c.landing + 1)} of ${fmtInt(c.shots)}`));
+    const pr = proofHtml(c.day).replace(/^Proof: /, '');
+    if (pr) bits.push(pr); else if (c.job) bits.push(`IBM job <span class="mono">${esc(c.job)}</span>`);
+    $('bigproof').innerHTML = bits.join(' · '); $('bigq').hidden = bigView !== 'card' || !bits.length;
   }
   $('bigx').onclick = () => route(bigFrom);
   $('big').addEventListener('click', (e) => { if (e.target === $('big')) route(bigFrom); });
@@ -3181,6 +3273,7 @@ footer a { color: var(--ink) }
     const bg = kids.find((e) => e.nodeName === 'g' && e !== painted && [...e.children].some((k) => k.nodeName === 'image'));
     kids.forEach((e) => { if (e !== base && e !== bg && e !== painted && !DEFS.test(e.nodeName)) e.remove(); });
     if (base) { base.setAttribute('x', '-320'); base.setAttribute('y', '-320'); base.setAttribute('width', '960'); base.setAttribute('height', '960'); }
+    if (bg) bg.setAttribute('transform', painted.getAttribute('transform') || 'translate(70.4 8.4) scale(.8)');     // the picture as painted: in the frame
     painted.querySelectorAll('[clip-path]').forEach((e) => {      // the first cards' ROUND background clip only (a front aura's
       const id = /url\(#([\w-]+)\)/.exec(e.getAttribute('clip-path') || ''), cp = id && root.querySelector(`clipPath[id="${id[1]}"]`);   // clip stays)
       if (cp && cp.querySelector('circle')) e.removeAttribute('clip-path');
@@ -3188,6 +3281,15 @@ footer a { color: var(--ink) }
     const box = cardBox(head, skin);
     onBox(root, box);
     return { doc, root, box, base, bg, painted };
+  }
+  // the whole body (the clean art, 8 Nov): the same layers, the whole painted frame (224 x 300 at .8 in the card), 768 px wide
+  async function fullS2(image) {
+    const L = pfpDoc(image, '', ''), r = L.root;
+    r.setAttribute('viewBox', '70.4 8.4 179.2 240'); r.setAttribute('width', '768'); r.setAttribute('height', '1029');
+    const cv = mk(768, 1029), g = cv.getContext('2d');
+    g.drawImage(await loadPic('data:image/svg+xml;base64,' + utf8b64(new XMLSerializer().serializeToString(L.doc))), 0, 0, 768, 1029);
+    g.getImageData(0, 0, 1, 1);
+    return cv;
   }
   // the fallback: the whole card cropped on the head (its caption text and net mark taken out)
   async function pfpCrop(image, head, skin) {
@@ -3208,9 +3310,8 @@ footer a { color: var(--ink) }
       const pic = await loadPic(src), n = (a, d) => Number(el.getAttribute(a) || d);
       h.drawImage(pic, n('x', 0), n('y', 0), n('width', pic.width), n('height', pic.height));
     };
-    const m = bg && /translate\(\s*([-\d.]+)[\s,]+([-\d.]+)\s*\)\s*scale\(\s*([-\d.]+)\s*\)/.exec(bg.getAttribute('transform') || '');
-    if (m) { const [tx, ty, sc] = m.slice(1).map(Number); h.setTransform(k * sc, 0, 0, k * sc, k * (tx - box[0]), k * (ty - box[1])); for (const el of bg.querySelectorAll('image')) await draw(el); }
     h.setTransform(k * 0.8, 0, 0, k * 0.8, k * (70.4 - box[0]), k * (8.4 - box[1]));
+    if (bg) for (const el of bg.querySelectorAll('image')) await draw(el);
     for (const el of painted.querySelectorAll('image')) if (!el.closest('mask')) await draw(el);      // erase masks are not pictures
     return cv;
   }
@@ -3225,32 +3326,66 @@ footer a { color: var(--ink) }
     if (c.tag === 'v3') { const m = await metaOf(c.contract, c.tokenId, 'c'); if (!m || !m.image) throw new Error('no picture yet'); return pfpS2(m.image, m.attr && m.attr.Head, m.attr && m.attr.Skin); }
     return pfpEarly(c);
   }
-  const fileName = (name) => name.replace(/[\\/:*?"<>|]+/g, '').trim() + '.png';
-  let pfpBusy = false;
-  $('bigpfp').onclick = async () => {
-    const c = bigNow, b = $('bigpfp');
-    if (!c || pfpBusy) return;
-    pfpBusy = true; b.disabled = true;
+  const fileName = (name, ext = 'png') => name.replace(/[\\/:*?"<>|]+/g, '').trim() + '.' + ext;
+  // the whole hamster: v3 from its layers, an early net its painted look (the big card's own canvas)
+  async function fullOf(c) {
+    if (c.tag === 'v3') { const m = await metaOf(c.contract, c.tokenId, 'c'); if (!m || !m.image) throw new Error('no picture yet'); return fullS2(m.image); }
+    const cv = mk(448, 612); cv.getContext('2d').drawImage(await composite(c.spot, c.tier), 0, 0); return cv;
+  }
+  // a net's HD file on the site (site/make_shares.cjs: h/<slug>-full.jpg 1024 x 1371, h/<slug>-pfp.jpg 1024 x 1024, from the
+  // painted sources at 4 x): its URL when the site serves it, else null
+  const hdUrl = async (c, kind) => {
+    if (!/^https?:$/.test(location.protocol) || c.tag !== 'v3' || !c.id) return null;
+    const sl = await slugOf(c.id); if (!sl) return null;
+    const u = location.origin + location.pathname.replace(/[^/]*$/, '') + `h/${sl}-${kind}.jpg`;
+    try { const r = await fetch(u, { method: 'HEAD', cache: 'no-store' }); return r.ok ? u : null; } catch (e) { return null; }
+  };
+  // Download: the HD file when the site has it, else drawn here (PNG); a phone with a file share sheet gets that
+  async function download(kind, b) {
+    const c = bigNow;
+    if (!c || b.disabled) return;
+    b.disabled = true;
     try {
-      const cv = await pfpOf(c), name = nameOf(c.key, c.tier), fname = fileName(name);
-      const blob = await new Promise((r) => cv.toBlob(r, 'image/png')), file = blob && typeof File === 'function' ? new File([blob], fname, { type: 'image/png' }) : null;
+      const name = nameOf(c.key, c.tier) + (kind === 'full' ? ' full' : ''), hd = await hdUrl(c, kind);
+      let blob, fname;
+      if (hd) { blob = await (await fetch(hd)).blob(); fname = fileName(name, 'jpg'); }
+      else { const cv = kind === 'full' ? await fullOf(c) : await pfpOf(c); blob = await new Promise((r) => cv.toBlob(r, 'image/png')); fname = fileName(name); }
+      const file = blob && typeof File === 'function' ? new File([blob], fname, { type: blob.type || 'image/png' }) : null;
       if (file && navigator.canShare && navigator.share && matchMedia('(pointer: coarse)').matches && navigator.canShare({ files: [file] })) {
         try { await navigator.share({ files: [file], title: name }); return; } catch (e) { if (e && e.name === 'AbortError') return; }
       }
-      const a = document.createElement('a'); a.href = cv.toDataURL('image/png'); a.download = fname; a.hidden = true; document.body.appendChild(a); a.click(); a.remove();
-    } catch (e) { /* no picture (yet): nothing saved */ } finally { pfpBusy = false; b.disabled = false; }
-  };
+      const href = await new Promise((r) => { const q = new FileReader(); q.onload = () => r(q.result); q.readAsDataURL(blob); });
+      const a = document.createElement('a'); a.href = href; a.download = fname; a.hidden = true; document.body.appendChild(a); a.click(); a.remove();
+    } catch (e) { /* no picture (yet): nothing saved */ } finally { b.disabled = false; dlMenu(false); }
+  }
+  const dlMenu = (on) => { $('bigdlm').hidden = !on; $('bigdl').setAttribute('aria-expanded', String(!!on)); };
+  $('bigdl').onclick = (e) => { e.stopPropagation(); dlMenu($('bigdlm').hidden); };
+  $('bigpfp').onclick = () => download('pfp', $('bigpfp'));
+  $('bigfull').onclick = () => download('full', $('bigfull'));
+  document.addEventListener('click', (e) => { if (!$('bigdlm').hidden && !e.target.closest('.bigdl')) dlMenu(false); });
   // ---------- the Quantum Passport (owner 11-07, #passport): the connected wallet's booklet, from the chain data the page
   // already reads (the wallet's nets, this browser's picked ones): a rubber stamp per night played (its IBM chip and job,
   // the night, your drop and the spot it landed on, the result) in its tier's ink, and badges. No wallet: no passport ----------
-  const BADGES = [['first', 'First catch'], ['epic', 'First Epic'], ['legend', 'First Legendary'], ['row3', '3 nights in a row'], ['row7', '7 nights in a row'], ['all5', 'All 5 rarities']];
+  const BADGES = [['first', 'First catch', '\u2605'], ['epic', 'First Epic', '\u2726'], ['legend', 'First Legendary', '\u265B'], ['row3', '3 in a row', '3'], ['row7', '7 in a row', '7'], ['all5', 'All 5 rarities', '5']];
   function passportOf() {
     const L = myHamEntries(), stamps = L.map((x) => ({ x, s: hamState(x) }));
     const tiers = new Set(stamps.filter((q) => q.s.k === 'caught').map((q) => q.s.tier));
     const days = [...new Set(L.map((x) => x.day))].sort(), dn = (d) => Math.round(dayDate(d).getTime() / 864e5);
     let run = 0, best = 0; days.forEach((d, i) => { run = i && dn(d) - dn(days[i - 1]) === 1 ? run + 1 : 1; best = Math.max(best, run); });
     const got = { first: tiers.size > 0, epic: tiers.has(3), legend: tiers.has(4), row3: best >= 3, row7: best >= 7, all5: tiers.size === 5 };
-    return { stamps, got, best, nights: days.length };
+    // the nearest goal not earned yet (its progress): first catch, 3 / 7 nights in a row, all 5 rarities
+    const caught = stamps.filter((q) => q.s.k === 'caught').length;
+    const goals = [['first', 'First catch', Math.min(caught, 1), 1], ['row3', '3 nights in a row', Math.min(best, 3), 3], ['row7', '7 nights in a row', Math.min(best, 7), 7], ['all5', 'All 5 rarities', tiers.size, 5]].filter(([k]) => !got[k]);
+    const next = goals.length ? goals.reduce((a, g) => (g[2] / g[3] > a[2] / a[3] ? g : a)) : null;
+    return { stamps, got, best, nights: days.length, next };
+  }
+  // a caught stamp's picture: the Save as PFP portrait, small (made once per net)
+  const stampPics = new Map();
+  function stampPic(cc, img) {
+    const k = cc.id;
+    if (stampPics.has(k)) { const v = stampPics.get(k); if (typeof v === 'string') img.src = v; else v.then((u) => { if (u) img.src = u; }); return; }
+    const pr = pfpOf(cc).then((cv) => { const t = mk(168, 168); t.getContext('2d').drawImage(cv, 0, 0, 168, 168); const u = t.toDataURL('image/png'); stampPics.set(k, u); return u; }, () => { stampPics.delete(k); return null; });
+    stampPics.set(k, pr); pr.then((u) => { if (u) img.src = u; });
   }
   let passSig = '';
   function renderPassport() {
@@ -3260,22 +3395,29 @@ footer a { color: var(--ink) }
     const sig = JSON.stringify([S.me, P.got, P.stamps.map(({ x, s }) => [x.day, x.contract, x.spot, x.picked, s.k, s.tier, !!chipOf(x.day)])]);
     if (sig === passSig && $('passs').childElementCount) return;
     passSig = sig;
-    $('passw').textContent = S.me ? `Wallet ${S.me.slice(0, 6)}…${S.me.slice(-4)} · ${P.nights} night${P.nights === 1 ? '' : 's'} played` : '';
-    $('passb').innerHTML = BADGES.map(([k, t]) => `<li class="${P.got[k] ? 'got' : ''}" data-b="${k}">${P.got[k] ? '★ ' : ''}${esc(t)}</li>`).join('');
+    // the header: how many nights (no wallet address); the earned badges as gold seals; the nearest next goal
+    $('passw').textContent = `${P.nights} night${P.nights === 1 ? '' : 's'} played`;
+    $('passb').innerHTML = BADGES.filter(([k]) => P.got[k]).map(([k, t, i]) => `<li data-b="${k}"><span class="si" aria-hidden="true">${i}</span>${esc(t)}</li>`).join('');
+    const nx = $('passn'); nx.hidden = !P.next;
+    if (P.next) nx.textContent = `Next: ${P.next[1]}` + (P.next[3] > 1 ? ` (${P.next[2]}/${P.next[3]})` : '');
+    // a stamp per net: its picture, the night, ONE word; a caught one opens its big card, a got-away one its card, a
+    // waiting one its night on the stage
     const box = $('passs'); box.innerHTML = '';
     for (const { x, s } of P.stamps) {
-      const d = x.day, c = chipOf(d), caught = s.k === 'caught', el = document.createElement(caught ? 'button' : 'div');
-      if (caught) el.type = 'button';
+      const d = x.day, caught = s.k === 'caught', wait = s.k === 'waiting' || s.k === 'drawing' || s.k === 'ready', tap = caught || wait || s.k === 'away';
+      const el = document.createElement(tap ? 'button' : 'div');
+      if (tap) el.type = 'button';
       el.className = 'ppst'; el.setAttribute('role', 'listitem'); el.dataset.k = s.k; el.dataset.day = d; if (caught) el.dataset.t = s.tier;
       let h = 0; for (const ch of d + (x.contract || '')) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
       el.style.setProperty('--rot', `${((h % 13) - 6) * 0.9}deg`);
-      const res = caught ? TIER[s.tier] : { away: 'Got away', slept: 'He slept', noresult: 'No result', waiting: 'Waiting', drawing: 'Drawing…', ready: 'Ready to open' }[s.k] || '';
-      const landing = x.dna && x.shots ? Number(BigInt(x.dna.word) % BigInt(x.shots)) + 1 : null;
-      const drop = (landing ? `drop ${fmtInt(landing)} → ` : '') + (isSpot(x.spot) && s.k !== 'waiting' && s.k !== 'drawing' && s.k !== 'ready' ? `No. ${x.spot}` : '');
-      el.innerHTML = `<span class="pd">${esc(dayLabel(d))}</span><span class="pr">${esc(res)}</span>` + (drop ? `<span class="pj">${esc(drop)}</span>` : '') +
-        (c ? `<span class="pj">${esc(c.backend.replace(/^ibm_/, ''))} · ${esc(c.job_id.slice(0, 8))}</span>` : '');
+      const res = caught ? TIER[s.tier] : { away: 'Got away', slept: 'He slept', noresult: 'No result', waiting: 'Waiting', drawing: 'Waiting', ready: 'Ready' }[s.k] || '';
+      const pic = caught ? '<img alt="">' : hamSvg(wait ? 'wait' : s.k === 'slept' ? 'slept' : 'away');
+      el.innerHTML = `<span class="ppi">${pic}</span><span class="pd">${esc(dayLabel(d))}</span><span class="pr">${esc(res)}</span>`;
       el.setAttribute('aria-label', `${dayLabel(d, { weekday: 'long', month: 'long' })}: ${res}`);
-      if (caught) el.onclick = () => { const cc = x.picked ? catchOfNet(d, store.nets[d]) : catchOfChain(x); if (cc) openBig(cc); };
+      const cc = caught ? (x.picked ? catchOfNet(d, store.nets[d]) : catchOfChain(x)) : s.k === 'away' ? (x.picked ? awayOfNet(d, store.nets[d]) : awayOfChain(x)) : null;
+      if (caught && cc) stampPic(cc, el.querySelector('img'));
+      if (cc) el.onclick = () => openBig(cc);
+      else if (wait) el.onclick = () => showNight(d);
       box.appendChild(el);
     }
     if (!P.stamps.length) box.insertAdjacentHTML('beforeend', '<p class="ppe">No nights yet: cast a net and your first stamp lands here.</p>');
@@ -3293,7 +3435,7 @@ footer a { color: var(--ink) }
   // the result card: a tap opens its big card
   $('reveal').addEventListener('click', () => {
     const d = stageNight(), m = d ? mine(d) : null;
-    if (!S.playing && m && m.seen && drawn(m)) { const c = catchOfNet(d, m); if (c) openBig(c); }
+    if (!S.playing && m && m.seen && drawn(m)) { const c = catchOfNet(d, m) || awayOfNet(d, m); if (c) openBig(c); }
   });
 
   // ---------- go ----------

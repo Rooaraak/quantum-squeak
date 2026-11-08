@@ -83,7 +83,7 @@ function serve(body, resultsBody, files = {}) {
   return new Promise((res) => {
     const s = http.createServer((q, r) => {
       if (q.url === '/favicon.ico') { r.writeHead(204); return r.end(); }
-      if (files[q.url.split('?')[0]] != null) { r.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }); return r.end(q.method === 'HEAD' ? undefined : files[q.url.split('?')[0]]); }
+      if (files[q.url.split('?')[0]] != null) { r.writeHead(200, { 'content-type': /\.jpg$/.test(q.url.split('?')[0]) ? 'image/jpeg' : 'text/html; charset=utf-8' }); return r.end(q.method === 'HEAD' ? undefined : files[q.url.split('?')[0]]); }
       if (q.url.split('?')[0] === '/results.json') { if (resultsBody == null) { r.writeHead(404); return r.end(); } r.writeHead(200, { 'content-type': 'application/json' }); return r.end(resultsBody); }
       if (q.url !== '/') { r.writeHead(404); return r.end(); }
       r.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }); r.end(body);
@@ -102,7 +102,7 @@ async function scenario(name, o, body) {
   try {
     const p = await browser.newPage();
     p.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
-    p.on('console', (m) => { if (m.type() !== 'error') return; const u = (m.location() && m.location().url) || ''; if (/Failed to load resource/.test(m.text()) && ([...aborted].some((a) => u.startsWith(a)) || /results\.json|\/h\/(v[23]-[0-9a-f]+|[0-9a-f]{12})\/$/.test(u))) return;      /* (a net's share page not there yet: the home link) */ errors.push('console: ' + m.text() + ' @ ' + u.slice(0, 80)); });
+    p.on('console', (m) => { if (m.type() !== 'error') return; const u = (m.location() && m.location().url) || ''; if (/Failed to load resource/.test(m.text()) && ([...aborted].some((a) => u.startsWith(a)) || /results\.json|\/h\/(v[23]-[0-9a-f]+|[0-9a-f]{12})\/$|\/h\/[0-9a-f]{12}-(full|pfp)\.jpg$/.test(u))) return;      /* (a net's share page not there yet: the home link) */ errors.push('console: ' + m.text() + ' @ ' + u.slice(0, 80)); });
     await p.setRequestInterception(true);
     p.on('request', (r) => {
       const u = r.url();
@@ -225,6 +225,11 @@ const pngStats = (p, url, rows = 3) => p.evaluate(async (url, rows) => {
   for (let k = 0; k < d.length; k += 4) { if (d[k] > 200 && d[k + 1] < 90 && d[k + 2] > 200) mag++; const l = (d[k] + d[k + 1] + d[k + 2]) / 3; lo = Math.min(lo, l); hi = Math.max(hi, l); }
   return { size: [i.width, i.height], mag, spread: hi - lo, top: Array.from(d.slice(0, i.width * 4 * rows)) };
 }, url, rows);
+// the largest channel difference between two PNGs of one size (in the page)
+const pngDiff = (p, a, b) => p.evaluate(async (a, b) => {
+  const px = async (u) => { const i = new Image(); await new Promise((r, j) => { i.onload = r; i.onerror = j; i.src = u; }); const c = document.createElement('canvas'); c.width = i.width; c.height = i.height; const g = c.getContext('2d'); g.drawImage(i, 0, 0); return g.getImageData(0, 0, i.width, i.height).data; };
+  const [x, y] = [await px(a), await px(b)]; if (x.length !== y.length) return 999; let m = 0; for (let k = 0; k < x.length; k++) m = Math.max(m, Math.abs(x[k] - y[k])); return m;
+}, a, b);
 // Save as PFP: press it with the download (and the phone share sheet) caught in the page; -> {name, size: [w, h], spread,
 // png (base64)} of what would have been saved. spread = the standard deviation of the pixels' brightness (not blank)
 const pressPfp = async (p, share = false) => {
@@ -234,6 +239,7 @@ const pressPfp = async (p, share = false) => {
     if (share) { navigator.canShare = () => true; navigator.share = async (d) => { const f = d.files[0]; window.__saved = { name: f.name, href: await new Promise((r) => { const q = new FileReader(); q.onload = () => r(q.result); q.readAsDataURL(f); }), shared: true }; }; }
     else { try { delete navigator.canShare; } catch (e) { /* fine */ } navigator.canShare = undefined; }
   }, share);
+  if (await p.$('#bigdl')) { await p.click('#bigdl'); await p.waitForFunction(() => !document.getElementById('bigdlm').hidden, { timeout: 3000 }); }      // Download ▾
   await p.click('#bigpfp');
   await p.waitForFunction(() => window.__saved, { timeout: 30000 });
   return p.evaluate(async () => {
@@ -1477,12 +1483,19 @@ async function nftErrorScenario(chain, name, viewport, account) {
         const name = await txt(p, '#bigname');
         assert.equal(name, await p.evaluate((k) => QCP.nameOf(k, 3), 'v2:' + BigInt(QC.netId(N5, E5)).toString(16)), 'the name: from the token id');
         assert.match(name, /^[A-Z][A-Za-z ]+$/);
-        assert.equal(await txt(p, '#bigtier'), 'Epic · from the Dream Worlds');
+        assert.equal(await txt(p, '#bigtier'), 'Epic · the Dream Worlds');
         assert.deepEqual(await items(p, '#bigtraits li'), ['Crystal skin', ...QC_WEARS(7)]);
-        const kv = await p.$$eval('#bigkv dt', (e) => e.map((d) => [d.textContent, d.nextElementSibling.textContent]));
-        assert.deepEqual(kv.slice(0, 3), [['Night', 'Thursday 5 November'], ['Landed on', `No. 7: ${NX.perSpot[7]} of 4,000 drops`], ['IBM job', NX.chip.job_id]]);
-        const share = await p.$eval('#bigshare', (e) => e.href);
-        assert.ok(share.startsWith('https://x.com/intent/post?text=') && decodeURIComponent(share).includes(`I caught ${name}, an Epic hamster from the Dream Worlds on Quantum Squeak`) && decodeURIComponent(share).includes('#hamster-' + id), 'Share on X');
+        // ONE line; the numbers only under "NFT card · data" (Quantum proof, folded)
+        assert.equal(await txt(p, '#bigline'), 'Caught Thu 5 Nov');
+        assert.ok(await hidden(p, '#bigq'), 'the clean picture first: no data');
+        await p.click('#bigtog'); await sleep(300);
+        assert.ok(!(await hidden(p, '#bigq')) && !(await p.$eval('#bigq', (e) => e.open)), 'NFT card · data: Quantum proof, folded');
+        const pf = await txt(p, '#bigproof');
+        assert.ok(pf.startsWith(`Landed on No. 7: ${NX.perSpot[7]} of 4,000 drops · IBM job ${NX.chip.job_id}`) && !/early|season/i.test(pf), pf);
+        await p.click('#bigtog'); await sleep(200);
+        assert.ok(!/early net|season/i.test(await p.$eval('#bigin', (e) => e.innerText)), 'no season or early words on the big card');
+        const share = await p.$eval('#bigshare', (e) => e.href), sl5 = crypto.createHash('sha256').update(id).digest('hex').slice(0, 12);
+        assert.ok(share.startsWith('https://x.com/intent/post?text=') && decodeURIComponent(share).includes(`I caught ${name}, an Epic hamster${name.includes(' of the Dream Worlds') ? '' : ' from the Dream Worlds'}, on Quantum Squeak`) && decodeURIComponent(share).includes(`?s=${sl5}#hamster-s-${sl5}`), 'Share on X: its slug, the universe once');
         assert.equal(await p.$eval('#bignft', (e) => e.href), `https://sepolia.etherscan.io/nft/${chain.address}/${BigInt(QC.netId(N5, E5)).toString()}`);
         await noHScroll('big card'); await shot('2-big-card');
         // Save as PFP (an early net: its painted look on its rarity colour): a 512 x 512 PNG named after the hamster
@@ -1497,7 +1510,7 @@ async function nftErrorScenario(chain, name, viewport, account) {
       await scenario('big-link', { width: 390, height: 844, at: Date.parse('2026-11-06T13:00:00Z'), page: chain.html, results: NX.body, rpcUrl: chain.url, hash: 'hamster-v2-' + BigInt(QC.netId(N5, E5)).toString(16) }, async (p, { shot }) => {
         await p.waitForFunction(() => QCP.big, { timeout: 15000 }); await sleep(400);
         assert.equal(await txt(p, '#bigname'), bigName5, 'the same name for everyone');
-        assert.equal(await txt(p, '#bigtier'), 'Epic · from the Dream Worlds');
+        assert.equal(await txt(p, '#bigtier'), 'Epic · the Dream Worlds');
         assert.ok(await p.$eval('#bigcv', (c) => !c.hidden && c.getContext('2d').getImageData(c.width / 2, c.height / 2, 1, 1).data[3] > 0), 'its painted look, large');
         await shot('1-shared-link');
       });
@@ -1516,6 +1529,13 @@ async function nftErrorScenario(chain, name, viewport, account) {
         assert.match(await txt(p, '#nftgrid'), /got away.*#2/, 'the chain: got away, the drawn spot');
         assert.deepEqual(await asked(p), [], 'reading asks nothing');
         await shot('1-got-away');
+        // its big card (owner 8 Nov): a faded hamster, ONE line, no buttons; the data under "NFT card · data"
+        await vp(p, 390, 844); await scrollTo(p, '#reveal'); await p.click('#reveal'); await p.waitForFunction(() => QCP.big, { timeout: 5000 }); await sleep(400);
+        assert.deepEqual([await txt(p, '#bigname'), await txt(p, '#bigline'), await hidden(p, '#bigact'), await hidden(p, '#bigtier')], ['He got away', 'Slipped back through the door on Thu 5 Nov', true, true]);
+        await shot('2-big-got-away-390x844');
+        await vp(p, 1280, 860); await sleep(300); await shot('3-big-got-away-1280x860');
+        await p.click('#bigtog'); await sleep(300);
+        assert.match(await txt(p, '#bigproof'), /^Landed on No\. 2: /);
       });
       await scenario('drop-legendary', { width: 390, height: 844, at: Date.parse('2026-11-07T13:00:00Z'), page: chain.html, results: LG6.body, storage: PRESET(), wallet: { account: L6, rpc: chain.url } }, async (p, { shot }) => {
         await p.waitForFunction(() => { const n = QCP.store().nets['2026-11-06']; return !!n && n.spot === 7 && QCP.stage === '2026-11-06'; }, { timeout: 15000 }); await sleep(300);
@@ -1874,7 +1894,7 @@ async function nftErrorScenario(chain, name, viewport, account) {
             fs.writeFileSync(path.join(SHOTS, `s2-pfp-2-${k}-${x[2].attr.Head.replace(/\W+/g, '')}.png`), Buffer.from(png.slice(png.indexOf(',') + 1), 'base64'));
             const svg = cardSvg(x[2].image), [mag, n] = magentaCard(svg);
             if (n < 7) { results.push(['skip', `s2-pfp ${k} layers`, `not a full-background card (${n} of its decorations found): the renderer build in contracts/out is older (forge build)`]); continue; }
-            assert.equal((await pngStats(p, await pfp(svgImg(mag)), 0)).mag, 0, `${k}: none of the card's ring, net mark, caption or border (${n} painted magenta)`);
+            assert.ok(await pngDiff(p, await pfp(svgImg(mag)), png) <= 2, `${k}: none of the card's ring, net mark, caption or border (${n} painted magenta: the same PFP)`);
             assert.ok((await pngStats(p, await p.evaluate((im) => QCP.pfpCrop(im, 'Chef hat', 'Plain'), svgImg(mag)), 0)).mag > 0, `${k}: (the card crop of a tall hat would show them)`);
             if (k === 'tall') {
               const off = await pngStats(p, await pfp(svgImg(hatless(svg))));
@@ -1920,7 +1940,16 @@ async function nftErrorScenario(chain, name, viewport, account) {
           if (LP) { fs.mkdirSync(path.join(dir, LP.id), { recursive: true }); fs.writeFileSync(path.join(dir, LP.id, 'index.html'), '<p>old</p>'); }
           const t1 = Date.now(), out1 = run();
           assert.match(out1, new RegExp(`(^|\\n)shares: ${all.length} new page`), out1);
-          assert.deepEqual(fs.readdirSync(dir).sort(), [...all.flatMap((x) => [x.slug, x.slug + '.jpg']), L0.id].sort(), "a card and a page per caught net (the household's too) under its slug; the first page kept, its old card and the household's first page gone");
+          // the HD pictures (owner 8 Nov) when the private painted sources are here (QC_ART_HD / art-hd/)
+          const HD = fs.existsSync(path.join(process.env.QC_ART_HD || path.join(ROOT, 'art-hd'), 'body-honey.png'));
+          if (!HD) results.push(['skip', 's2-share HD', 'no painted sources (QC_ART_HD, art-hd/): no HD pictures']);
+          assert.deepEqual(fs.readdirSync(dir).sort(), [...all.flatMap((x) => [x.slug, x.slug + '.jpg', ...(HD ? [x.slug + '-full.jpg', x.slug + '-pfp.jpg'] : [])]), L0.id].sort(), "a card and a page per caught net (the household's too) under its slug (+ its HD pictures); the first page kept, its old card and the household's first page gone");
+          if (HD) for (const x of all) for (const [k, w, h, cap] of [['full', 1024, 1371, 1500000], ['pfp', 1024, 1024, 1000000]]) {
+            const j = fs.readFileSync(path.join(dir, `${x.slug}-${k}.jpg`));
+            let q = 2, wh = null; while (q + 4 < j.length && j[q] === 0xff && j[q + 1] !== 0xda) { if (j[q + 1] === 0xc0 || j[q + 1] === 0xc2) wh = [j.readUInt16BE(q + 7), j.readUInt16BE(q + 5)]; q += 2 + j.readUInt16BE(q + 2); }
+            assert.ok(JSON.stringify(wh) === JSON.stringify([w, h]) && j.length <= cap, `${x.slug}-${k}.jpg: ${w} x ${h} under ${cap / 1e6} MB (${wh}, ${j.length})`);
+          }
+          if (HD) fs.copyFileSync(path.join(dir, L0.slug + '-pfp.jpg'), path.join(SHOTS, 's2-share-hd-pfp-1024.jpg'));
           for (const x of all) {
             const j = fs.readFileSync(path.join(dir, x.slug + '.jpg')), html = fs.readFileSync(path.join(dir, x.slug, 'index.html'), 'utf8');
             let k = 2, wh = null; while (k + 4 < j.length && j[k] === 0xff && j[k + 1] !== 0xda) { if (j[k + 1] === 0xc0 || j[k + 1] === 0xc2) wh = [j.readUInt16BE(k + 7), j.readUInt16BE(k + 5)]; k += 2 + j.readUInt16BE(k + 2); }
@@ -1939,10 +1968,12 @@ async function nftErrorScenario(chain, name, viewport, account) {
             assert.match(ex.stdout, /LEAK GATE CLEAN/);
             for (const x of all) assert.ok(fs.existsSync(path.join(stage, 'h', x.slug, 'index.html')) && fs.existsSync(path.join(stage, 'h', x.slug + '.jpg')), `published: h/${x.slug}`);
             assert.ok(fs.existsSync(path.join(stage, 'h', L0.id, 'index.html')) && !fs.existsSync(path.join(stage, 'h', L0.id + '.jpg')), 'published: the first page (a copy), no card under an id');
+            if (HD) for (const x of all) assert.ok(fs.existsSync(path.join(stage, 'h', x.slug + '-full.jpg')) && fs.existsSync(path.join(stage, 'h', x.slug + '-pfp.jpg')), `published: h/${x.slug}-full.jpg, -pfp.jpg`);
           }
           const I0 = L0.id, S0 = L0.slug, T0i = L0.t, page0 = fs.readFileSync(path.join(dir, S0, 'index.html'), 'utf8');
           const UNI = ['the Home Burrow', 'the Wild Worlds', 'the Machine Worlds', 'the Dream Worlds', 'the Golden World'];
-          await scenario('s2-share', { width: 390, height: 844, at: Date.parse('2026-11-06T13:00:00Z'), page: s2.html, results: NX.body, rpcUrl: s2.url, hash: 'hamster-' + I0, files: { [`/h/${S0}/`]: page0 } }, async (p, { shot }) => {
+          const hdFiles = HD ? { [`/h/${S0}-full.jpg`]: fs.readFileSync(path.join(dir, S0 + '-full.jpg')), [`/h/${S0}-pfp.jpg`]: fs.readFileSync(path.join(dir, S0 + '-pfp.jpg')) } : {};
+          await scenario('s2-share', { width: 390, height: 844, at: Date.parse('2026-11-06T13:00:00Z'), page: s2.html, results: NX.body, rpcUrl: s2.url, hash: 'hamster-' + I0, files: { [`/h/${S0}/`]: page0, ...hdFiles } }, async (p, { shot }) => {
             await p.waitForFunction(() => QCP.big, { timeout: 20000 });
             const name = await p.evaluate((k, t) => QCP.nameOf(k, t), 'v3:' + I0.slice(3), T0i), tier = ['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'][T0i], uni = UNI[T0i], an = /^[AEIOU]/.test(tier) ? 'an' : 'a';
             const once = name.includes(' of ' + uni);
@@ -1953,6 +1984,12 @@ async function nftErrorScenario(chain, name, viewport, account) {
             const text = new URL(await p.$eval('#bigshare', (e) => e.href)).searchParams.get('text');
             assert.equal(text, once ? `I caught ${name}, ${an} ${tier} hamster, on Quantum Squeak` : `I caught ${name}, ${an} ${tier} hamster from ${uni}, on Quantum Squeak`, 'the post: the universe once');
             await shot('1-big-card-share-page');
+            if (HD) {        // the site has its HD pictures: the big card shows the whole one, Download PFP saves the 1024 one
+              await p.waitForFunction((u) => (document.getElementById('bigimg').getAttribute('src') || '').endsWith(u), { timeout: 10000 }, `/h/${S0}-full.jpg`);
+              const got = await pressPfp(p);
+              assert.deepEqual([got.name, got.size], [name + '.jpg', [1024, 1024]], 'Download PFP: the HD file');
+              await shot('2-big-card-hd');
+            }
             // #hamster-s-<slug>: the net shown last found by its slug; an unknown slug: the home page
             await p.evaluate(() => { location.hash = ''; }); await p.waitForFunction(() => !QCP.big, { timeout: 5000 });
             await p.evaluate((s) => { location.hash = 'hamster-s-' + s; }, S0); await p.waitForFunction((i) => QCP.big === i, { timeout: 10000 }, I0);
@@ -2004,15 +2041,25 @@ async function nftErrorScenario(chain, name, viewport, account) {
       });
       // the big card of a v3 catch from a shared link: the chain's own picture, the traits from its metadata, "Your drop" from dnaOf
       await scenario('s2-big', { width: 390, height: 844, at: Date.parse('2026-11-06T13:00:00Z'), page: s2.html, results: NX.body, rpcUrl: s2.url, hash: 'hamster-v3-' + BigInt(QC.netId(N5, CC)).toString(16) }, async (p, { shot, noHScroll }) => {
+        // the clean art first (owner 8 Nov): the whole hamster on its universe, drawn from the card's layers (no HD file on
+        // this test server), portrait; "NFT card · data": the chain's own card and the proof
         await p.waitForFunction(() => QCP.big && document.getElementById('bigimg').getAttribute('src'), { timeout: 20000 }); await sleep(600);
-        assert.equal(await p.$eval('#bigimg', (e) => e.getAttribute('src')), (await s2.meta(V3, QC.netId(N5, CC))).image, 'the chain\'s own picture');
+        const art = await p.$eval('#bigimg', (e) => [e.getAttribute('src').slice(0, 22), e.naturalWidth, e.naturalHeight]);
+        assert.deepEqual(art, ['data:image/png;base64,', 768, 1029], 'the clean art: the whole body from the layers');
         const tier = QW.TIER_NAMES[RC.tier - 1];
-        assert.equal(await txt(p, '#bigtier'), `${tier} · from ${['the Home Burrow', 'the Wild Worlds', 'the Machine Worlds', 'the Dream Worlds', 'the Golden World'][RC.tier - 1]}`);
-        const kv = Object.fromEntries(await p.$$eval('#bigkv dt', (e) => e.map((d) => [d.textContent, d.nextElementSibling.textContent])));
-        assert.equal(kv['Your drop'], `${(Number(BigInt(RC.dna.word) % BigInt(RC.shots)) + 1).toLocaleString('en-US')} of 4,000`, 'the drop: dnaOf\'s word mod the shots');
+        assert.equal(await txt(p, '#bigtier'), `${tier} · ${['the Home Burrow', 'the Wild Worlds', 'the Machine Worlds', 'the Dream Worlds', 'the Golden World'][RC.tier - 1]}`);
+        assert.equal(await txt(p, '#bigline'), 'Caught Thu 5 Nov');
         assert.ok((await items(p, '#bigtraits li')).length >= 1, 'traits from the metadata');
+        assert.deepEqual([await txt(p, '#bigshare'), await txt(p, '#bigdl'), await p.$eval('#biglk', (e) => e.innerText.trim())], ['Share on X', 'Download ▾', 'View NFT'], 'two buttons; the links row (no wallet: no passport)');
+        const [hS, hD] = await p.evaluate(() => ['bigshare', 'bigdl'].map((i) => document.getElementById(i).getBoundingClientRect().height));
+        assert.equal(hS, hD, 'Share on X and Download: the same height');
         await noHScroll('s2 big'); await shot('1-big-390x844');
-        await vp(p, 1280, 860); await sleep(400); await shot('2-big-1280x860');
+        await p.click('#bigtog'); await p.waitForFunction((u) => document.getElementById('bigimg').getAttribute('src') === u, { timeout: 10000 }, (await s2.meta(V3, QC.netId(N5, CC))).image);
+        await p.click('#bigq summary'); await sleep(200);
+        assert.ok((await txt(p, '#bigproof')).includes(`your drop ${(Number(BigInt(RC.dna.word) % BigInt(RC.shots)) + 1).toLocaleString('en-US')} of 4,000`), 'the drop: dnaOf\'s word mod the shots');
+        await shot('2-big-card-data-390x844');
+        await p.click('#bigtog'); await sleep(300);
+        await vp(p, 1280, 860); await sleep(400); await shot('3-big-1280x860');
         // the overlay's own class (the twin test's big number is .big: it once turned that into a full-screen layer) and
         // a share button its own height on the PC (the PC .btn is 84 px tall)
         const [twinPos, shareH] = await p.evaluate(() => [getComputedStyle(document.getElementById('twinpct')).position, document.getElementById('bigshare').getBoundingClientRect().height]);
@@ -2049,16 +2096,17 @@ async function nftErrorScenario(chain, name, viewport, account) {
         assert.ok(!(await hidden(p, '#mhpass')), 'My hamsters: "My passport"');
         await scrollTo(p, '#myham'); await p.click('#mhpass'); await p.waitForFunction(() => QCP.passport, { timeout: 5000 });
         assert.equal(await p.evaluate(() => location.hash), '#passport');
-        const st = await p.$$eval('#passs .ppst', (e) => e.map((x) => [x.dataset.day, x.dataset.k, x.dataset.t || null, x.querySelector('.pr').textContent, [...x.querySelectorAll('.pj')].map((j) => j.textContent)]));
-        assert.deepEqual(st.map((x) => x.slice(0, 4)), [['2026-11-06', 'waiting', null, 'Waiting'], ['2026-11-05', 'ready', null, 'Ready to open'], ['2026-11-05', 'caught', String(WE.tier - 1), QW.TIER_NAMES[WE.tier - 1]]],
-          'a stamp per net, newest first; the unopened one does not spoil its result');
-        assert.deepEqual(st[2][4], [`No. ${WE.spot}`, `${NX.chip.backend.replace(/^ibm_/, '')} · ${NX.chip.job_id.slice(0, 8)}`], 'the early catch: its spot (an early net has no drop number), the chip and the job');
-        assert.deepEqual(st[1][4], [`${NX.chip.backend.replace(/^ibm_/, '')} · ${NX.chip.job_id.slice(0, 8)}`], 'the unopened one: no spot either');
+        // a stamp: its picture, the night, ONE word (owner 8 Nov); no spot, no chip or job codes
+        await p.waitForFunction(() => { const i = document.querySelector('#passs .ppst[data-k="caught"] .ppi img'); return i && i.naturalWidth > 0; }, { timeout: 15000 });
+        const st = await p.$$eval('#passs .ppst', (e) => e.map((x) => [x.dataset.day, x.dataset.k, x.dataset.t || null, x.querySelector('.pr').textContent, x.querySelector('.pd').textContent, x.querySelector('.ppi img') ? 'img' : x.querySelector('.ppi svg') ? 'svg' : null, x.querySelectorAll('.pj').length]));
+        assert.deepEqual(st, [['2026-11-06', 'waiting', null, 'Waiting', 'Fri 6 Nov', 'svg', 0], ['2026-11-05', 'ready', null, 'Ready', 'Thu 5 Nov', 'svg', 0], ['2026-11-05', 'caught', String(WE.tier - 1), QW.TIER_NAMES[WE.tier - 1], 'Thu 5 Nov', 'img', 0]],
+          'a stamp per net, newest first: a picture, the night, one word; the unopened one does not spoil its result');
+        assert.ok(!/No\. \d|ibm_|marrakesh|fez|torino|job/i.test(await p.$eval('#passs', (e) => e.innerText)), 'no spot numbers, no chip or job codes');
         const rot = await p.$$eval('#passs .ppst', (e) => e.map((x) => getComputedStyle(x).transform));
         assert.ok(rot.some((t) => t !== 'none'), 'rubber stamps, a little crooked');
-        assert.deepEqual(await p.$$eval('#passb li', (e) => e.map((x) => [x.dataset.b, x.classList.contains('got')])),
-          [['first', true], ['epic', WE.tier === 4], ['legend', WE.tier === 5], ['row3', false], ['row7', false], ['all5', false]], 'badges: the first catch (2 nights in a row so far)');
-        assert.match(await txt(p, '#passw'), new RegExp(`^Wallet ${WA.slice(0, 6)}…${WA.slice(-4)} · 2 nights played$`), 'nights, not nets: 5 Nov had two');
+        assert.deepEqual(await p.$$eval('#passb li', (e) => e.map((x) => x.dataset.b)), ['first', ...(WE.tier === 4 ? ['epic'] : []), ...(WE.tier === 5 ? ['legend'] : [])], 'only the earned badges, as seals');
+        assert.equal(await txt(p, '#passn'), 'Next: 3 nights in a row (2/3)', 'the nearest next goal');
+        assert.equal(await txt(p, '#passw'), '2 nights played', 'nights, not nets (5 Nov had two); no wallet address');
         await noHScroll('passport'); await shot('1-passport-390x844');
         await vp(p, 1280, 860); await sleep(300); await shot('2-passport-1280x860');
         await vp(p, 390, 844); await sleep(200);
@@ -2069,8 +2117,9 @@ async function nftErrorScenario(chain, name, viewport, account) {
         assert.equal(await p.evaluate(() => location.hash), '#passport', 'closing the big card goes back to the passport');
         await p.click('#passs .ppst[data-k="caught"]'); await p.waitForFunction(() => QCP.big, { timeout: 10000 });
         await p.click('#bigpass'); await p.waitForFunction(() => QCP.passport && !QCP.big, { timeout: 5000 });
-        await p.keyboard.press('Escape'); await p.waitForFunction(() => !QCP.passport, { timeout: 5000 });
-        assert.equal(await p.evaluate(() => location.hash), '', 'closed: the home page');
+        // a waiting stamp: its night on the stage (the deck)
+        await p.click('#passs .ppst[data-k="waiting"]'); await p.waitForFunction(() => !QCP.passport, { timeout: 5000 });
+        assert.equal(await p.evaluate(() => location.hash), '', 'closed: the home page, its night');
       });
       // no wallet: no passport (the link and the route), no My hamsters
       await scenario('s2-passport-none', { width: 390, height: 844, at: Date.parse('2026-11-06T13:00:00Z'), page: s2.html, results: NX.body, rpcUrl: s2.url, hash: 'passport' }, async (p) => {
