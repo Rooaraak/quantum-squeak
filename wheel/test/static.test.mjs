@@ -58,10 +58,13 @@ test('everything inline: no external scripts; only Google Fonts links', () => {
   assert.ok(!/Baloo/.test(html), 'the old display font is gone (canvas text too)');
 });
 
-test('no alert/confirm/prompt dialogs, no window.open, no downloads; localStorage only inside try', () => {
+test('no alert/confirm/prompt dialogs, no window.open, no downloads but Save as PFP; localStorage only inside try', () => {
   assert.ok(!/(^|[^\w.$'"-])(alert|confirm|prompt)\s*\(/.test(scripts), 'no alert/confirm/prompt calls');
   assert.ok(!/window\.(open|alert|confirm|prompt)\b/.test(scripts), 'no window.open/dialogs');
-  assert.ok(!/\bdownload\s*=|\.download\b|createObjectURL/.test(scripts) && !/<a\b[^>]*\bdownload\b/i.test(html), 'no downloads');
+  // the one download: Save as PFP (owner 11-07), a PNG the page draws itself, on the visitor's tap
+  const a = scripts.indexOf('  // ---------- Save as PFP'), b = scripts.indexOf('  // the result card: a tap opens its big card', a), pfp = scripts.slice(a, b), rest = scripts.slice(0, a) + scripts.slice(b);
+  assert.ok(a > 0 && b > a && (pfp.match(/\.download = /g) || []).length === 1 && /\$\('bigpfp'\)\.onclick = async/.test(pfp), 'Save as PFP: one download, on its button');
+  assert.ok(!/\bdownload\s*=|\.download\b|createObjectURL/.test(rest) && !/<a\b[^>]*\bdownload\b/i.test(html), 'no other download');
   const uses = scripts.split('\n').filter((l) => l.includes('localStorage'));
   assert.ok(uses.length >= 2, 'reads and writes localStorage');
   for (const l of uses) assert.match(l, /try\s*\{[^}]*localStorage/, `localStorage outside try: ${l.trim().slice(0, 90)}`);
@@ -382,7 +385,7 @@ const NO_EXPORTER = !fs.existsSync(EXPORTER) && 'tools/export-public.sh is not i
 function runExport(env = {}, prepare = null) {
   const dir = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'qc-site-')), 'stage');
   if (prepare) prepare(dir);
-  const r = spawnSync('bash', [EXPORTER, '--worktree', dir], { encoding: 'utf8', env: { ...process.env, ...env } });
+  const r = spawnSync('bash', [EXPORTER, '--worktree', dir], { encoding: 'utf8', env: { ...process.env, QC_SHARE_DIR: path.join(path.dirname(dir), 'no-shares'), ...env } });   // (the share pages: page.test)
   return { dir, r, done: () => fs.rmSync(path.dirname(dir), { recursive: true, force: true }) };
 }
 const walk = (d, b = d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name), b) : [path.relative(b, path.join(d, e.name))]));

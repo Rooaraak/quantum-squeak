@@ -72,7 +72,7 @@ const signsAndSends = (w) => w.log.filter((m) => m === 'eth_signTypedData_v4' ||
 // one local anvil (chain id 11155111) and the helpers on it
 async function startAnvil(port, timestamp) {
   const url = `http://127.0.0.1:${port}`;
-  const proc = spawn(ANVIL, ['--host', '127.0.0.1', '--port', String(port), '--chain-id', '11155111', '--timestamp', String(timestamp), '--silent'], { stdio: 'ignore' });
+  const proc = spawn(ANVIL, ['--host', '127.0.0.1', '--port', String(port), '--chain-id', '11155111', '--timestamp', String(timestamp), '--silent', '--max-persisted-states', '0'], { stdio: 'ignore' });
   let id = 0;
   const rpc = async (method, params = []) => {
     const r = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: ++id, method, params }) });

@@ -195,8 +195,9 @@ the holder can burn a net, and `src/SqkFaucet.sol` hands out the test SQK.
   main tier and word; per slot: Common or noise = nothing, else the tier's list, an Epic shot shows a Rare item when the
   word's top bit is 0, a Legendary shot without its own list uses the Epic list; a face not painted for the skin shows
   honey, no astronaut helmet on stuffed cheeks, the Schroedinger box hides neck and hands when it outranks them, else
-  it goes) and the card: Season 1's frame with the painted 224 x 300 hamster (background, aura, the skin x face cut by
-  the worn items' erase layers, the items back to front). tokenURI is v1's format (base64 JSON with a base64 SVG) built
+  it goes) and the card: the background picture over the whole card, the ring, the painted 224 x 300 hamster (aura,
+  the skin x face cut by the worn items' erase layers, the items back to front), the caption on a dark band and the
+  tier colour as the border (since 8 Nov, by setRenderer: `ops/set-renderer-v3.mjs`). tokenURI is v1's format (base64 JSON with a base64 SVG) built
   from elements stored base64 twice (each padded to 9 bytes), so nothing is encoded per call: the heaviest card
   (every slot's heaviest element) is 324,761 bytes and 1.48M gas cold; a typical card 1.04M gas through the game.
 - **The launch art**: the builder spec's lists (sec. 2.1, sprout on the Head's Rare list so that every Uncommon item

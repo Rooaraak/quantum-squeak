@@ -307,22 +307,62 @@ contract S2Text {
 
     /// A caught net's card up to its painted hamster: the svg, the tier colour, the ring, the fallback hamster in
     /// `fur`; and from after it: the caption and the end of the svg.
-    function frame(Card calldata c, string calldata fur) external pure returns (bytes memory open, bytes memory tail) {
+    /// A caught net's card around its painted hamster (the full-background look, 8 Nov): `open` is the svg and the tier
+    /// colour (it shows only where no background picture covers the card); the renderer then puts the background
+    /// picture over the WHOLE card; `mid` is the ring (light dots with a dark edge, readable on any picture) and the
+    /// fallback hamster in `fur`; after the painted hamster, `tail` is a dark translucent band at the bottom with the
+    /// caption (the label in the tier colour), the tier colour as a border with an inner glow, and the end of the svg.
+    function frame(Card calldata c, string calldata fur)
+        external
+        pure
+        returns (bytes memory open, bytes memory mid, bytes memory tail)
+    {
         string memory spotS = c.spot < 16 ? CatchLib.toString(c.spot) : "";
-        open = abi.encodePacked(
-            SVG_OPEN,
-            '<rect width="320" height="320" fill="',
-            tierColor(c.tier),
-            '"/>',
-            _ring(c, INK),
-            FALLBACK_AT,
-            _hamster(fur, false),
-            "</g>"
-        );
-        // the caught caption sits 4 units lower than Season 1's (y 250 / 266), clear of the painted hamster's feet
+        string memory tc = tierColor(c.tier);
+        open = abi.encodePacked(SVG_OPEN, '<rect width="320" height="320" fill="', tc, '"/>');
+        mid = abi.encodePacked(_ringOnPicture(c), FALLBACK_AT, _hamster(fur, false), "</g>");
         tail = abi.encodePacked(
-            _captionAt(INK, string.concat(unicode"CAUGHT · ", _upper(c.tier)), _landed(c, spotS), "250", "266"),
-            "</svg>"
+            '<rect y="232" width="320" height="46" fill="#0b0e1a" fill-opacity=".66"/>',
+            _caption2(tc, "#f2f2f7", string.concat(unicode"CAUGHT · ", _upper(c.tier)), _landed(c, spotS)),
+            '<rect x="4" y="4" width="312" height="312" fill="none" stroke="',
+            tc,
+            '" stroke-width="8"/><rect x="10" y="10" width="300" height="300" rx="10" fill="none" stroke="',
+            tc,
+            '" stroke-opacity=".45" stroke-width="5"/></svg>'
+        );
+    }
+
+    /// The caught caption on the dark band: the label (13 px bold) in `ink1` at y 250, the line under it (9 px) in `ink2`
+    function _caption2(string memory ink1, string memory ink2, string memory label, bytes memory sub)
+        private
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(
+            '<text x="160" y="250" text-anchor="middle" font-size="13" font-weight="bold" fill="',
+            ink1,
+            '">',
+            label,
+            '</text><text x="160" y="266" text-anchor="middle" font-size="9" fill="',
+            ink2,
+            '">',
+            sub,
+            "</text>"
+        );
+    }
+
+    /// The ring over a picture: the 16 dots (sized by landings) white with a dark edge; this net's dashed circle white
+    /// over a dark one
+    function _ringOnPicture(Card calldata c) private pure returns (bytes memory out) {
+        out = abi.encodePacked('<g fill="#fff" fill-opacity=".55" stroke="#1a1d2b" stroke-opacity=".5">', _dots(c), "</g>");
+        if (c.spot >= 16) return out;
+        string memory rot = string.concat('transform="rotate(', _angle(c.spot), ' 160 160)"/>');
+        out = abi.encodePacked(
+            out,
+            '<circle cx="160" cy="20" r="15" fill="none" stroke="#1a1d2b" stroke-opacity=".55" stroke-width="5" ',
+            rot,
+            '<circle id="mynet" cx="160" cy="20" r="15" fill="none" stroke="#fff" stroke-width="2.5" stroke-dasharray="4 3" ',
+            rot
         );
     }
 
@@ -453,8 +493,21 @@ contract S2Text {
     /// The 16 spots, clockwise from the top; after a draw each dot's size shows how often the chip landed there and the
     /// dashed circle is where this net's drawn shot landed.
     function _ring(Card calldata c, string memory ink) private pure returns (bytes memory out) {
+        out = abi.encodePacked('<g fill="', ink, '" fill-opacity=".35">', _dots(c), "</g>");
+        if (c.spot >= 16) return out;
+        out = abi.encodePacked(
+            out,
+            '<circle id="mynet" cx="160" cy="20" r="15" fill="none" stroke="',
+            ink,
+            '" stroke-width="2.5" stroke-dasharray="4 3" transform="rotate(',
+            _angle(c.spot),
+            ' 160 160)"/>'
+        );
+    }
+
+    /// the 16 dots, clockwise from the top; after a draw each dot's size shows how often the chip landed there
+    function _dots(Card calldata c) private pure returns (bytes memory out) {
         bool ran = c.status == 1 || c.status == 2;
-        out = abi.encodePacked('<g fill="', ink, '" fill-opacity=".35">');
         for (uint256 i; i < 16; ++i) {
             uint256 r = 4;
             if (ran) {
@@ -466,16 +519,6 @@ contract S2Text {
                 out, '<circle cx="160" cy="20" r="', CatchLib.toString(r), '" transform="rotate(', _angle(i), ' 160 160)"/>'
             );
         }
-        out = abi.encodePacked(out, "</g>");
-        if (c.spot >= 16) return out;
-        out = abi.encodePacked(
-            out,
-            '<circle id="mynet" cx="160" cy="20" r="15" fill="none" stroke="',
-            ink,
-            '" stroke-width="2.5" stroke-dasharray="4 3" transform="rotate(',
-            _angle(c.spot),
-            ' 160 160)"/>'
-        );
     }
 
     function _angle(uint256 i) private pure returns (string memory) {

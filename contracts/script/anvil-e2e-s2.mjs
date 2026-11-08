@@ -6,7 +6,7 @@
 //           more nets are cast with approve + castNet; the REAL v1.2 chip result (IBM job dbmbr0hkbkrc73cp7u8g) is posted by
 //           quantum/post_night.mjs's send() from the HATCHER, the nets read DRAWING, then quantum/seal_night.mjs seals it
 //           (the seed is checked against the hash of the block after the post)
-//   5 Nov (night 20762): 60 nets; a made-up golden night (the same counts, its first shot on the Epic spot) posted
+//   5 Nov (night 20762): 120 nets; a made-up golden night (the same counts, its first shot on the Epic spot) posted
 //           straight from the HATCHER and sealed
 //   every net: result / dnaOf / traitsOf against a JavaScript recomputation of the draw (keccak, walk, tiersOf), and
 //           tokenURI decoded (JSON, SVG, every WebP); with the private reference (contracts/tools/pack_s2.py) present, each
@@ -50,7 +50,8 @@ const svgOf = (m) => Buffer.from(m.image.slice(m.image.indexOf(',') + 1), 'base6
 const trait = (m, k) => m.attributes.find((a) => a.trait_type === k)?.value;
 const abi = ethers.AbiCoder.defaultAbiCoder();
 
-const anvil = spawn(`${F}/anvil`, ['--host', '127.0.0.1', '--port', String(PORT), '--timestamp', String(T0), '--silent'], { stdio: 'ignore' });
+// --max-persisted-states 0: no chain state written to disk (anvil keeps it in memory; a killed run leaves nothing behind)
+const anvil = spawn(`${F}/anvil`, ['--host', '127.0.0.1', '--port', String(PORT), '--timestamp', String(T0), '--silent', '--max-persisted-states', '0'], { stdio: 'ignore' });
 const stop = () => { try { anvil.kill('SIGTERM'); } catch {} };
 process.on('exit', stop);
 const report = { anvil: { port: PORT, chainId: 31337 }, deploy: { transactions: [] }, nights: {}, checks: [] };
@@ -142,7 +143,7 @@ try {
   // ---- 4 Nov 21:00 on: 60 nets for 5 Nov
   await at(start(N) + 32400 + 60);
   assert.equal(Number(await qc.openNight()), N2);
-  const ids2 = await extra(N2, 60, 0x5eed1n << 140n); // made-up casters (fresh addresses, never a real wallet)
+  const ids2 = await extra(N2, 120, 0x5eed1n << 140n); // made-up casters (fresh addresses, never a real wallet)
   ok(`${ids2.length} nets cast for night ${N2}`);
 
   // ---- 5 Nov 12:00: post the real 4 Nov night (the poster), DRAWING until sealed, then seal

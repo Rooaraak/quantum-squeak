@@ -522,6 +522,43 @@ button.tki:hover b, button.tki:focus-visible b { text-decoration: underline; tex
 /* the big card (owner 11-07: "open it and see it on the big picture"): one caught hamster, full screen, its rarity's glow */
 .bigov { position: fixed; inset: 0; z-index: 60; overflow-y: auto; padding: max(14px, env(safe-area-inset-top, 0px)) 14px 28px; background: rgba(5, 10, 34, .9); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px) }
 .bigov[hidden] { display: none }
+/* the Quantum Passport (owner 11-07): a paper booklet per wallet, a rubber stamp per night played, badges */
+.passin { position: relative; max-width: 620px; margin: 0 auto; padding: 18px 16px 22px; border-radius: 18px; background: #f2e8cf; color: #2a2418; box-shadow: 0 18px 50px rgba(0, 0, 0, .5);
+  background-image: repeating-linear-gradient(0deg, rgba(42, 36, 24, .045) 0 1px, transparent 1px 26px), radial-gradient(circle at 20% 10%, rgba(255, 255, 255, .5), transparent 60%) }
+.passin .bigx { background: rgba(42, 36, 24, .12); color: #2a2418 }
+.passh { margin: 2px 48px 0 0; font: 400 28px/1 var(--display); letter-spacing: .04em; text-transform: uppercase; color: #1e3cc8 }
+.passw { margin: 6px 0 0; font: 400 11.5px/1.3 var(--mono); color: #6b5f45 }
+.ppb { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 0; padding: 0; list-style: none }
+.ppb li { padding: 5px 9px; border: 2px solid #6b5f45; border-radius: 999px; font: 700 10.5px/1.1 var(--mono); letter-spacing: .03em; text-transform: uppercase; color: #6b5f45; opacity: .38 }
+.ppb li.got { opacity: 1; background: #1e3cc8; border-color: #1e3cc8; color: #f2e8cf }
+.pps { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 16px 14px; margin: 18px 0 0 }
+.ppst { --ink: #5c6470; position: relative; margin: 0; padding: 9px 8px 8px; border: 3px double var(--ink); border-radius: 12px; color: var(--ink); text-align: center; background: none; font: 700 10.5px/1.35 var(--mono); text-transform: uppercase; letter-spacing: .03em;
+  transform: rotate(var(--rot, 0deg)); opacity: .9; mix-blend-mode: multiply; cursor: default }
+button.ppst { cursor: pointer }
+.ppst .pr { display: block; margin: 3px 0 2px; font: 400 22px/1 var(--display); letter-spacing: .04em }
+.ppst .pd { display: block; font-size: 11.5px }
+.ppst .pj { display: block; font-weight: 400; text-transform: none; opacity: .85 }
+.ppst[data-t="0"] { --ink: #5c6470 } .ppst[data-t="1"] { --ink: #1f8a4c } .ppst[data-t="2"] { --ink: #2f5fd0 } .ppst[data-t="3"] { --ink: #7b3fd0 } .ppst[data-t="4"] { --ink: #a87400 }
+.ppst[data-k="away"], .ppst[data-k="noresult"] { --ink: #8a8f98 } .ppst[data-k="slept"] { --ink: #3a4a8a } .ppst[data-k="waiting"], .ppst[data-k="drawing"], .ppst[data-k="ready"] { --ink: #9a7a3a; border-style: dashed }
+.ppe { margin: 16px 0 0; font: 400 12px/1.4 var(--mono); color: #6b5f45 }
+/* the cinematic reveal (owner 11-07): the door over the stage, the hamster falling through it (or slipping back), the
+   card flipping into the big card, a burst for Epic and Legendary */
+.portal { position: absolute; z-index: 2; width: 0; aspect-ratio: 1; border-radius: 50%; pointer-events: none; opacity: 0; transform: scale(.15);
+  background: radial-gradient(circle, rgba(20, 30, 90, .55) 0 36%, rgba(125, 235, 255, .75) 47%, rgba(170, 130, 255, .45) 58%, rgba(30, 60, 200, 0) 70%);
+  box-shadow: 0 0 46px 12px rgba(125, 235, 255, .35); transition: opacity .45s ease, transform .75s cubic-bezier(.2, .9, .3, 1.25) }
+.portal::before { content: ''; position: absolute; inset: 9%; border-radius: 50%; background: conic-gradient(from 0deg, rgba(125, 235, 255, .0), rgba(125, 235, 255, .7), rgba(255, 214, 107, .5), rgba(196, 155, 255, .7), rgba(125, 235, 255, .0)); -webkit-mask: radial-gradient(circle, transparent 62%, #000 64%); mask: radial-gradient(circle, transparent 62%, #000 64%); animation: portalspin 2.4s linear infinite }
+.portal.open { opacity: 1; transform: scale(1) }
+@keyframes portalspin { to { transform: rotate(1turn) } }
+.stage .ham.fall { animation: hamfall .9s cubic-bezier(.3, .1, .4, 1.35) both }
+@keyframes hamfall { 0% { transform: translateY(-62%) scale(.22); opacity: 0 } 30% { opacity: 1 } 78% { transform: translateY(3%) scale(1.04, .97) } 100% { transform: none; opacity: 1 } }
+.stage .ham.slip { animation: hamslip 1.3s ease-in both }
+@keyframes hamslip { 0% { transform: none; opacity: 1 } 30% { transform: translateY(2%) scale(1.03, .94) } 100% { transform: translateY(-62%) scale(.2) rotate(-24deg); opacity: 0 } }
+.spot.zoom { z-index: 5; transform: scale(1.22); box-shadow: 0 0 0 3px var(--cyan), 0 0 28px var(--cyan); transition: transform .3s ease, box-shadow .3s ease }
+.bigin.flip { animation: bigflip .7s cubic-bezier(.2, .8, .3, 1.15) both }
+@keyframes bigflip { from { transform: perspective(1000px) rotateY(85deg) scale(.7); opacity: 0 } to { transform: none; opacity: 1 } }
+.bigfx { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3 }
+.bign.typing::after { content: '▍'; color: var(--g, #7debff); animation: caret .6s steps(1) infinite }
+@keyframes caret { 50% { opacity: 0 } }
 .bigin { position: relative; max-width: 440px; margin: 0 auto; padding: 16px 16px 18px; border-radius: 22px; background: linear-gradient(180deg, #16215a, #0b1238); color: #fff4dc; border: 3px solid var(--g, #7debff); box-shadow: 0 0 40px -6px var(--g, #7debff), 0 20px 60px rgba(0, 0, 0, .6) }
 .bigin[data-tier="0"] { --g: var(--r0) } .bigin[data-tier="1"] { --g: var(--r1) } .bigin[data-tier="2"] { --g: var(--r2) } .bigin[data-tier="3"] { --g: var(--r3) } .bigin[data-tier="4"] { --g: var(--r4) }
 .bigx { position: absolute; top: 8px; right: 8px; z-index: 2; width: 44px; height: 44px; border: 0; border-radius: 50%; background: rgba(5, 10, 34, .7); color: #fff4dc; font: 400 28px/1 var(--display); cursor: pointer }
@@ -535,6 +572,9 @@ button.tki:hover b, button.tki:focus-visible b { text-decoration: underline; tex
 .bigkv dt { color: #aeb8ea } .bigkv dd { margin: 0; overflow-wrap: anywhere }
 .bigact { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin: 16px 0 0 }
 .bigact .btn { flex: 1 1 auto; display: inline-flex; align-items: center; justify-content: center; min-height: 52px; padding: 13px 16px; border-radius: 14px; background: var(--accent); color: var(--cream); box-shadow: 0 4px 0 var(--accent-dd); font: 400 19px/1 var(--display); letter-spacing: .03em; text-transform: uppercase; text-align: center; text-decoration: none }
+.bigact .btn.ghost { flex: 0 1 auto; min-height: 52px; padding: 10px 14px; border: 2px solid var(--muted); border-radius: 14px; background: transparent; box-shadow: none; color: var(--cream); font: 400 17px/1 var(--display); letter-spacing: .03em; text-transform: uppercase; cursor: pointer }
+.bigact .btn.ghost:disabled { opacity: .55; cursor: progress }
+.bigact .btn.ghost[hidden] { display: none }
 .bignft { color: #7debff; font: 700 12px/1 var(--mono); padding: 12px 0 }
 .bignft[hidden] { display: none }
 .reveal.can { cursor: pointer }
@@ -821,6 +861,7 @@ footer a { color: var(--ink) }
   .tkv { overflow: visible; -webkit-mask-image: none; mask-image: none }
   .tkl { animation: none; width: auto; flex-wrap: wrap; row-gap: 2px; padding: 0 }
   .tkl .dup { display: none }
+  .portal, .portal::before, .stage .ham.fall, .stage .ham.slip, .bigin.flip, .bign.typing::after { animation: none; transition: none }
 }
 /* "Quantum Squeak" is longer than the old name: on a narrow PC (1100-1239 px) the wordmark is smaller, so the nav keeps its room */
 @media (min-width: 1100px) and (max-width: 1239px) { .hero .wm { font-size: 24px } }
@@ -857,6 +898,7 @@ footer a { color: var(--ink) }
         <div class="dash" aria-hidden="true"></div>
         <div class="podium" aria-hidden="true"><i class="sh"></i><i class="tp"></i><i class="rg"></i><i class="gl"></i></div>
         <canvas class="ham qc-idle" id="ham" width="448" height="612" aria-hidden="true"></canvas>
+        <div class="portal" id="portal" aria-hidden="true"></div>
         <span class="stamp" id="stamp"></span>
       </div>
       <div class="chiptag"><b>IBM quantum computer</b><p class="alive" id="alive" hidden><a class="live" id="live" href="https://squeekchain.com" target="_blank" rel="noopener" hidden><span id="livet"></span></a><span class="netsn" id="netsn" hidden></span></p></div>
@@ -909,7 +951,7 @@ footer a { color: var(--ink) }
     <p class="lnext">Some say the door is getting wider. Some say the hamsters on the other side are getting ready to fight…</p>
   </section>
 
-  <section class="myham" id="myham" hidden aria-labelledby="myhamh"><h2 class="mhh" id="myhamh">My hamsters</h2><div class="mhrow" id="mhrow" role="list" aria-labelledby="myhamh"></div><a class="mhall" id="mhall" href="#mine" hidden>See all &rarr;</a></section>
+  <section class="myham" id="myham" hidden aria-labelledby="myhamh"><h2 class="mhh" id="myhamh">My hamsters</h2><div class="mhrow" id="mhrow" role="list" aria-labelledby="myhamh"></div><a class="mhall" id="mhall" href="#mine" hidden>See all &rarr;</a> <a class="mhall" id="mhpass" href="#passport">My passport &rarr;</a></section>
 
   <section class="soon" id="soon" aria-labelledby="soonh">
     <div class="sban">
@@ -1063,7 +1105,17 @@ footer a { color: var(--ink) }
     </div>
   </div>
 
+  <div class="bigov" id="pass" hidden role="dialog" aria-modal="true" aria-labelledby="passh">
+    <div class="passin" id="passin">
+      <button class="bigx" id="passx" type="button" aria-label="Close">&times;</button>
+      <h2 class="passh" id="passh">Quantum Passport</h2>
+      <p class="passw" id="passw"></p>
+      <ul class="ppb" id="passb" aria-label="Badges"></ul>
+      <div class="pps" id="passs" role="list" aria-label="Stamps"></div>
+    </div>
+  </div>
   <div class="bigov" id="big" hidden role="dialog" aria-modal="true" aria-labelledby="bigname">
+    <canvas class="bigfx" id="bigfx" aria-hidden="true"></canvas>
     <div class="bigin" id="bigin">
       <button class="bigx" id="bigx" type="button" aria-label="Close">&times;</button>
       <div class="bigpic"><img id="bigimg" alt="" hidden><canvas id="bigcv" width="448" height="612" hidden aria-hidden="true"></canvas></div>
@@ -1071,7 +1123,7 @@ footer a { color: var(--ink) }
       <p class="bigt" id="bigtier"></p>
       <ul class="bigtr" id="bigtraits"></ul>
       <dl class="bigkv" id="bigkv"></dl>
-      <div class="bigact"><a class="btn" id="bigshare" target="_blank" rel="noopener">Share on X</a><a class="bignft" id="bignft" target="_blank" rel="noopener">View NFT</a></div>
+      <div class="bigact"><a class="btn" id="bigshare" target="_blank" rel="noopener">Share on X</a><button class="btn ghost" id="bigpfp" type="button">Save as PFP</button><a class="bignft" id="bignft" target="_blank" rel="noopener">View NFT</a><a class="bignft" id="bigpass" href="#passport" hidden>My passport</a></div>
     </div>
   </div>
 
@@ -1260,6 +1312,7 @@ footer a { color: var(--ink) }
       land() { tone(1400 + Math.random() * 500, 0, 0.03, 'sine', 0.012); },
       reveal(t) { if (t < 0) { tone(392, 0, 0.3, 'triangle', 0.05); tone(311.13, 0.2, 0.45, 'triangle', 0.05); return; } [0, 2, 4, 5].slice(0, 2 + Math.min(2, t)).forEach((k, i) => tone(NOTES[k], i * 0.09, 0.45, 'triangle', 0.05)); },
       on() { tone(659.25, 0, 0.15, 'sine', 0.05); tone(987.77, 0.08, 0.2, 'sine', 0.04); },
+      door() { tone(180, 0, 0.9, 'sine', 0.05, 720); tone(360, 0.15, 0.8, 'triangle', 0.025, 1080); },
     };
   })();
   function showSound() { $('sound').setAttribute('aria-pressed', String(store.sound)); $('sound').title = store.sound ? 'Sound on' : 'Sound off'; }
@@ -1835,14 +1888,71 @@ footer a { color: var(--ink) }
   const scrollStage = () => { try { $('play').scrollIntoView({ behavior: fast() ? 'auto' : 'smooth', block: 'start' }); } catch (e) { /* fine */ } };
 
   // ---------- the replay: his run (the ghost spreads), then the chip looks and the ghost lands ----------
+  // ---------- the cinematic reveal (owner 11-07), the first time a result is opened (a real net or the practice; never in
+  // the fast test mode or with reduced motion: then the result simply appears): the door opens over the stage, the 4,000
+  // drops rain (the replay), YOUR drop lands and the camera follows it, the hamster falls through the door onto the podium
+  // (got away: it slips back through), then its card flips into the big card with its rarity's glow (Epic and Legendary:
+  // a burst) and its name types in. A tap skips to the end. Sound only with the sound on (SFX). body[data-cine] says the
+  // phase (door, rain, drop, fall, card, done) ----------
+  const cineOn = (m) => !fast() && !!m && drawn(m) && !m.seen && (!!m.practice || isDrop(m)) && $('details').hidden;
+  const cineAt = (k) => { document.body.dataset.cine = k; };
+  let cineSkip = false, cineWake = null;
+  function portal(on) {
+    const P = $('portal');
+    if (on) { const H = $('ham').getBoundingClientRect(), st = $('stage').getBoundingClientRect(), w = Math.max(120, H.width * 1.12);
+      P.style.width = w + 'px'; P.style.left = (H.left - st.left + H.width / 2 - w / 2) + 'px'; P.style.top = (H.top - st.top + H.height * 0.3 - w / 2) + 'px'; cineAt('door'); }
+    P.classList.toggle('open', !!on);
+  }
+  function cineEnd() { portal(false); $('ham').classList.remove('fall', 'slip'); spots.forEach((e) => e.classList.remove('zoom')); }
+  // a pause the viewer can cut short (a tap anywhere)
+  const cineWait = (ms) => new Promise((r) => { if (cineSkip) return r(); const t = setTimeout(() => { cineWake = null; r(); }, ms); cineWake = () => { clearTimeout(t); cineWake = null; r(); }; });
+  // a tap while the door is open: during the drops it ends the replay (as Skip does: the result, no card); once the hamster
+  // falls, straight to the big card with its whole name
+  document.addEventListener('pointerdown', () => { const k = document.body.dataset.cine; if (!k || k === 'done') return;
+    if (k === 'door' || k === 'rain' || k === 'drop') skipping = true; cineSkip = true; if (cineWake) cineWake(); }, true);
+  async function cinematic(d, m, my) {
+    cineSkip = false;
+    const r = netResult(d, m.spot), caught = r.status === 'caught', H = $('ham');
+    cineAt('fall'); H.classList.remove('fall', 'slip'); void H.offsetWidth; H.classList.add(caught ? 'fall' : 'slip');
+    await cineWait(caught ? 950 : 1350); if (my !== run) return;
+    portal(false); H.classList.remove('fall', 'slip');
+    const c = caught ? catchOfNet(d, m) : null;
+    if (!c) { cineAt('done'); return; }
+    openBig(c); const B = $('bigin'), nm = $('bigname'), name = nm.textContent;
+    cineAt('card'); B.classList.remove('flip'); void B.offsetWidth; B.classList.add('flip');
+    if (c.tier >= 3 && !cineSkip) burst(c.tier);
+    nm.textContent = ''; nm.classList.add('typing');
+    await cineWait(250);
+    for (let i = 1; i <= name.length && !cineSkip; i++) { nm.textContent = name.slice(0, i); await cineWait(24); }
+    nm.textContent = name; nm.classList.remove('typing'); cineAt('done');
+  }
+  // Epic and Legendary: a burst of sparks in the rarity's colour over the big card
+  function burst(tier) {
+    const cv = $('bigfx'), dpr = Math.min(2, window.devicePixelRatio || 1), W = innerWidth, Hh = innerHeight;
+    cv.width = Math.round(W * dpr); cv.height = Math.round(Hh * dpr); cv.dataset.burst = String(tier);
+    const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const col = [getComputedStyle(document.documentElement).getPropertyValue(`--r${tier}`).trim() || '#ffd66b', '#fff4dc', '#7debff'];
+    const r0 = $('bigin').getBoundingClientRect(), ox = r0.left + r0.width / 2, oy = r0.top + Math.min(r0.height, Hh) * 0.3;
+    const P = Array.from({ length: tier === 4 ? 150 : 90 }, (_, i) => { const a = Math.random() * Math.PI * 2, v = 3 + Math.random() * 7;
+      return { x: ox, y: oy, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 4, s: 3 + Math.random() * 4, c: col[i % 3], r: Math.random() * 6 }; });
+    const t0 = performance.now();
+    (function frame(t) {
+      const k = (t - t0) / 1600; g.clearRect(0, 0, W, Hh);
+      if (k >= 1 || $('big').hidden) { g.clearRect(0, 0, W, Hh); return; }
+      for (const q of P) { q.x += q.vx; q.y += q.vy; q.vy += 0.22; q.vx *= 0.99; q.r += 0.2;
+        g.save(); g.globalAlpha = 1 - k; g.fillStyle = q.c; g.translate(q.x, q.y); g.rotate(q.r); g.fillRect(-q.s / 2, -q.s / 4, q.s, q.s / 2); g.restore(); }
+      requestAnimationFrame(frame);
+    })(t0);
+  }
   let run = 0, skipping = false;
   $('skip').onclick = () => { skipping = true; };
   const playing = (on) => { ring.classList.toggle('playing', on); $('play').classList.toggle('playing', on); };
-  function cancelPlay() { run++; skipping = false; S.playing = false; playing(false); wSpeed = wIdle; clearFx(); }
+  function cancelPlay() { run++; skipping = false; S.playing = false; playing(false); wSpeed = wIdle; clearFx(); cineEnd(); if (document.body.dataset.cine) cineAt('done'); }
   const STEP_MS = 520;
   async function play() {
     const d = stageNight(); if (!d || !N(d) || N(d).slept) return;
-    const my = ++run; skipping = false; S.playing = true; S.focus = null;
+    const my = ++run; skipping = false; S.playing = true; S.focus = null; cineEnd();
+    const cin = cineOn(mine(d));
     const n = N(d), c = chipOf(d), G = QW.groups(n.rounds.map((r) => r[1]), capOf(d));
     const live = () => my === run;
     const wait = (ms) => new Promise((r) => { if (skipping || !live()) return r(); setTimeout(r, fast() ? Math.min(ms, 20) : ms); });
@@ -1865,10 +1975,14 @@ footer a { color: var(--ink) }
     const m0 = mine(d), yours = m0 && isDrop(m0) && drawn(m0) ? m0.spot : null;
     if (c) {
       $('caption').innerHTML = `Then IBM's chip drops <b>${fmtInt(c.wheel_shots)} times</b>.`;
+      if (cin && !skipping) { portal(true); SFX.door(); await wait(250); if (!live()) return; cineAt('rain'); }
       setDots(ZERO); await landings(v.shots, my); if (!live()) return;
       setGlow(v.counts.map((x) => x / c.wheel_shots), 'chip');
       // one of those drops is yours: it falls last, onto the hamster it landed on
-      if (yours != null) { $('caption').innerHTML = `One of those ${fmtInt(c.wheel_shots)} drops is <b>yours</b>…`; await yourDrop(yours, my); if (!live()) return; }
+      if (yours != null) { $('caption').innerHTML = `One of those ${fmtInt(c.wheel_shots)} drops is <b>yours</b>…`; await yourDrop(yours, my); if (!live()) return;
+        // the camera follows your drop: its tile comes close and glows
+        if (cin && !skipping) { cineAt('drop'); const el = spots[yours]; try { const r = el.getBoundingClientRect(); if (r.top < 0 || r.bottom > innerHeight) el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) { /* fine */ }
+          el.classList.add('zoom'); await wait(650); el.classList.remove('zoom'); if (!live()) return; } }
     } else {
       setDots(ZERO); setGlow(v.perfect, 'ghost');
       $('caption').innerHTML = 'The quantum computer has not run yet.';
@@ -1892,6 +2006,8 @@ footer a { color: var(--ink) }
       }
     }
     renderAll();
+    if (cin && c && known && !skipping && live()) { await cinematic(d, m, my); if (!live()) return; }
+    else { portal(false); if (document.body.dataset.cine) cineAt('done'); }
     if (c && known) {
       if ($('details').hidden) try { const a = $('act').hidden ? $('reveal') : $('act'), r = a.getBoundingClientRect(), by = r.bottom + 12 - innerHeight; if (by > 0) window.scrollBy({ top: by, behavior: fast() ? 'auto' : 'smooth' }); } catch (e) { /* fine */ }
       SFX.reveal(spotResult(d, m.spot).tier); bumpMine();
@@ -2618,14 +2734,15 @@ footer a { color: var(--ink) }
   let lastHash = null;
   function route(name) {
     name = String(name || '').replace(/^#/, '');
-    if (/^hamster-[\w-]+$/.test(name)) { openBigHash(name.slice(8)); return; }
-    closeBig();
+    if (/^hamster-[\w-]+$/.test(name)) { closePass(); openBigHash(name.slice(8)); return; }
+    if (name === 'passport') { openPass(); return; }
+    closeBig(); closePass();
     const det = DETAIL.has(name);
     if (det && S.playing) skipping = true;                       // leaving a replay ends it; its "seen" is saved as usual
     $('game').hidden = det; $('details').hidden = !det;
     if (name === 'how' || name === 'details') $('how').open = true;
     if (name === 'check') $('check').open = true;
-    try { const h = location.hash.slice(1); if (det ? h !== name : DETAIL.has(h) || /^hamster-/.test(h)) location.hash = det ? name : ''; } catch (e) { /* sandboxed: fine */ }
+    try { const h = location.hash.slice(1); if (det ? h !== name : DETAIL.has(h) || /^hamster-/.test(h) || h === 'passport') location.hash = det ? name : ''; } catch (e) { /* sandboxed: fine */ }
     try { lastHash = location.hash.slice(1); } catch (e) { lastHash = det ? name : ''; }
     try { const t = det && name !== 'details' ? $(name) : null; if (t) t.scrollIntoView({ block: 'start' }); else window.scrollTo(0, 0); } catch (e) { /* fine */ }
     castbarCheck();
@@ -2814,7 +2931,8 @@ footer a { color: var(--ink) }
   let mhKey = '';
   function renderMyHam() {
     const box = $('myham'), row = $('mhrow'), L = myHamEntries(), w = win();
-    box.hidden = !L.length;
+    box.hidden = !L.length; $('mhpass').hidden = !S.me;
+    if (!$('pass').hidden) renderPassport();
     if (!L.length) { row.innerHTML = ''; mhKey = ''; return; }
     const st = L.map(hamState);
     const key = JSON.stringify(L.map((x, i) => [x.day, x.contract, x.status, x.spot, st[i]])) + w.day;
@@ -2917,7 +3035,8 @@ footer a { color: var(--ink) }
   }
   function openBig(c) {
     if (!c) return;
-    bigNow = c; bigFrom = DETAIL.has(lastHash || '') ? lastHash : '';
+    bigNow = c; bigFrom = DETAIL.has(lastHash || '') || lastHash === 'passport' ? lastHash : '';   // closing it goes back there
+    closePass();
     lastHash = 'hamster-' + c.id;
     try { location.hash = 'hamster-' + c.id; } catch (e) { /* sandboxed */ }
     showBig(c);
@@ -2954,9 +3073,17 @@ footer a { color: var(--ink) }
       }
     }
     bigKv(c);
-    const link = (/^https?:$/.test(location.protocol) ? location.origin + location.pathname : 'https://quantumsqueak.xyz/') + '#hamster-' + c.id;
+    const web = /^https?:$/.test(location.protocol), link = (web ? location.origin + location.pathname : 'https://quantumsqueak.xyz/') + '#hamster-' + c.id;
     const text = `I caught ${name}, ${an(tier)} ${tier} hamster from ${uni} on Quantum Squeak`;
-    $('bigshare').href = `https://x.com/intent/post?text=${encodeURIComponent(text)}&url=${encodeURIComponent(link)}`;
+    const shareTo = (u) => { $('bigshare').href = `https://x.com/intent/post?text=${encodeURIComponent(text)}&url=${encodeURIComponent(u)}`; };
+    shareTo(link);
+    // its own share page (site/make_shares.cjs, after the night is posted: its card as the link preview) when the site has it
+    if (web && c.tokenId) {
+      const page = location.origin + location.pathname.replace(/[^/]*$/, '') + `h/${c.id}/`;
+      fetch(page, { method: 'HEAD', cache: 'no-store' }).then((r) => { if (r.ok && bigNow === c) shareTo(page); }, () => { /* the home link */ });
+    }
+    $('bigpfp').hidden = c.tag === 'p';
+    $('bigpass').hidden = !S.me;
     const nft = $('bignft'); nft.hidden = !c.tokenId;
     if (c.tokenId) nft.href = `https://sepolia.etherscan.io/nft/${c.contract}/${BigInt(c.tokenId).toString()}`;
     box.scrollTop = 0; try { $('bigx').focus({ preventScroll: true }); } catch (e) { /* fine */ }
@@ -2971,7 +3098,137 @@ footer a { color: var(--ink) }
   }
   $('bigx').onclick = () => route(bigFrom);
   $('big').addEventListener('click', (e) => { if (e.target === $('big')) route(bigFrom); });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('big').hidden) route(bigFrom); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('big').hidden) { e.preventDefault(); route(bigFrom); } });
+  // ---------- Save as PFP (owner 11-07: "they would be good pfp"; "only the upper part"): a 512 x 512 PNG portrait of a
+  // caught hamster, head and shoulders: from just above its tallest head item (hats, crowns, halos, horns, helmets stay
+  // in) down to the chest, the face in the middle, its own background behind. Season 2: the chain's own card, cropped by
+  // its viewBox (the card's ring, net mark and caption taken out), drawn at 512 px from the SVG itself; a browser that will
+  // not read back an SVG drawn into a canvas gets the card's painted layers drawn one by one instead. Early nets: their
+  // painted look on its rarity colour. A phone with a file share sheet gets that; anything else a download named after
+  // the hamster. Downloads happen only here. ----------
+  // the head items' top edge in the painted 224 x 300 frame (contracts/art/s2/sprites.json, the launch art); a bare head:
+  // its ears (~67). The face sits at x 112, y ~138 of every body
+  const HEAD_TOP = {"Party hat": 32, "Beanie": 24, "Cat ears": 60, "Chef hat": 13, "Cowboy hat": 46, "Flower crown": 69, "Propeller cap": 48, "Mushroom cap": 38, "Little crown": 49, "Headphones": 35, "Pirate hat": 41, "Top hat": 48, "Viking helmet": 36, "Sprout": 41, "Wizard hat": 15, "Devil horns": 63, "Astronaut helmet": 45, "Quantum chandelier": 14, "Halo": 21, "Record crown": 5};
+  const SKIN_TOP = {"Galaxy": 64, "Ghost": 51, "Gold": 66};          // skins whose sprite starts above the usual ears (y 67)
+  const PFP = 512;
+  const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+  function pfpBox(head, skin) {
+    const top = Math.max(0, Math.min(own(HEAD_TOP, head) ? HEAD_TOP[head] : 99, own(SKIN_TOP, skin) ? SKIN_TOP[skin] : 67) - 6);
+    const side = Math.max(160, 200 - top), y = Math.max(0, Math.min(top, 136 - side / 2));
+    return [112 - side / 2, y, side];
+  }
+  const loadPic = (src) => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('picture')); i.src = src; });
+  const b64utf8 = (b) => { const s = atob(b), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return new TextDecoder().decode(u); };
+  const utf8b64 = (t) => { const u = new TextEncoder().encode(t); let s = ''; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); };
+  // the card's SVG, its frame taken out, its viewBox on the head; -> the parsed document and the crop (svg units)
+  function pfpDoc(image, head, skin) {
+    const doc = new DOMParser().parseFromString(b64utf8(image.slice(image.indexOf(',') + 1)), 'image/svg+xml'), root = doc.documentElement;
+    if (root.nodeName !== 'svg' || !root.querySelector('#painted')) throw new Error('not a painted card');
+    root.querySelectorAll('text, #mynet').forEach((e) => e.remove());
+    [...root.children].forEach((e) => { if (e.nodeName === 'g' && e.getAttribute('fill-opacity') === '.35') e.remove(); });      // the ring of drops
+    const [x, y, side] = pfpBox(head, skin), box = [70.4 + 0.8 * x, 8.4 + 0.8 * y, 0.8 * side];
+    root.setAttribute('viewBox', [box[0], box[1], box[2], box[2]].map((v) => +v.toFixed(3)).join(' ')); root.setAttribute('width', String(PFP)); root.setAttribute('height', String(PFP));
+    return { doc, root, box };
+  }
+  async function pfpS2(image, head, skin) {
+    const { doc, root, box } = pfpDoc(image, head, skin), cv = mk(PFP, PFP), g = cv.getContext('2d');
+    try {
+      g.drawImage(await loadPic('data:image/svg+xml;base64,' + utf8b64(new XMLSerializer().serializeToString(doc))), 0, 0, PFP, PFP);
+      g.getImageData(0, 0, 1, 1);                     // throws where an SVG drawn into a canvas taints it
+      return cv;
+    } catch (e) { /* the layers, one by one */ }
+    const c2 = mk(PFP, PFP), h = c2.getContext('2d'), bg = root.querySelector('rect');
+    h.fillStyle = (bg && bg.getAttribute('fill')) || '#0b1238'; h.fillRect(0, 0, PFP, PFP);
+    const k = PFP / box[2];
+    h.setTransform(k * 0.8, 0, 0, k * 0.8, k * (70.4 - box[0]), k * (8.4 - box[1]));
+    for (const el of root.querySelector('#painted').querySelectorAll('image')) {
+      if (el.closest('mask')) continue;                // erase masks are not pictures
+      const src = el.getAttribute('href') || el.getAttribute('xlink:href') || '';
+      if (!/^data:image\/(webp|png);base64,/.test(src)) continue;
+      const pic = await loadPic(src), n = (a, d) => Number(el.getAttribute(a) || d);
+      h.save();
+      if (el.closest('[clip-path]')) { h.beginPath(); h.arc(112, 147, 112, 0, Math.PI * 2); h.clip(); }     // the round background
+      h.drawImage(pic, n('x', 0), n('y', 0), n('width', pic.width), n('height', pic.height));
+      h.restore();
+    }
+    return c2;
+  }
+  async function pfpEarly(c) {
+    const cv = mk(PFP, PFP), g = cv.getContext('2d'), col = getComputedStyle(document.documentElement).getPropertyValue(`--r${c.tier}`).trim() || '#d6dce8';
+    const grad = g.createRadialGradient(PFP / 2, PFP * 0.45, PFP * 0.08, PFP / 2, PFP / 2, PFP * 0.72);
+    grad.addColorStop(0, col); grad.addColorStop(1, '#0b1238'); g.fillStyle = grad; g.fillRect(0, 0, PFP, PFP);
+    const t = mk(PFP, PFP); await portrait(t, c.spot, c.tier, false, false); g.drawImage(t, 0, 0);
+    return cv;
+  }
+  async function pfpOf(c) {
+    if (c.tag === 'v3') { const m = await metaOf(c.contract, c.tokenId, 'c'); if (!m || !m.image) throw new Error('no picture yet'); return pfpS2(m.image, m.attr && m.attr.Head, m.attr && m.attr.Skin); }
+    return pfpEarly(c);
+  }
+  const fileName = (name) => name.replace(/[\\/:*?"<>|]+/g, '').trim() + '.png';
+  let pfpBusy = false;
+  $('bigpfp').onclick = async () => {
+    const c = bigNow, b = $('bigpfp');
+    if (!c || pfpBusy) return;
+    pfpBusy = true; b.disabled = true;
+    try {
+      const cv = await pfpOf(c), name = nameOf(c.key, c.tier), fname = fileName(name);
+      const blob = await new Promise((r) => cv.toBlob(r, 'image/png')), file = blob && typeof File === 'function' ? new File([blob], fname, { type: 'image/png' }) : null;
+      if (file && navigator.canShare && navigator.share && matchMedia('(pointer: coarse)').matches && navigator.canShare({ files: [file] })) {
+        try { await navigator.share({ files: [file], title: name }); return; } catch (e) { if (e && e.name === 'AbortError') return; }
+      }
+      const a = document.createElement('a'); a.href = cv.toDataURL('image/png'); a.download = fname; a.hidden = true; document.body.appendChild(a); a.click(); a.remove();
+    } catch (e) { /* no picture (yet): nothing saved */ } finally { pfpBusy = false; b.disabled = false; }
+  };
+  // ---------- the Quantum Passport (owner 11-07, #passport): the connected wallet's booklet, from the chain data the page
+  // already reads (the wallet's nets, this browser's picked ones): a rubber stamp per night played (its IBM chip and job,
+  // the night, your drop and the spot it landed on, the result) in its tier's ink, and badges. No wallet: no passport ----------
+  const BADGES = [['first', 'First catch'], ['epic', 'First Epic'], ['legend', 'First Legendary'], ['row3', '3 nights in a row'], ['row7', '7 nights in a row'], ['all5', 'All 5 rarities']];
+  function passportOf() {
+    const L = myHamEntries(), stamps = L.map((x) => ({ x, s: hamState(x) }));
+    const tiers = new Set(stamps.filter((q) => q.s.k === 'caught').map((q) => q.s.tier));
+    const days = [...new Set(L.map((x) => x.day))].sort(), dn = (d) => Math.round(dayDate(d).getTime() / 864e5);
+    let run = 0, best = 0; days.forEach((d, i) => { run = i && dn(d) - dn(days[i - 1]) === 1 ? run + 1 : 1; best = Math.max(best, run); });
+    const got = { first: tiers.size > 0, epic: tiers.has(3), legend: tiers.has(4), row3: best >= 3, row7: best >= 7, all5: tiers.size === 5 };
+    return { stamps, got, best, nights: days.length };
+  }
+  let passSig = '';
+  function renderPassport() {
+    const P = passportOf();
+    // the page re-renders My hamsters often (ticks, resizes): the booklet only when something in it changed (a stamp
+    // never jumps under a finger)
+    const sig = JSON.stringify([S.me, P.got, P.stamps.map(({ x, s }) => [x.day, x.contract, x.spot, x.picked, s.k, s.tier, !!chipOf(x.day)])]);
+    if (sig === passSig && $('passs').childElementCount) return;
+    passSig = sig;
+    $('passw').textContent = S.me ? `Wallet ${S.me.slice(0, 6)}…${S.me.slice(-4)} · ${P.nights} night${P.nights === 1 ? '' : 's'} played` : '';
+    $('passb').innerHTML = BADGES.map(([k, t]) => `<li class="${P.got[k] ? 'got' : ''}" data-b="${k}">${P.got[k] ? '★ ' : ''}${esc(t)}</li>`).join('');
+    const box = $('passs'); box.innerHTML = '';
+    for (const { x, s } of P.stamps) {
+      const d = x.day, c = chipOf(d), caught = s.k === 'caught', el = document.createElement(caught ? 'button' : 'div');
+      if (caught) el.type = 'button';
+      el.className = 'ppst'; el.setAttribute('role', 'listitem'); el.dataset.k = s.k; el.dataset.day = d; if (caught) el.dataset.t = s.tier;
+      let h = 0; for (const ch of d + (x.contract || '')) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+      el.style.setProperty('--rot', `${((h % 13) - 6) * 0.9}deg`);
+      const res = caught ? TIER[s.tier] : { away: 'Got away', slept: 'He slept', noresult: 'No result', waiting: 'Waiting', drawing: 'Drawing…', ready: 'Ready to open' }[s.k] || '';
+      const landing = x.dna && x.shots ? Number(BigInt(x.dna.word) % BigInt(x.shots)) + 1 : null;
+      const drop = (landing ? `drop ${fmtInt(landing)} → ` : '') + (isSpot(x.spot) && s.k !== 'waiting' && s.k !== 'drawing' && s.k !== 'ready' ? `No. ${x.spot}` : '');
+      el.innerHTML = `<span class="pd">${esc(dayLabel(d))}</span><span class="pr">${esc(res)}</span>` + (drop ? `<span class="pj">${esc(drop)}</span>` : '') +
+        (c ? `<span class="pj">${esc(c.backend.replace(/^ibm_/, ''))} · ${esc(c.job_id.slice(0, 8))}</span>` : '');
+      el.setAttribute('aria-label', `${dayLabel(d, { weekday: 'long', month: 'long' })}: ${res}`);
+      if (caught) el.onclick = () => { const cc = x.picked ? catchOfNet(d, store.nets[d]) : catchOfChain(x); if (cc) openBig(cc); };
+      box.appendChild(el);
+    }
+    if (!P.stamps.length) box.insertAdjacentHTML('beforeend', '<p class="ppe">No nights yet: cast a net and your first stamp lands here.</p>');
+  }
+  function openPass() {
+    if (!S.me) { route(''); return; }                   // a passport is a wallet's: none without one
+    closeBig(); renderPassport(); $('pass').hidden = false; document.body.style.overflow = 'hidden'; $('pass').scrollTop = 0;
+    lastHash = 'passport'; try { if (location.hash !== '#passport') location.hash = 'passport'; } catch (e) { /* sandboxed */ }
+    try { $('passx').focus({ preventScroll: true }); } catch (e) { /* fine */ }
+  }
+  function closePass() { if ($('pass').hidden) return; $('pass').hidden = true; document.body.style.overflow = ''; }
+  $('passx').onclick = () => route('');
+  $('pass').addEventListener('click', (e) => { if (e.target === $('pass')) route(''); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !e.defaultPrevented && !$('pass').hidden) route(''); });
   // the result card: a tap opens its big card
   $('reveal').addEventListener('click', () => {
     const d = stageNight(), m = d ? mine(d) : null;
@@ -3034,6 +3291,8 @@ footer a { color: var(--ink) }
     data: DATA, spotResult, netResult, viewOf: view, select: selectView, practiceDay, win, get sofar() { return sofar; },
     get sqk() { return Object.fromEntries(Object.entries(S.sqk).map(([k, v]) => [k, typeof v === 'bigint' ? v.toString() : v])); }, paid: PAID,
     get eth() { return S.eth == null ? null : S.eth.toString(); },
-    get route() { return $('details').hidden ? 'main' : 'details'; }, nameOf, get big() { return $('big').hidden ? null : bigNow && bigNow.id; } };
+    get route() { return $('details').hidden ? 'main' : 'details'; }, nameOf, get big() { return $('big').hidden ? null : bigNow && bigNow.id; }, get passport() { return $('pass').hidden ? null : passportOf(); }, pfpBox, HEAD_TOP, pfpCard: async (image, head, skin) => (await pfpS2(image, head, skin)).toDataURL('image/png'), // a caught net's share card parts (site/make_shares.cjs): its name, tier, universe and its Save-as-PFP portrait
+    shareInfo: async (id) => { const c = knownCatch(id) || await catchById(id); if (!c || c.tag === 'p') return null;
+      return { name: nameOf(c.key, c.tier), tier: TIER[c.tier], tierIndex: c.tier, universe: UNIVERSE[c.tier], png: (await pfpOf(c)).toDataURL('image/png') }; } };
 })();
 </script>

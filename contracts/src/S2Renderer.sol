@@ -18,9 +18,10 @@ import {S2Text} from "./S2Text.sol";
 ///      - precedence, in this order: (1) a face not painted for the skin shows honey (0); (2) a HELMET head item is not
 ///        worn on a WIDE face (head 0); (3) a BOX special stays iff its tier >= the shown Neck and Hands items' tiers
 ///        (then Neck = Hands = 0), else the box goes (Special 0).
-///      THE PICTURE: Season 1's card (tier colour, the ring, the caption) with, in the painted box, back to front: the
-///      background (clipped round), the aura, the skin x face sprite cut by the worn items' erase layers (a luminance
-///      mask), the aura's front half (FRONT auras only), then the items: back, special, neck, hands, mouth, eyes, head.
+///      THE PICTURE (the full-background look, 8 Nov): back to front, the tier colour; the background picture over the
+///      whole card; the ring (light dots) and the vector fallback; the painted hamster: the aura, the skin x face sprite
+///      cut by the worn items' erase layers (a luminance mask), the aura's front half (FRONT auras only), then the items
+///      (back, special, neck, hands, mouth, eyes, head); a dark band with the caption; the tier colour as a border.
 ///      THE FORMAT (PRE2): "data:application/json;base64," + base64 of the JSON, whose image is "data:image/svg+xml;
 ///      base64," + base64 of the SVG. Every sprite is stored as base64(base64(its whole <image .../> element padded with
 ///      spaces to a multiple of 9 bytes)); the JSON head is padded to a multiple of 3 and every other SVG piece to a
@@ -101,18 +102,22 @@ contract S2Renderer is IS2Renderer {
         Seg memory o;
         bytes memory head;
         if (c.status == 1) {
-            (uint8 skin, uint8[10] memory items, uint8[10] memory itemTiers) = _looks(d, dir);
-            itemTiers; // the tiers only decide precedence (done)
-            (string memory skinS, string[10] memory traits, uint256 worn) = _names(dir, skin, items);
-            head = TEXT.head(c, d, skinS, traits, worn);
-            (bytes memory open, bytes memory tail) = TEXT.frame(c, _fur(dir, skin));
-            _paint(o, dir, skin, items, open, tail);
+            head = _caught(o, c, d, dir);
         } else {
             string[10] memory none;
             head = TEXT.head(c, d, "", none, 0);
             _dyn(o, TEXT.plain(c));
         }
         _ret(_assemble(o, dir, head));
+    }
+
+    /// a caught net: its JSON head (names from the looks) and its pieces (the frame around the painted hamster)
+    function _caught(Seg memory o, Card calldata c, Dna calldata d, bytes memory dir) internal view returns (bytes memory head) {
+        (uint8 skin, uint8[10] memory items,) = _looks(d, dir);
+        (string memory skinS, string[10] memory traits, uint256 worn) = _names(dir, skin, items);
+        head = TEXT.head(c, d, skinS, traits, worn);
+        (bytes memory open, bytes memory mid, bytes memory tail) = TEXT.frame(c, _fur(dir, skin));
+        _paint(o, dir, skin, items, open, mid, tail);
     }
 
     /// @inheritdoc IS2Renderer
@@ -284,8 +289,8 @@ contract S2Renderer is IS2Renderer {
     }
 
     string internal constant PAINTED_OPEN = "<g id='painted' transform='translate(70.4 8.4) scale(.8)'>";
-    string internal constant BG_OPEN =
-        "<clipPath id='p'><circle cx='112' cy='147' r='112'/></clipPath><g clip-path='url(#p)'>";
+    /// the background picture (224 x 300) over the whole card: scaled to its width (x 1.4286), centred
+    string internal constant BG_OPEN = "<g transform='translate(0 -54.29) scale(1.4286)'>";
     string internal constant MASK_OPEN = "<mask id='m' maskUnits='userSpaceOnUse' maskContentUnits='userSpaceOnUse' "
         "x='0' y='0' width='224' height='300' color-interpolation='sRGB'><rect width='224' height='300' fill='#fff'/>";
     string internal constant FRONT_CLIP = "<clipPath id='f'><rect y='156' width='224' height='144'/></clipPath>";
@@ -296,15 +301,17 @@ contract S2Renderer is IS2Renderer {
         uint8 skin,
         uint8[10] memory items,
         bytes memory open,
+        bytes memory mid,
         bytes memory tail
     ) internal pure {
         _dyn(o, open);
-        _dyn(o, bytes(PAINTED_OPEN));
         if (items[9] != 0) {
             _dyn(o, bytes(BG_OPEN));
             _put(o, _itemEl(dir, 10, items[9]));
             _dyn(o, "</g>");
         }
+        _dyn(o, mid);
+        _dyn(o, bytes(PAINTED_OPEN));
         bool front;
         if (items[8] != 0) {
             front = _flags(dir, 9, items[8]) & FRONT != 0;
