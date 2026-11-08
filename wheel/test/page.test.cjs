@@ -198,6 +198,33 @@ const NUMS = [...Array(16).keys()].map(String);
 // what a spot's Season 1 hamster wears (the page's WEARS): bit 0 party hat, 1 round glasses, 2 striped scarf, 3 grin
 const QC_WEARS = (s) => { const w = []; if (s & 1) w.push('party hat'); if (s & 2) w.push('round glasses'); if (s & 4) w.push('striped scarf'); if (s & 8) w.push('grin'); return w.length ? w : ['plain look']; };
 let bigName5 = '';
+// Save as PFP from the layers (8 Nov): a card's SVG <-> its data URL; the card with its decorations (the ring of drops, the
+// net mark, the caption band and its text, the border, the fallback drawing) in opaque magenta, by the full-background
+// card's own strings (-> [svg, how many were found]); the card with its head item taken off (the painted group's last
+// picture); a PNG's size, brightness spread, magenta pixels and its top rows (in the page)
+const cardSvg = (img) => Buffer.from(img.slice(img.indexOf(',') + 1), 'base64').toString('utf8');
+const svgImg = (svg) => 'data:image/svg+xml;base64,' + Buffer.from(svg, 'utf8').toString('base64');
+function magentaCard(svg) {
+  let s = svg, n = 0;
+  const sub = (re, to) => { n += (s.match(new RegExp(re.source, 'g')) || []).length; s = s.replace(re, to); };
+  sub(/<g fill="#fff" fill-opacity=".55" stroke="#1a1d2b" stroke-opacity=".5">/, '<g fill="#ff00ff" fill-opacity="1" stroke="#ff00ff">');
+  sub(/(<circle cx="160" cy="20" r="15" fill="none" stroke=")#1a1d2b(" stroke-opacity=").55/g, '$1#ff00ff$21');
+  sub(/(<circle id="mynet"[^>]*stroke=")#fff"/, '$1#ff00ff"');
+  sub(/<rect y="232" width="320" height="46" fill="#0b0e1a" fill-opacity=".66"\/>/, '<rect y="232" width="320" height="46" fill="#ff00ff"/>');
+  sub(/(<text[^>]*fill=")[^"]*"/g, '$1#ff00ff"');
+  sub(/(<rect x="4" y="4" width="312" height="312" fill="none" stroke=")[^"]*"/, '$1#ff00ff"');
+  sub(/(<rect x="10" y="10" width="300" height="300" rx="10" fill="none" stroke=")[^"]*" stroke-opacity=".45"/, '$1#ff00ff" stroke-opacity="1"');
+  sub(/<g id="fallback"/, '<g id="fallback" fill="#ff00ff"');
+  return [s, n];
+}
+const hatless = (svg) => { const at = svg.lastIndexOf('<image', svg.indexOf('<rect y="232"')); return svg.slice(0, at) + svg.slice(svg.indexOf('/>', at) + 2); };
+const pngStats = (p, url, rows = 3) => p.evaluate(async (url, rows) => {
+  const i = new Image(); await new Promise((r, j) => { i.onload = r; i.onerror = j; i.src = url; });
+  const c = document.createElement('canvas'); c.width = i.width; c.height = i.height; const g = c.getContext('2d'); g.drawImage(i, 0, 0);
+  const d = g.getImageData(0, 0, i.width, i.height).data; let mag = 0, lo = 255, hi = 0;
+  for (let k = 0; k < d.length; k += 4) { if (d[k] > 200 && d[k + 1] < 90 && d[k + 2] > 200) mag++; const l = (d[k] + d[k + 1] + d[k + 2]) / 3; lo = Math.min(lo, l); hi = Math.max(hi, l); }
+  return { size: [i.width, i.height], mag, spread: hi - lo, top: Array.from(d.slice(0, i.width * 4 * rows)) };
+}, url, rows);
 // Save as PFP: press it with the download (and the phone share sheet) caught in the page; -> {name, size: [w, h], spread,
 // png (base64)} of what would have been saved. spread = the standard deviation of the pixels' brightness (not blank)
 const pressPfp = async (p, share = false) => {
@@ -1818,11 +1845,15 @@ async function nftErrorScenario(chain, name, viewport, account) {
         await scenario('s2-pfp', { width: 390, height: 844, at: Date.parse('2026-11-06T13:00:00Z'), page: s2.html, results: NX.body, rpcUrl: s2.url, hash: 'hamster-v3-' + BigInt(QC.netId(N5, CC)).toString(16) }, async (p, { shot }) => {
           const TOP = await p.evaluate(() => QCP.HEAD_TOP);
           const tall = metas.find(([, , m]) => TOP[m.attr.Head] < 50), bare = metas.find(([, , m]) => m.attr.Head === 'None');
-          // the crop: from just above the head item (or the ears) to the chest; the face (x 112, y ~138) centred when bare
+          // the crop: from just above the head item (or the ears) to below the chin (y 192); 10 % tighter than the first cut
+          // (8 Nov: the face larger), the tallest hats less (the item whole and the chin win); the face (x 112, y ~138)
+          // near the middle when bare
           for (const [head, skin] of [...Object.keys(TOP).map((h) => [h, 'Calico']), ['None', 'Calico'], ['None', 'Ghost']]) {
             const [x, y, side] = await p.evaluate((h, k) => QCP.pfpBox(h, k), head, skin), top = head in TOP ? TOP[head] : skin === 'Ghost' ? 51 : 67;
-            assert.ok(y <= top - 4 && y + side >= 196 && Math.abs(x + side / 2 - 112) < 0.01, `${head}/${skin}: the item whole, down to the chest (${[x, y, side]})`);
-            if (head === 'None' && skin === 'Calico') assert.ok(Math.abs(y + side / 2 - 137) <= 3, `bare: the face centred (${[x, y, side]})`);
+            const was = Math.max(160, 200 - Math.max(0, Math.min(top, skin === 'Ghost' ? 51 : 67) - 6));
+            assert.ok(y <= Math.max(0, top - 6) + 1e-9 && y + side >= 192 && Math.abs(x + side / 2 - 112) < 0.01, `${head}/${skin}: the item whole, down below the chin (${[x, y, side]})`);
+            assert.ok(side <= was * 0.96 + 1e-9 && side >= was * 0.9 - 1e-9, `${head}/${skin}: tighter than the first cut (${side} of ${was})`);
+            if (head === 'None' && skin === 'Calico') assert.ok(Math.abs(side - 144) < 1e-9 && Math.abs(y + side / 2 - 137) <= 5, `bare: 10 % tighter, the face near the middle (${[x, y, side]})`);
           }
           await p.waitForFunction(() => QCP.big, { timeout: 20000 });
           const name = await txt(p, '#bigname'), got = await pressPfp(p, true);
@@ -1830,12 +1861,37 @@ async function nftErrorScenario(chain, name, viewport, account) {
           assert.ok(got.spread > 20, `not blank (${got.spread})`);
           fs.writeFileSync(path.join(SHOTS, 's2-pfp-1-shared.png'), Buffer.from(got.png, 'base64'));
           await shot('1-big-card-with-pfp');
+          // from the card's LAYERS (8 Nov, full-background cards): the background, the aura, the hamster and its items; none
+          // of the card's ring dots, net mark, caption or border (painted magenta here: not one magenta pixel in the PFP);
+          // a tall head item never cut (its PFP's top rows the same with the item taken off)
+          let checked = 0;
           for (const [k, x] of [['tall', tall], ['bare', bare]]) {
             if (!x) { results.push(['skip', `s2-pfp ${k}`, `no ${k} head among the caught nets of this chain`]); continue; }
-            const png = await p.evaluate((im, h, sk) => QCP.pfpCard(im, h, sk), x[2].image, x[2].attr.Head, x[2].attr.Skin);
-            const b = Buffer.from(png.slice(png.indexOf(',') + 1), 'base64');
-            assert.deepEqual([b.readUInt32BE(16), b.readUInt32BE(20)], [512, 512], `${k}: 512 x 512`);
-            fs.writeFileSync(path.join(SHOTS, `s2-pfp-2-${k}-${x[2].attr.Head.replace(/\W+/g, '')}.png`), b);
+            const pfp = (im) => p.evaluate((im, h, sk) => QCP.pfpCard(im, h, sk), im, x[2].attr.Head, x[2].attr.Skin);
+            const png = await pfp(x[2].image), st = await pngStats(p, png);
+            assert.deepEqual(st.size, [512, 512], `${k}: 512 x 512`);
+            assert.ok(st.spread > 20, `${k}: not blank (${st.spread})`);
+            fs.writeFileSync(path.join(SHOTS, `s2-pfp-2-${k}-${x[2].attr.Head.replace(/\W+/g, '')}.png`), Buffer.from(png.slice(png.indexOf(',') + 1), 'base64'));
+            const svg = cardSvg(x[2].image), [mag, n] = magentaCard(svg);
+            if (n < 7) { results.push(['skip', `s2-pfp ${k} layers`, `not a full-background card (${n} of its decorations found): the renderer build in contracts/out is older (forge build)`]); continue; }
+            assert.equal((await pngStats(p, await pfp(svgImg(mag)), 0)).mag, 0, `${k}: none of the card's ring, net mark, caption or border (${n} painted magenta)`);
+            assert.ok((await pngStats(p, await p.evaluate((im) => QCP.pfpCrop(im, 'Chef hat', 'Plain'), svgImg(mag)), 0)).mag > 0, `${k}: (the card crop of a tall hat would show them)`);
+            if (k === 'tall') {
+              const off = await pngStats(p, await pfp(svgImg(hatless(svg))));
+              assert.ok(st.top.every((v, i) => Math.abs(v - off.top[i]) <= 3), `${k}: the ${x[2].attr.Head} whole (not in the PFP's top rows)`);
+            }
+            checked++;
+          }
+          assert.ok(checked > 0, 'a caught net\'s PFP checked');
+          // a front aura (drawn again in front of the lower body, clipped to painted rows >= 156): that clip stays, the face
+          // above it untouched (the PFP's rows above 156 the same with the front copy taken out)
+          const FR = "<use href='#a' clip-path='url(#f)'/>", fx = metas.find(([, , m]) => cardSvg(m.image).includes(FR));
+          if (!fx) results.push(['skip', 's2-pfp front aura', 'no front aura among the caught nets of this chain']);
+          else {
+            const [, , m] = fx, svg = cardSvg(m.image), box = await p.evaluate((h, k) => QCP.pfpBox(h, k), m.attr.Head, m.attr.Skin), rows = Math.floor((156 - box[1]) * 512 / box[2]) - 2;
+            const pf = (im) => p.evaluate((im, h, sk) => QCP.pfpCard(im, h, sk), im, m.attr.Head, m.attr.Skin);
+            const [a, z] = [await pngStats(p, await pf(m.image), rows), await pngStats(p, await pf(svgImg(svg.replace(FR, ''))), rows)];
+            assert.ok(a.top.every((v, i) => Math.abs(v - z.top[i]) <= 3), `${m.attr.Aura}: the front aura only below the face`);
           }
           await vp(p, 1280, 860); await sleep(300);
           const pc = await pressPfp(p);

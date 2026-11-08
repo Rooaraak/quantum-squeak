@@ -3101,57 +3101,88 @@ footer a { color: var(--ink) }
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('big').hidden) { e.preventDefault(); route(bigFrom); } });
   // ---------- Save as PFP (owner 11-07: "they would be good pfp"; "only the upper part"): a 512 x 512 PNG portrait of a
   // caught hamster, head and shoulders: from just above its tallest head item (hats, crowns, halos, horns, helmets stay
-  // in) down to the chest, the face in the middle, its own background behind. Season 2: the chain's own card, cropped by
-  // its viewBox (the card's ring, net mark and caption taken out), drawn at 512 px from the SVG itself; a browser that will
-  // not read back an SVG drawn into a canvas gets the card's painted layers drawn one by one instead. Early nets: their
-  // painted look on its rarity colour. A phone with a file share sheet gets that; anything else a download named after
-  // the hamster. Downloads happen only here. ----------
+  // in) down to the chest, the face large. Season 2 (8 Nov, full-background cards: a crop of the card showed its border
+  // and ring dots): drawn from the chain card's LAYERS only: its background picture over the whole square (where the card
+  // puts it, so the same part of the picture as behind the hamster on the card), the aura and the hamster with its items;
+  // never the card's border, ring of drops, net mark, caption band or fallback drawing. Drawn at 512 px from an SVG of
+  // those layers; a browser that will not read back an SVG drawn into a canvas gets the same layers drawn one by one; a
+  // card whose layers cannot be told apart: the card itself, cropped (the fallback). Early nets: their painted look on
+  // its rarity colour. A phone with a file share sheet gets that; anything else a download named after the hamster.
+  // Downloads happen only here. ----------
   // the head items' top edge in the painted 224 x 300 frame (contracts/art/s2/sprites.json, the launch art); a bare head:
   // its ears (~67). The face sits at x 112, y ~138 of every body
   const HEAD_TOP = {"Party hat": 32, "Beanie": 24, "Cat ears": 60, "Chef hat": 13, "Cowboy hat": 46, "Flower crown": 69, "Propeller cap": 48, "Mushroom cap": 38, "Little crown": 49, "Headphones": 35, "Pirate hat": 41, "Top hat": 48, "Viking helmet": 36, "Sprout": 41, "Wizard hat": 15, "Devil horns": 63, "Astronaut helmet": 45, "Quantum chandelier": 14, "Halo": 21, "Record crown": 5};
   const SKIN_TOP = {"Galaxy": 64, "Ghost": 51, "Gold": 66};          // skins whose sprite starts above the usual ears (y 67)
   const PFP = 512;
   const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+  // the crop in the painted 224 x 300 frame (x, y, side): 10 % tighter than the first cut (8 Nov: "the face a bit
+  // larger"), its top edge never below the head item's (or the ears') top less 6: a tall item is never cut; and never
+  // above y 192 at the bottom (the chin and a little below it: the tallest hats get only ~5 % tighter)
   function pfpBox(head, skin) {
     const top = Math.max(0, Math.min(own(HEAD_TOP, head) ? HEAD_TOP[head] : 99, own(SKIN_TOP, skin) ? SKIN_TOP[skin] : 67) - 6);
-    const side = Math.max(160, 200 - top), y = Math.max(0, Math.min(top, 136 - side / 2));
+    const side = Math.max(0.9 * Math.max(160, 200 - top), 192 - top), y = Math.max(0, Math.min(top, 136 - side / 2));
     return [112 - side / 2, y, side];
   }
+  const cardBox = (head, skin) => { const [x, y, side] = pfpBox(head, skin); return [70.4 + 0.8 * x, 8.4 + 0.8 * y, 0.8 * side]; };
   const loadPic = (src) => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('picture')); i.src = src; });
   const b64utf8 = (b) => { const s = atob(b), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return new TextDecoder().decode(u); };
   const utf8b64 = (t) => { const u = new TextEncoder().encode(t); let s = ''; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); };
-  // the card's SVG, its frame taken out, its viewBox on the head; -> the parsed document and the crop (svg units)
-  function pfpDoc(image, head, skin) {
+  const cardDoc = (image) => {
     const doc = new DOMParser().parseFromString(b64utf8(image.slice(image.indexOf(',') + 1)), 'image/svg+xml'), root = doc.documentElement;
     if (root.nodeName !== 'svg' || !root.querySelector('#painted')) throw new Error('not a painted card');
+    return { doc, root };
+  };
+  const onBox = (root, box) => { root.setAttribute('viewBox', [box[0], box[1], box[2], box[2]].map((v) => +v.toFixed(3)).join(' ')); root.setAttribute('width', String(PFP)); root.setAttribute('height', String(PFP)); };
+  const svgCanvas = async (doc) => {
+    const cv = mk(PFP, PFP), g = cv.getContext('2d');
+    g.drawImage(await loadPic('data:image/svg+xml;base64,' + utf8b64(new XMLSerializer().serializeToString(doc))), 0, 0, PFP, PFP);
+    g.getImageData(0, 0, 1, 1);                       // throws where an SVG drawn into a canvas taints it
+    return cv;
+  };
+  // the card's layers, everything else taken out: the card's colour (its first rect: seen only where no picture covers),
+  // the background picture (full-background cards: a group of the svg itself, over the whole card; the first cards had it
+  // inside the painted box, clipped round: unclipped here) and the painted hamster (aura, body, items). Not kept: the ring,
+  // the net mark, the fallback drawing, the caption band and its text, the border. -> the document cropped on the head
+  const DEFS = /^(defs|style|clipPath|mask|filter|linearGradient|radialGradient|pattern|symbol)$/;
+  function pfpDoc(image, head, skin) {
+    const { doc, root } = cardDoc(image), kids = [...root.children], painted = kids.find((e) => e.id === 'painted');
+    if (!painted) throw new Error('no layers');
+    const base = kids.find((e) => e.nodeName === 'rect');
+    const bg = kids.find((e) => e.nodeName === 'g' && e !== painted && [...e.children].some((k) => k.nodeName === 'image'));
+    kids.forEach((e) => { if (e !== base && e !== bg && e !== painted && !DEFS.test(e.nodeName)) e.remove(); });
+    if (base) { base.setAttribute('x', '-320'); base.setAttribute('y', '-320'); base.setAttribute('width', '960'); base.setAttribute('height', '960'); }
+    painted.querySelectorAll('[clip-path]').forEach((e) => {      // the first cards' ROUND background clip only (a front aura's
+      const id = /url\(#([\w-]+)\)/.exec(e.getAttribute('clip-path') || ''), cp = id && root.querySelector(`clipPath[id="${id[1]}"]`);   // clip stays)
+      if (cp && cp.querySelector('circle')) e.removeAttribute('clip-path');
+    });
+    const box = cardBox(head, skin);
+    onBox(root, box);
+    return { doc, root, box, base, bg, painted };
+  }
+  // the fallback: the whole card cropped on the head (its caption text and net mark taken out)
+  async function pfpCrop(image, head, skin) {
+    const { doc, root } = cardDoc(image);
     root.querySelectorAll('text, #mynet').forEach((e) => e.remove());
-    [...root.children].forEach((e) => { if (e.nodeName === 'g' && e.getAttribute('fill-opacity') === '.35') e.remove(); });      // the ring of drops
-    const [x, y, side] = pfpBox(head, skin), box = [70.4 + 0.8 * x, 8.4 + 0.8 * y, 0.8 * side];
-    root.setAttribute('viewBox', [box[0], box[1], box[2], box[2]].map((v) => +v.toFixed(3)).join(' ')); root.setAttribute('width', String(PFP)); root.setAttribute('height', String(PFP));
-    return { doc, root, box };
+    onBox(root, cardBox(head, skin));
+    return svgCanvas(doc);
   }
   async function pfpS2(image, head, skin) {
-    const { doc, root, box } = pfpDoc(image, head, skin), cv = mk(PFP, PFP), g = cv.getContext('2d');
-    try {
-      g.drawImage(await loadPic('data:image/svg+xml;base64,' + utf8b64(new XMLSerializer().serializeToString(doc))), 0, 0, PFP, PFP);
-      g.getImageData(0, 0, 1, 1);                     // throws where an SVG drawn into a canvas taints it
-      return cv;
-    } catch (e) { /* the layers, one by one */ }
-    const c2 = mk(PFP, PFP), h = c2.getContext('2d'), bg = root.querySelector('rect');
-    h.fillStyle = (bg && bg.getAttribute('fill')) || '#0b1238'; h.fillRect(0, 0, PFP, PFP);
-    const k = PFP / box[2];
-    h.setTransform(k * 0.8, 0, 0, k * 0.8, k * (70.4 - box[0]), k * (8.4 - box[1]));
-    for (const el of root.querySelector('#painted').querySelectorAll('image')) {
-      if (el.closest('mask')) continue;                // erase masks are not pictures
+    let L;
+    try { L = pfpDoc(image, head, skin); } catch (e) { return pfpCrop(image, head, skin); }
+    try { return await svgCanvas(L.doc); } catch (e) { /* the layers, one by one */ }
+    const { box, base, bg, painted } = L, cv = mk(PFP, PFP), h = cv.getContext('2d'), k = PFP / box[2];
+    h.fillStyle = (base && base.getAttribute('fill')) || '#0b1238'; h.fillRect(0, 0, PFP, PFP);
+    const draw = async (el) => {
       const src = el.getAttribute('href') || el.getAttribute('xlink:href') || '';
-      if (!/^data:image\/(webp|png);base64,/.test(src)) continue;
+      if (!/^data:image\/(webp|png);base64,/.test(src)) return;
       const pic = await loadPic(src), n = (a, d) => Number(el.getAttribute(a) || d);
-      h.save();
-      if (el.closest('[clip-path]')) { h.beginPath(); h.arc(112, 147, 112, 0, Math.PI * 2); h.clip(); }     // the round background
       h.drawImage(pic, n('x', 0), n('y', 0), n('width', pic.width), n('height', pic.height));
-      h.restore();
-    }
-    return c2;
+    };
+    const m = bg && /translate\(\s*([-\d.]+)[\s,]+([-\d.]+)\s*\)\s*scale\(\s*([-\d.]+)\s*\)/.exec(bg.getAttribute('transform') || '');
+    if (m) { const [tx, ty, sc] = m.slice(1).map(Number); h.setTransform(k * sc, 0, 0, k * sc, k * (tx - box[0]), k * (ty - box[1])); for (const el of bg.querySelectorAll('image')) await draw(el); }
+    h.setTransform(k * 0.8, 0, 0, k * 0.8, k * (70.4 - box[0]), k * (8.4 - box[1]));
+    for (const el of painted.querySelectorAll('image')) if (!el.closest('mask')) await draw(el);      // erase masks are not pictures
+    return cv;
   }
   async function pfpEarly(c) {
     const cv = mk(PFP, PFP), g = cv.getContext('2d'), col = getComputedStyle(document.documentElement).getPropertyValue(`--r${c.tier}`).trim() || '#d6dce8';
@@ -3291,7 +3322,7 @@ footer a { color: var(--ink) }
     data: DATA, spotResult, netResult, viewOf: view, select: selectView, practiceDay, win, get sofar() { return sofar; },
     get sqk() { return Object.fromEntries(Object.entries(S.sqk).map(([k, v]) => [k, typeof v === 'bigint' ? v.toString() : v])); }, paid: PAID,
     get eth() { return S.eth == null ? null : S.eth.toString(); },
-    get route() { return $('details').hidden ? 'main' : 'details'; }, nameOf, get big() { return $('big').hidden ? null : bigNow && bigNow.id; }, get passport() { return $('pass').hidden ? null : passportOf(); }, pfpBox, HEAD_TOP, pfpCard: async (image, head, skin) => (await pfpS2(image, head, skin)).toDataURL('image/png'), // a caught net's share card parts (site/make_shares.cjs): its name, tier, universe and its Save-as-PFP portrait
+    get route() { return $('details').hidden ? 'main' : 'details'; }, nameOf, get big() { return $('big').hidden ? null : bigNow && bigNow.id; }, get passport() { return $('pass').hidden ? null : passportOf(); }, pfpBox, HEAD_TOP, pfpCard: async (image, head, skin) => (await pfpS2(image, head, skin)).toDataURL('image/png'), pfpCrop: async (image, head, skin) => (await pfpCrop(image, head, skin)).toDataURL('image/png'), // a caught net's share card parts (site/make_shares.cjs): its name, tier, universe and its Save-as-PFP portrait
     shareInfo: async (id) => { const c = knownCatch(id) || await catchById(id); if (!c || c.tag === 'p') return null;
       return { name: nameOf(c.key, c.tier), tier: TIER[c.tier], tierIndex: c.tier, universe: UNIVERSE[c.tier], png: (await pfpOf(c)).toDataURL('image/png') }; } };
 })();
