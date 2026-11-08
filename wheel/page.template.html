@@ -3043,9 +3043,33 @@ footer a { color: var(--ink) }
   }
   async function openBigHash(id) {
     lastHash = 'hamster-' + id;
-    const c = knownCatch(id) || await catchById(id);
+    const bySlug = /^s-[0-9a-f]{12}$/.test(id), c = bySlug ? await catchBySlug(id.slice(2)) : knownCatch(id) || await catchById(id);
+    if (bySlug && lastHash !== 'hamster-' + id) return;        // the viewer went elsewhere while it was looked for
     if (!c) { route(''); return; }
     bigNow = c; showBig(c);
+  }
+  // a net's public slug (8 Nov): the first 12 hex of sha256("<v>-<token id hex>"). Share pages (h/<slug>/) and shared links
+  // (#hamster-s-<slug>) carry only it: never a wallet address (a token id holds its caster's wallet)
+  const slugs = new Map();
+  async function slugOf(id) {
+    if (!slugs.has(id)) {
+      let s = null;
+      try { const h = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(id))); s = [...h.slice(0, 6)].map((b) => b.toString(16).padStart(2, '0')).join(''); } catch (e) { /* no SubtleCrypto here: no slug */ }
+      slugs.set(id, s);
+    }
+    return slugs.get(id);
+  }
+  // #hamster-s-<slug>: the net among this browser's nets, the connected wallet's (a few seconds for its list to arrive),
+  // the latest catches and the one shown last; else nothing (the home page)
+  async function catchBySlug(slug) {
+    for (let k = 0; k < 10; k++) {
+      const C = [...myList().map(([d, m]) => catchOfNet(d, m)), ...(walletList || []).map((x) => catchOfChain(x)), bigNow];
+      for (const c of C) if (c && c.tag !== 'p' && c.id && await slugOf(c.id) === slug) return c;
+      const L = isObj(DATA.latest) && Array.isArray(DATA.latest.caught) ? DATA.latest.caught : [];
+      for (const x of L) if (isObj(x) && typeof x.id === 'string' && /^v[23]-[0-9a-f]{1,64}$/.test(x.id) && await slugOf(x.id) === slug) return catchById(x.id);
+      await new Promise((r) => setTimeout(r, 500));
+    }
+    return null;
   }
   function closeBig() { if ($('big').hidden) return; $('big').hidden = true; document.body.style.overflow = ''; }
   function showBig(c) {
@@ -3073,15 +3097,21 @@ footer a { color: var(--ink) }
       }
     }
     bigKv(c);
-    const web = /^https?:$/.test(location.protocol), link = (web ? location.origin + location.pathname : 'https://quantumsqueak.xyz/') + '#hamster-' + c.id;
-    const text = `I caught ${name}, ${an(tier)} ${tier} hamster from ${uni} on Quantum Squeak`;
+    // Share on X (8 Nov): its own share page h/<slug>/ (site/make_shares.cjs, once its night is posted: its card as the link
+    // preview) when the site has it; else the home page with ?s=<slug> (X caches a link's card: a fresh link per hamster)
+    // and #hamster-s-<slug>. Never a wallet address in the link. A name that already says its universe ("… of the Home
+    // Burrow") is not told it twice
+    const web = /^https?:$/.test(location.protocol), home = web ? location.origin + location.pathname : 'https://quantumsqueak.xyz/';
+    const text = name.includes(' of ' + uni) ? `I caught ${name}, ${an(tier)} ${tier} hamster, on Quantum Squeak` : `I caught ${name}, ${an(tier)} ${tier} hamster from ${uni}, on Quantum Squeak`;
     const shareTo = (u) => { $('bigshare').href = `https://x.com/intent/post?text=${encodeURIComponent(text)}&url=${encodeURIComponent(u)}`; };
-    shareTo(link);
-    // its own share page (site/make_shares.cjs, after the night is posted: its card as the link preview) when the site has it
-    if (web && c.tokenId) {
-      const page = location.origin + location.pathname.replace(/[^/]*$/, '') + `h/${c.id}/`;
+    shareTo(home);
+    if (c.tag !== 'p' && c.id) slugOf(c.id).then((sl) => {
+      if (!sl || bigNow !== c) return;
+      shareTo(`${home}?s=${sl}#hamster-s-${sl}`);
+      if (!web || !c.tokenId) return;
+      const page = location.origin + location.pathname.replace(/[^/]*$/, '') + `h/${sl}/`;
       fetch(page, { method: 'HEAD', cache: 'no-store' }).then((r) => { if (r.ok && bigNow === c) shareTo(page); }, () => { /* the home link */ });
-    }
+    });
     $('bigpfp').hidden = c.tag === 'p';
     $('bigpass').hidden = !S.me;
     const nft = $('bignft'); nft.hidden = !c.tokenId;
@@ -3323,7 +3353,7 @@ footer a { color: var(--ink) }
     get sqk() { return Object.fromEntries(Object.entries(S.sqk).map(([k, v]) => [k, typeof v === 'bigint' ? v.toString() : v])); }, paid: PAID,
     get eth() { return S.eth == null ? null : S.eth.toString(); },
     get route() { return $('details').hidden ? 'main' : 'details'; }, nameOf, get big() { return $('big').hidden ? null : bigNow && bigNow.id; }, get passport() { return $('pass').hidden ? null : passportOf(); }, pfpBox, HEAD_TOP, pfpCard: async (image, head, skin) => (await pfpS2(image, head, skin)).toDataURL('image/png'), pfpCrop: async (image, head, skin) => (await pfpCrop(image, head, skin)).toDataURL('image/png'), // a caught net's share card parts (site/make_shares.cjs): its name, tier, universe and its Save-as-PFP portrait
-    shareInfo: async (id) => { const c = knownCatch(id) || await catchById(id); if (!c || c.tag === 'p') return null;
+    slugOf, shareInfo: async (id) => { const c = knownCatch(id) || await catchById(id); if (!c || c.tag === 'p') return null;
       return { name: nameOf(c.key, c.tier), tier: TIER[c.tier], tierIndex: c.tier, universe: UNIVERSE[c.tier], png: (await pfpOf(c)).toDataURL('image/png') }; } };
 })();
 </script>

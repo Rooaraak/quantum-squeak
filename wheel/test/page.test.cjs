@@ -102,7 +102,7 @@ async function scenario(name, o, body) {
   try {
     const p = await browser.newPage();
     p.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
-    p.on('console', (m) => { if (m.type() !== 'error') return; const u = (m.location() && m.location().url) || ''; if (/Failed to load resource/.test(m.text()) && ([...aborted].some((a) => u.startsWith(a)) || /results\.json|\/h\/v[23]-[0-9a-f]+\/$/.test(u))) return;      /* (a net's share page not there yet: the home link) */ errors.push('console: ' + m.text() + ' @ ' + u.slice(0, 80)); });
+    p.on('console', (m) => { if (m.type() !== 'error') return; const u = (m.location() && m.location().url) || ''; if (/Failed to load resource/.test(m.text()) && ([...aborted].some((a) => u.startsWith(a)) || /results\.json|\/h\/(v[23]-[0-9a-f]+|[0-9a-f]{12})\/$/.test(u))) return;      /* (a net's share page not there yet: the home link) */ errors.push('console: ' + m.text() + ' @ ' + u.slice(0, 80)); });
     await p.setRequestInterception(true);
     p.on('request', (r) => {
       const u = r.url();
@@ -1898,10 +1898,12 @@ async function nftErrorScenario(chain, name, viewport, account) {
           assert.deepEqual([pc.name, pc.size, pc.shared], [name + '.png', [512, 512], false], 'a PC: a download named after the hamster');
           await shot('2-big-card-with-pfp-1280');
         });
-        // SHARE PAGES (owner 11-07: "the share card should show the player's own hamster"): site/make_shares.cjs renders every
-        // caught net of a posted night (not the household's) into h/<v>-<id>.jpg (1200 x 630) + h/<v>-<id>/index.html (its link
-        // preview, a redirect to its big card); only new ones; the export publishes them (its gate checks each file); the big
-        // card's Share on X shares that page once the site has it
+        // SHARE PAGES (owner 11-07: "the share card should show the player's own hamster"; 8 Nov: slugs): site/make_shares.cjs
+        // renders every caught net of a posted night, the household's too, into h/<slug>.jpg (1200 x 630) + h/<slug>/index.html
+        // (its link preview, a redirect to its big card), slug = sha256("<v>-<id hex>")[:12]: no wallet in any path; the
+        // household's page links #hamster-s-<slug> (no wallet in it at all); only new ones; a first page (h/<v>-<id>/, before
+        // slugs) becomes a copy of its slug page, its old card goes; the export publishes them (its gate checks each file);
+        // the big card's Share on X shares that page once the site has it, else the home page ?s=<slug>#hamster-s-<slug>
         if (fs.existsSync(path.join(ROOT, 'site/make_shares.cjs')) && (!ONLY || ONLY.includes('s2-share'))) {
           const sd = fs.mkdtempSync(path.join(os.tmpdir(), 'qc-sh-')), dir = path.join(sd, 'h'), pg = path.join(sd, 's2.html');
           fs.writeFileSync(pg, s2.html);
@@ -1910,35 +1912,56 @@ async function nftErrorScenario(chain, name, viewport, account) {
           fs.writeFileSync(path.join(sd, 'private.json'), JSON.stringify({ wallets: PRIV ? [PRIV] : [] }));
           const env = { ...process.env, QC_SHARE_DIR: dir, QC_SHARE_PAGE: pg, QC_POSTS: path.join(sd, 'posts.json'), QC_PRIVATE: path.join(sd, 'private.json'), QC_SHARE_RPC: s2.url };
           const run = () => execFileSync('node', [path.join(ROOT, 'site/make_shares.cjs')], { env, encoding: 'utf8', timeout: 600000 });
-          const t1 = Date.now(), out1 = run(), ids = caught.filter(([a]) => a !== PRIV).map(([a, r]) => ['v3-' + BigInt(QC.netId(N5, a)).toString(16), r.tier - 1]);
-          assert.match(out1, new RegExp(`(^|\\n)shares: ${ids.length} new page`), out1);
-          assert.deepEqual(fs.readdirSync(dir).sort(), ids.flatMap(([i]) => [i, i + '.jpg']).sort(), "a card and a page per caught net; none for the household's, none for a net that got away");
-          for (const [i] of ids) {
-            const j = fs.readFileSync(path.join(dir, i + '.jpg'));
+          const slugOf = (id) => crypto.createHash('sha256').update(id).digest('hex').slice(0, 12);
+          const all = caught.map(([a, r]) => { const id = 'v3-' + BigInt(QC.netId(N5, a)).toString(16); return { a, id, slug: slugOf(id), t: r.tier - 1, own: a === PRIV }; });
+          // a first page (before slugs) of the first net, and a household one: the run converts the one, removes the other
+          const L0 = all.find((x) => !x.own), LP = all.find((x) => x.own);
+          fs.mkdirSync(path.join(dir, L0.id), { recursive: true }); fs.writeFileSync(path.join(dir, L0.id, 'index.html'), '<p>old</p>'); fs.writeFileSync(path.join(dir, L0.id + '.jpg'), 'old');
+          if (LP) { fs.mkdirSync(path.join(dir, LP.id), { recursive: true }); fs.writeFileSync(path.join(dir, LP.id, 'index.html'), '<p>old</p>'); }
+          const t1 = Date.now(), out1 = run();
+          assert.match(out1, new RegExp(`(^|\\n)shares: ${all.length} new page`), out1);
+          assert.deepEqual(fs.readdirSync(dir).sort(), [...all.flatMap((x) => [x.slug, x.slug + '.jpg']), L0.id].sort(), "a card and a page per caught net (the household's too) under its slug; the first page kept, its old card and the household's first page gone");
+          for (const x of all) {
+            const j = fs.readFileSync(path.join(dir, x.slug + '.jpg')), html = fs.readFileSync(path.join(dir, x.slug, 'index.html'), 'utf8');
             let k = 2, wh = null; while (k + 4 < j.length && j[k] === 0xff && j[k + 1] !== 0xda) { if (j[k + 1] === 0xc0 || j[k + 1] === 0xc2) wh = [j.readUInt16BE(k + 7), j.readUInt16BE(k + 5)]; k += 2 + j.readUInt16BE(k + 2); }
-            assert.ok(j[0] === 0xff && j[1] === 0xd8 && JSON.stringify(wh) === '[1200,630]' && j.length <= 300000, `${i}.jpg: a 1200 x 630 JPEG under 300 KB (${wh}, ${j.length})`);
+            assert.ok(j[0] === 0xff && j[1] === 0xd8 && JSON.stringify(wh) === '[1200,630]' && j.length <= 300000, `${x.slug}.jpg: a 1200 x 630 JPEG under 300 KB (${wh}, ${j.length})`);
+            assert.ok(html.includes(`url=https://quantumsqueak.xyz/#hamster-${x.own ? 's-' + x.slug : x.id}">`), `${x.slug}: its link (${x.own ? 'the household\'s: by its slug' : 'its id'})`);
+            if (x.own) assert.ok(!html.toLowerCase().includes(x.a.slice(2).toLowerCase()) && !/[0-9a-f]{40}/i.test(html), 'the household\'s page: no wallet in it');
           }
+          assert.equal(fs.readFileSync(path.join(dir, L0.id, 'index.html'), 'utf8'), fs.readFileSync(path.join(dir, L0.slug, 'index.html'), 'utf8'), 'the first page: a copy of its slug page');
           assert.match(run(), /^shares: nothing new/, 'only new catches are rendered');
-          console.log(`  (share pages: ${ids.length} in ${((Date.now() - t1) / 1000).toFixed(1)} s)`);
-          fs.copyFileSync(path.join(dir, ids[0][0] + '.jpg'), path.join(SHOTS, 's2-share-card-1200x630.jpg'));
+          console.log(`  (share pages: ${all.length} in ${((Date.now() - t1) / 1000).toFixed(1)} s)`);
+          fs.copyFileSync(path.join(dir, L0.slug + '.jpg'), path.join(SHOTS, 's2-share-card-1200x630.jpg'));
+          if (LP) fs.copyFileSync(path.join(dir, LP.slug + '.jpg'), path.join(SHOTS, 's2-share-card-household-1200x630.jpg'));
           if (fs.existsSync(path.join(ROOT, 'tools/export-public.sh'))) {
-            const stage = path.join(sd, 'stage'), ex = spawnSync('bash', [path.join(ROOT, 'tools/export-public.sh'), '--worktree', stage], { env: { ...process.env, QC_SHARE_DIR: dir }, encoding: 'utf8', maxBuffer: 64 << 20 });
+            const stage = path.join(sd, 'stage'), ex = spawnSync('bash', [path.join(ROOT, 'tools/export-public.sh'), '--worktree', stage], { env: { ...process.env, QC_SHARE_DIR: dir, QC_PRIVATE: path.join(sd, 'private.json') }, encoding: 'utf8', maxBuffer: 64 << 20 });
             assert.equal(ex.status, 0, ex.stdout.slice(-1500) + ex.stderr);
             assert.match(ex.stdout, /LEAK GATE CLEAN/);
-            for (const [i] of ids) assert.ok(fs.existsSync(path.join(stage, 'h', i, 'index.html')) && fs.existsSync(path.join(stage, 'h', i + '.jpg')), `published: h/${i}`);
+            for (const x of all) assert.ok(fs.existsSync(path.join(stage, 'h', x.slug, 'index.html')) && fs.existsSync(path.join(stage, 'h', x.slug + '.jpg')), `published: h/${x.slug}`);
+            assert.ok(fs.existsSync(path.join(stage, 'h', L0.id, 'index.html')) && !fs.existsSync(path.join(stage, 'h', L0.id + '.jpg')), 'published: the first page (a copy), no card under an id');
           }
-          const [I0, T0i] = ids[0], page0 = fs.readFileSync(path.join(dir, I0, 'index.html'), 'utf8');
-          await scenario('s2-share', { width: 390, height: 844, at: Date.parse('2026-11-06T13:00:00Z'), page: s2.html, results: NX.body, rpcUrl: s2.url, hash: 'hamster-' + I0, files: { [`/h/${I0}/`]: page0 } }, async (p, { shot }) => {
+          const I0 = L0.id, S0 = L0.slug, T0i = L0.t, page0 = fs.readFileSync(path.join(dir, S0, 'index.html'), 'utf8');
+          const UNI = ['the Home Burrow', 'the Wild Worlds', 'the Machine Worlds', 'the Dream Worlds', 'the Golden World'];
+          await scenario('s2-share', { width: 390, height: 844, at: Date.parse('2026-11-06T13:00:00Z'), page: s2.html, results: NX.body, rpcUrl: s2.url, hash: 'hamster-' + I0, files: { [`/h/${S0}/`]: page0 } }, async (p, { shot }) => {
             await p.waitForFunction(() => QCP.big, { timeout: 20000 });
-            const name = await p.evaluate((k, t) => QCP.nameOf(k, t), 'v3:' + I0.slice(3), T0i), tier = ['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'][T0i];
-            assert.ok(page0.includes(`<meta property="og:title" content="${name} · ${/^[AEIOU]/.test(tier) ? 'an' : 'a'} ${tier} hamster from ${['the Home Burrow', 'the Wild Worlds', 'the Machine Worlds', 'the Dream Worlds', 'the Golden World'][T0i]}">`), 'its page: the name its big card gives it');
-            assert.ok(page0.includes(`<meta property="og:image" content="https://quantumsqueak.xyz/h/${I0}.jpg">`) && page0.includes(`url=https://quantumsqueak.xyz/#hamster-${I0}">`));
-            await p.waitForFunction((u) => decodeURIComponent(document.getElementById('bigshare').href).endsWith('&url=' + u), { timeout: 10000 }, `${new URL(p.url()).origin}/h/${I0}/`);
+            const name = await p.evaluate((k, t) => QCP.nameOf(k, t), 'v3:' + I0.slice(3), T0i), tier = ['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'][T0i], uni = UNI[T0i], an = /^[AEIOU]/.test(tier) ? 'an' : 'a';
+            const once = name.includes(' of ' + uni);
+            assert.ok(page0.includes(`<meta property="og:title" content="${name} · ${an} ${tier} hamster${once ? '' : ' from ' + uni}">`), 'its page: the name its big card gives it, the universe once');
+            assert.ok(page0.includes(`<meta property="og:image" content="https://quantumsqueak.xyz/h/${S0}.jpg">`) && page0.includes(`url=https://quantumsqueak.xyz/#hamster-${I0}">`));
+            assert.equal(await p.evaluate((i) => QCP.slugOf(i), I0), S0, 'the page\'s slug = the generator\'s');
+            await p.waitForFunction((u) => decodeURIComponent(document.getElementById('bigshare').href).endsWith('&url=' + u), { timeout: 10000 }, `${new URL(p.url()).origin}/h/${S0}/`);
+            const text = new URL(await p.$eval('#bigshare', (e) => e.href)).searchParams.get('text');
+            assert.equal(text, once ? `I caught ${name}, ${an} ${tier} hamster, on Quantum Squeak` : `I caught ${name}, ${an} ${tier} hamster from ${uni}, on Quantum Squeak`, 'the post: the universe once');
             await shot('1-big-card-share-page');
+            // #hamster-s-<slug>: the net shown last found by its slug; an unknown slug: the home page
+            await p.evaluate(() => { location.hash = ''; }); await p.waitForFunction(() => !QCP.big, { timeout: 5000 });
+            await p.evaluate((s) => { location.hash = 'hamster-s-' + s; }, S0); await p.waitForFunction((i) => QCP.big === i, { timeout: 10000 }, I0);
+            await p.evaluate(() => { location.hash = 'hamster-s-000000000000'; }); await p.waitForFunction(() => !QCP.big && location.hash === '', { timeout: 10000 });
           });
-          if (PRIV) await scenario('s2-share-none', { width: 390, height: 844, at: Date.parse('2026-11-06T13:00:00Z'), page: s2.html, results: NX.body, rpcUrl: s2.url, hash: 'hamster-v3-' + BigInt(QC.netId(N5, PRIV)).toString(16) }, async (p) => {
+          if (PRIV) await scenario('s2-share-none', { width: 390, height: 844, at: Date.parse('2026-11-06T13:00:00Z'), page: s2.html, results: NX.body, rpcUrl: s2.url, hash: 'hamster-' + LP.id }, async (p) => {
             await p.waitForFunction(() => QCP.big, { timeout: 20000 }); await sleep(800);
-            assert.ok(decodeURIComponent(await p.$eval('#bigshare', (e) => e.href)).endsWith('/#hamster-v3-' + BigInt(QC.netId(N5, PRIV)).toString(16)), 'no page (yet): the home link');
+            const href = decodeURIComponent(await p.$eval('#bigshare', (e) => e.href));
+            assert.ok(href.endsWith(`/?s=${LP.slug}#hamster-s-${LP.slug}`) && !href.toLowerCase().includes(PRIV.slice(2).toLowerCase()), `no page (yet): the home page with its slug, never its wallet (${href.slice(-80)})`);
           });
           fs.rmSync(sd, { recursive: true, force: true });
         }
