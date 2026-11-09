@@ -394,7 +394,9 @@ test('export-public.sh: index.html + results.json + og.jpg (the site) + README.m
   try {
     assert.equal(r.status, 0, r.stdout + r.stderr);
     assert.match(r.stdout, /LEAK GATE CLEAN: no known leak pattern found/);
-    assert.deepEqual(fs.readdirSync(dir).sort(), ['.gitignore', 'LICENSE', 'README.md', 'contracts', 'data', 'index.html', 'og.jpg', 'quantum', 'results.json', 'wheel']);
+    // status.json (the late-result line, owner 11-09) only while wheel/out/status.json exists: a run waiting for IBM
+    const late = fs.existsSync(path.join(path.dirname(OUT), 'status.json')) ? ['status.json'] : [];
+    assert.deepEqual(fs.readdirSync(dir).sort(), ['.gitignore', 'LICENSE', 'README.md', 'contracts', 'data', 'index.html', 'og.jpg', 'quantum', 'results.json', ...late, 'wheel'].sort());
     const files = walk(dir);
     for (const f of ['wheel/engine.js', 'wheel/catch.js', 'wheel/page.template.html', 'wheel/build.py', 'wheel/config.json', 'wheel/art/art.json', 'wheel/test/static.test.mjs',
       'quantum/wheel.py', 'quantum/wheel_spec.md', 'quantum/wheel-2026-10-31-ibm_marrakesh-dbmbiau74qds73ds0hug.json', 'data/chain-nights.json', 'contracts/src/QuantumCatch.sol',
@@ -615,4 +617,16 @@ test('the story band: How Squeektoshi opened the door, 5 panels + one sentence e
   assert.ok(!/<img [^>]*\bsrc=/.test(band), 'no picture in the markup: lazy');
   const L = JSON.parse(fs.readFileSync(path.join(ROOT, 'wheel/art/lore.json'), 'utf8'));
   for (const [k, v] of Object.entries(L)) { assert.ok(html.includes(v.data.slice(0, 200)), `${k} in the page`); assert.deepEqual([v.w, v.h], [900, 672]); }
+});
+
+// owner 11-09 ("people are waiting for the reveal at 13:00 and we are late"): one line under the story line while the night
+// that ended last has no chip result in the page; status.json (cache-busted: Pages' CDN keeps files ~10 min) adds when the
+// run went to IBM; results.json is re-read on the same tick so the result shows without a reload
+test('late result: the hero line, status.json read cache-busted, results re-read, gone once the chip result is in', () => {
+  const t = fs.readFileSync(path.join(ROOT, 'wheel/page.template.html'), 'utf8');
+  assert.ok(t.includes('<p class="qlate" id="qlate" role="status" hidden></p>'), 'the hidden late line in the hero');
+  assert.ok(t.includes('fetch(`status.json?v=${Math.floor(now() / 60000)}`'), 'status.json past the CDN cache');
+  assert.ok(t.includes('fetchResults(true)') && t.includes('results.json?v=${Math.floor(now() / 60000)}'), 'results re-read past the CDN cache');
+  assert.match(t, /return chipOf\(d\) \|\| \(N\(d\) && N\(d\)\.slept\) \|\| now\(\) < end/, 'no line once the chip result is in, on a slept night or before 13:00');
+  assert.ok(/renderLate\(\); \}/.test(t), 'renderAll redraws it');
 });

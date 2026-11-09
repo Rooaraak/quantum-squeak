@@ -162,6 +162,8 @@ a:hover { color: var(--ink) }
 .headline { margin: 0; font: 400 20px/1.02 var(--display); letter-spacing: .01em; text-transform: uppercase; color: var(--ink); text-wrap: balance; text-shadow: 0 1px 10px rgba(5, 10, 34, .95) }
 .headline em { font-style: normal; color: var(--cyan) }
 .lede1 { margin: 6px 0 0; font: 400 10.5px/1.35 var(--mono); color: var(--stage-ink, #fff4dc); text-shadow: 0 1px 8px rgba(5, 10, 34, .95) }
+/* late result (owner 11-09): one line under the story line while last night's run waits for IBM */
+.qlate { margin: 6px 0 0; display: inline-block; max-width: 34em; padding: 4px 9px; border-radius: 8px; background: rgba(5, 10, 34, .72); font: 700 10.5px/1.35 var(--mono); color: var(--cyan) }
 
 /* the name plate: YOUR CATCH, No. N (a '?' until the chip's drop decides), what it wears or when it is decided, the band */
 .plate { grid-column: 2; grid-row: 3; z-index: 2; align-self: end; justify-self: start; width: min(100%, 196px); margin: 4px 8px 8px 0 }
@@ -932,7 +934,7 @@ footer a { color: var(--ink) }
         <span class="stamp" id="stamp"></span>
       </div>
       <div class="chiptag"><b>IBM quantum computer</b><p class="alive" id="alive" hidden><a class="live" id="live" href="https://squeekchain.com" target="_blank" rel="noopener" hidden><span id="livet"></span></a><span class="netsn" id="netsn" hidden></span></p></div>
-      <div class="hl"><h1 class="headline">Catch a hamster from <em>another universe</em>.</h1><p class="lede1" id="lede1">Every night Squeektoshi's run opens the door. At <span class="tend">13:00</span> a real IBM quantum computer shakes it.</p></div>
+      <div class="hl"><h1 class="headline">Catch a hamster from <em>another universe</em>.</h1><p class="lede1" id="lede1">Every night Squeektoshi's run opens the door. At <span class="tend">13:00</span> a real IBM quantum computer shakes it.</p><p class="qlate" id="qlate" role="status" hidden></p></div>
       <div class="plate" id="plate">
         <span class="pk"><span id="platek">Your catch</span></span>
         <div class="pc"><div class="pci"><p class="pn"><span>No.</span><b id="platen">?</b></p><ul class="pw" id="platew" aria-label="Look"></ul></div><div class="pb"><p id="plateb"></p></div></div>
@@ -1328,6 +1330,41 @@ footer a { color: var(--ink) }
     const c = chipDays(), last = c[c.length - 1]; if (!last) return '';
     const ended = (QC.nightStart(QC.nightOfDay(last)) + QC.DAY) * 1000;
     return now() - ended > 36 * 3600e3 ? `IBM's chip has not looked at a night since ${dayLabel(last)}: nets wait until it does.` : '';
+  }
+  // late result (owner 11-09: "people are waiting for the reveal at 13:00 and we are late"): the night that ended last has no
+  // chip result in the page yet. status.json next to the page (written when the run goes to IBM) adds when it was sent; the
+  // line goes away by itself once the result is in (results.json). Promise nothing.
+  let qst = null;
+  const lastEnded = () => new Date(Math.floor((now() - 12 * 3600e3) / 864e5) * 864e5 - 864e5).toISOString().slice(0, 10);
+  function lateNight() {
+    const d = lastEnded(), end = endOf(d);
+    return chipOf(d) || (N(d) && N(d).slept) || now() < end || now() - end > 36 * 3600e3 ? null : d;
+  }
+  const qSent = (d) => (qst && qst.night === d && Number.isFinite(Date.parse(qst.sent)) ? Date.parse(qst.sent) : null);
+  function lateShort(d) {
+    const t = qSent(d); if (!t || d !== lateNight()) return '';
+    return `in IBM's queue since ${tLocal(t)} (${Math.max(1, Math.round((now() - t) / 60000))} min)`;
+  }
+  function renderLate() {
+    const el = $('qlate'), d = lateNight(), t = d && qSent(d);
+    el.hidden = !d; if (!d) { el.textContent = ''; return; }
+    el.textContent = t ? `\u23f3 IBM's quantum computer is busy today. Last night's run is in its queue since ${tLocal(t)} (${Math.max(1, Math.round((now() - t) / 60000))} min). Your hamster comes when it runs.`
+      : "\u23f3 The quantum computer is on last night's run. Your hamster comes when it is done.";
+  }
+  let qstTimer = null;
+  async function fetchStatus() {
+    clearTimeout(qstTimer);
+    if (!lateNight()) { renderLate(); return; }
+    if (/^https?:$/.test(location.protocol)) {
+      try {
+        const r = await fetch(`status.json?v=${Math.floor(now() / 60000)}`, { cache: 'no-store', signal: (window.AbortSignal && AbortSignal.timeout) ? AbortSignal.timeout(8000) : undefined });
+        const j = r.ok ? await r.json() : null;
+        qst = isObj(j) && j.kind === 'quantum_squeak_status' && /^\d{4}-\d{2}-\d{2}$/.test(j.night) && typeof j.sent === 'string' ? j : null;
+      } catch (e) { /* blocked or offline: the line without the time */ }
+      fetchResults(true);
+    }
+    renderLate(); renderNftBox();
+    if (!document.hidden && lateNight()) qstTimer = setTimeout(fetchStatus, 120000);
   }
 
   // ---------- sound: tiny kit made in code, OFF by default ----------
@@ -1864,7 +1901,7 @@ footer a { color: var(--ink) }
     if (chipOf(d) && drawn(m)) t = `<a href="#${d}" class="pready">${who} catch is ready →</a>`;
     else if (chipOf(d)) t = `${who} net: ${S.chain[d] === QC.DRAWING ? 'Drawing…' : 'result posted soon'}`;
     else if (now() < end) t = `${who} net: result ${rd} at ${tLocal(end)} · <b class="cdr" data-to="${end}">in ${QC.countdown(end - now())}</b>`;
-    else t = `${who} net: waiting for the quantum computer…`;
+    else t = `${who} net: ${lateShort(d) || 'waiting for the quantum computer…'}`;
     el.innerHTML = t + more;
     const a = el.querySelector('.pready'); if (a) a.onclick = (e) => { e.preventDefault(); showNight(d); if (readyNow(d)) play(); };
     const b = el.querySelector('.pmore'); if (b) b.onclick = (e) => { e.preventDefault(); route('tonight'); };
@@ -1877,7 +1914,7 @@ footer a { color: var(--ink) }
     if (!on) return;
     if (isDrop(net)) {
       const end = endOf(d), over = now() >= end;
-      $('nfttext').innerHTML = `<b class="ok">${NET_IN}</b><span class="rl">${over ? 'Waiting for the quantum computer…' : `Result ${relDay(end)} at ${tLocal(end)}`}</span>` +
+      $('nfttext').innerHTML = `<b class="ok">${NET_IN}</b><span class="rl">${over ? (lateShort(d) ? `Waiting: ${lateShort(d)}` : 'Waiting for the quantum computer…') : `Result ${relDay(end)} at ${tLocal(end)}`}</span>` +
         (over ? '' : `<b class="cdr" data-to="${end}">in ${QC.countdown(end - now())}</b><span class="rl2">Until ${tLocal(end)} your hamster is in every universe at once.</span>`);
     } else $('nfttext').innerHTML = `<b>Your net is an NFT</b> on Sepolia (free test, no value): night of ${esc(dayLabel(net.nft.day || d))}, ${OLD} on No. ${net.spot}. It turns into your catch (or "got away") when the chip's result is posted.`;
     const im = $('nftimg'), src = net.nft && net.nft.image; if (src && /^data:image\/svg\+xml;base64,/.test(src)) { im.src = src; im.hidden = false; } else {
@@ -2655,10 +2692,10 @@ footer a { color: var(--ink) }
       return k.every((x, i) => x === c.counts[i]) && c.twin.every((p) => isObj(p) && okNum(p.wins) && okNum(p.shots) && p.wins <= p.shots);
     } catch (e) { return false; }
   }
-  async function fetchResults() {
+  async function fetchResults(bust) {
     if (!/^https?:$/.test(location.protocol)) return;
     try {
-      const r = await fetch('results.json', { cache: 'no-store', signal: (window.AbortSignal && AbortSignal.timeout) ? AbortSignal.timeout(8000) : undefined });
+      const r = await fetch(bust ? `results.json?v=${Math.floor(now() / 60000)}` : 'results.json', { cache: 'no-store', signal: (window.AbortSignal && AbortSignal.timeout) ? AbortSignal.timeout(8000) : undefined });
       if (!r.ok) return;
       const j = await r.json(); let added = 0;
       if (!isObj(j) || j.kind !== 'quantum_catch_results') return;
@@ -2760,7 +2797,7 @@ footer a { color: var(--ink) }
     wIdle = on ? 40 : 5; if (!S.playing) wSpeed = wIdle;
   }
   // back on the tab (e.g. the next morning): look for new results too, so a net left open overnight resolves without a reload
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) { if (liveFails < 3) livePoll(); readSoFar(); readNets(); fetchResults(); readDrops(); readSqk(); } else { clearTimeout(liveTimer); clearTimeout(soTimer); } });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { if (liveFails < 3) livePoll(); readSoFar(); readNets(); fetchResults(); fetchStatus(); readDrops(); readSqk(); } else { clearTimeout(liveTimer); clearTimeout(soTimer); } });
 
   // ---------- Details: a view of its own in this one page (#details #past #tonight #mine #how #check), with a Back link.
   // No pushState (the claude.ai preview iframe may refuse it): the hash, read on load and on hashchange ----------
@@ -3471,7 +3508,7 @@ footer a { color: var(--ink) }
   }
   { let t = 0; const tk = $('ticker'), hold = () => { clearTimeout(t); tk.classList.add('hold'); }, go = () => { clearTimeout(t); t = setTimeout(() => tk.classList.remove('hold'), 1500); };
     tk.addEventListener('touchstart', hold, { passive: true }); tk.addEventListener('touchend', go); tk.addEventListener('touchcancel', go); tk.addEventListener('focusin', hold); tk.addEventListener('focusout', go); }
-  function renderAll() { renderNights(); renderStage(); paintRing(); renderTonight(); renderMine(); renderHow(); renderCheck(); renderMyHam(); }
+  function renderAll() { renderNights(); renderStage(); paintRing(); renderTonight(); renderMine(); renderHow(); renderCheck(); renderMyHam(); renderLate(); }
   document.querySelectorAll('.hmin').forEach((e) => { e.textContent = HMIN; });
   for (const a of [$('ghlink'), $('ghfoot')]) a.href = CFG.repoUrl;
   renderTicker();
@@ -3482,7 +3519,7 @@ footer a { color: var(--ink) }
   else if (CFG.catchAddress) { const k = $('contract'); k.hidden = false; k.innerHTML = `Each net is a test NFT: contract <a class="addr" href="https://sepolia.etherscan.io/address/${CFG.catchAddress}" target="_blank" rel="noopener">${CFG.catchAddress}</a> on Sepolia (no money value; one net per wallet per night; its catch is drawn on-chain from the night's drops).`;
     const f = $('footc'), a = CFG.catchAddress; f.hidden = false; f.innerHTML = `Contract <a href="https://sepolia.etherscan.io/address/${a}" target="_blank" rel="noopener">Quantum Squeak ${a.slice(0, 6)}…${a.slice(-4)}</a> on Sepolia`; }
   S.view = startView(false);
-  renderAll(); livePoll(); fetchResults(); readSoFar(); readNets(); walletNets(false); readSqk(); readDrops(); readLock();
+  renderAll(); livePoll(); fetchResults(); fetchStatus(); readSoFar(); readNets(); walletNets(false); readSqk(); readDrops(); readLock();
   // a Details hash on load (a shared link, the browser's back button): that view; else the game
   try { if (location.hash.length > 1) route(location.hash.slice(1)); else lastHash = ''; } catch (e) { lastHash = ''; }
   // a wallet that injects itself after the page loaded: casting becomes possible, and its nets and test SQK are read
